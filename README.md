@@ -22,7 +22,7 @@
 
 ---
 
-## 아키텍처 개요
+## 🏗️ 아키텍처 개요
 
 ```
 [ 입력: CNAPP 신호 ]
@@ -51,6 +51,8 @@
 
 ## 기술 스택
 
+영역별로 사용하는 주요 기술은 다음과 같다.
+
 | 영역 | 사용 기술 |
 |---|---|
 | **AWS 보안** | CloudTrail, Config, Security Hub, Prowler, Inspector, IAM Access Analyzer, Macie |
@@ -65,7 +67,7 @@
 
 ---
 
-## 폴더 구조
+## 🏗️ 폴더 구조
 
 ```
 cnapp-agentic/
