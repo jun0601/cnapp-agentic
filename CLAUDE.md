@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 > 이 파일은 Claude Code(및 협업자)가 이 레포에서 작업할 때 가장 먼저 읽는 기준 문서다.
-> 상세 설계는 [docs/project-draft.md](docs/project-draft.md)(메인 설계서 v5)와 [docs/target-app-design.md](docs/target-app-design.md)(타깃 앱 상세)에 있다. **이 둘이 단일 진실 공급원(SSOT)이며, 본 문서는 그 요약 + 협업 규칙이다.**
+> 상세 설계는 [docs/project-draft.md](docs/project-draft.md)(메인 설계서 v5), [docs/target-app-design.md](docs/target-app-design.md)(타깃 앱 상세), [docs/console-app-design.md](docs/console-app-design.md)(관제 앱 상세)에 있다. **이 셋이 단일 진실 공급원(SSOT)이며, 본 문서는 그 요약 + 협업 규칙이다.**
 
 ---
 
@@ -47,7 +47,8 @@ cnapp-agentic/
 ├── README.md
 ├── docs/                     # ★ 설계 SSOT (변경 시 반드시 여기 먼저 반영)
 │   ├── project-draft.md      #   메인 설계서 v5 (방향·범위·아키텍처·로드맵)
-│   └── target-app-design.md  #   타깃 앱 상세 (결함 목록·골든 attack-path)
+│   ├── target-app-design.md  #   타깃 앱 상세 (결함 목록·골든 attack-path)
+│   └── console-app-design.md #   관제 앱 상세 (화면 구조·백엔드·RBAC·RAG 매핑)
 ├── apps/
 │   ├── target/               # 취약 타깃 앱 (커머스 3 마이크로서비스: product/order/member). findings 소스
 │   └── console/              # 관제 앱 (React, posture·findings·attack-path·AI 설명/조치)
@@ -80,7 +81,7 @@ cnapp-agentic/
 
 1. **작업 시작 전 `git pull`** — 항상 최신 main을 받고 시작. 충돌 줄이기.
 2. **작업 후 `commit` + `push`** — 의미 단위로 커밋하고 바로 push해 상대가 받을 수 있게. 커밋 메시지는 `타입: 내용`(예: `feat: ...`, `docs: ...`, `infra: ...`).
-3. **설계 변경은 docs에 먼저 반영** — 방향·범위·구조·결정이 바뀌면 [docs/project-draft.md](docs/project-draft.md) 또는 [docs/target-app-design.md](docs/target-app-design.md)를 **먼저** 업데이트하고, 영향이 있으면 본 CLAUDE.md도 갱신. 코드/문서 불일치를 남기지 않는다.
+3. **설계 변경은 docs에 먼저 반영** — 방향·범위·구조·결정이 바뀌면 [docs/](docs/)의 해당 설계 문서(project-draft / target-app-design / console-app-design)를 **먼저** 업데이트하고, 영향이 있으면 본 CLAUDE.md도 갱신. 코드/문서 불일치를 남기지 않는다.
 4. **무료 티어 가드레일 준수** — Organizations/Identity Center/Control Tower 금지. 종량제 서비스(Config·Security Hub·Inspector·Macie·Defender)는 데모 기간만 켜고 `destroy`. Budgets 알림 유지.
 5. **보안 기본** — 장기 키 커밋 금지(OIDC/IRSA 사용), 시크릿은 Secrets Manager+KMS. 에이전트는 read-only first, 변경은 HITL 승인 경로로만.
 
