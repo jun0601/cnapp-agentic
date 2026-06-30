@@ -1,12 +1,26 @@
 # 에이전틱 AI 기반 멀티클라우드 CNAPP 보안 플랫폼
 
-> 멀티클라우드(AWS 워크로드 + Azure 신원·데이터) 환경의 설정부터 워크로드·IaC 코드까지 **code-to-cloud 보안 위험을 점검·통합·상관분석**하고, 그 위에 **에이전틱 AI(Bedrock 멀티에이전트 + RAG)**로 발견 항목을 설명·우선순위화·자동 개선하는 CNAPP형 보안 플랫폼.
+> 멀티클라우드(**AWS = 워크로드의 주인 / Azure = 신원의 주인(Entra ID)**) 환경의 설정부터 워크로드·IaC 코드까지 **code-to-cloud 보안 위험을 점검·통합·상관분석**하고, 그 위에 **에이전틱 AI(Bedrock 멀티에이전트 + RAG)**로 발견 항목을 설명·우선순위화·자동 개선하는 CNAPP형 보안 플랫폼.
+>
+> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 완료·구현 진입.
+
+### 📂 이 레포는 무엇인가 / docs 안내
+
+설계의 단일 진실 공급원(SSOT)은 `docs/` 폴더이며, 각 문서의 역할은 다음과 같다.
+
+| 문서 | 무엇인지 |
+|---|---|
+| [docs/project-draft.md](docs/project-draft.md) | **전체 설계서(SSOT)** — 방향·범위·핵심 결정(D1~D19)·아키텍처·로드맵·미확정 항목 총괄. 여기부터 읽는다. |
+| [docs/target-app-design.md](docs/target-app-design.md) | **타깃 앱 설계도** — 일부러 취약하게 만드는 고객사 워크로드(findings 소스). 의도적 결함 목록·골든 attack-path. |
+| [docs/console-app-design.md](docs/console-app-design.md) | **관제 앱 설계도** — 우리가 만드는 보안 관제 플랫폼(NOVA 대응). 화면·백엔드·RBAC·RAG↔UI 매핑. |
+| [docs/infra-status.md](docs/infra-status.md) | **인프라 현황 로그** — 설계가 아니라 "지금 실제로 무엇이 구축돼 있는지" 기록. |
+| [CLAUDE.md](CLAUDE.md) | **작업 기준·협업 규칙** — 위 설계서들의 요약 + 협업 규칙. |
 
 ---
 
 ## 핵심 키워드
 
-- **Multi-Cloud** — AWS(워크로드의 주인)와 Azure(신원·데이터의 주인)의 흩어진 보안 상태를 OCSF로 정규화해 단일 뷰로 통합하고, 클라우드 경계를 넘는 위험 경로를 추적한다.
+- **Multi-Cloud** — AWS(워크로드의 주인)와 Azure(신원의 주인, Entra ID)의 흩어진 보안 상태를 OCSF로 정규화해 단일 뷰로 통합하고, **AWS 워크로드 침해가 Azure 신원 장악으로 번지는** 클라우드 경계를 넘는 위험 경로를 추적한다. *각 클라우드의 장점대로 — 컨테이너·클라우드 네이티브 워크로드는 AWS, Microsoft 생태계 신원은 Azure.* (데이터 중복 저장은 명분이 약해, 데이터는 AWS S3에만 둔다.)
 - **CNAPP** — CSPM·CIEM·취약점·KSPM·데이터 보안·attack-path를 하나의 그래프로 묶어, 단일 도구로는 못 잡는 **독성 조합(toxic combination)**을 탐지한다.
 - **Agentic AI** — 질문해야 답하는 챗봇이 아니라, 에이전트가 read-only API를 스스로 호출(tool use)해 증거를 모으고 가설→증거→판정 루프로 위험을 추론한다.
 
@@ -16,7 +30,7 @@
 
 - **6기둥 CNAPP 점검** — CSPM(설정), CIEM(권한), 취약점, KSPM(쿠버네티스), 데이터 보안(DSPM 맛), attack-path를 통합 점검.
 - **에이전틱 AI 분석** — finding 자동 설명(근거·조치법 카드), 위험 우선순위 자동 정렬, attack-path 내러티브 생성, 그리고 read-only tool use로 증거를 능동 수집.
-- **크로스클라우드 attack-path** — "AWS 취약 워크로드 침투 → 과도 권한 측면 이동 → 공개 S3의 PII 탈취 → Azure 민감 데이터 노출"처럼, 개별적으로는 중간 위험인 finding들을 하나의 탈취 경로로 엮어낸다.
+- **크로스클라우드 attack-path** — "AWS 취약 워크로드 침투 → 과도 권한 측면 이동 + **평문 시크릿에서 Azure 자격증명 발견** → 공개 S3의 PII 탈취 → **탈취 자격증명으로 Azure Entra ID 신원 장악(과도권한 앱/계정)**"처럼, 개별적으로는 중간 위험인 finding들을 하나의 신원 탈취 경로로 엮어낸다. *(MVP는 이 경로를 분석·시각화하는 수준, 실제 AWS→Azure 횡단 동작 구현은 보너스.)*
 - **Shift-Left CI 게이트** — PR 단계에서 Checkov/OPA(IaC 미스컨피그)와 Trivy(이미지 CVE)로 검사해, 위험한 변경이 프로덕션에 가기 전에 차단한다.
 - **휴먼인더루프 자동 개선** — 에이전트는 기본적으로 조회만 수행하고, 변경(remediation)은 승인 경로를 통해서만 적용하며 모든 판정·조치를 불변 감사로그로 남긴다.
 
@@ -26,9 +40,9 @@
 
 ```
 [ 입력: CNAPP 신호 ]
-  AWS 설정/워크로드 :  Config · Security Hub · Prowler · Inspector · Trivy · kube-bench · IAM Access Analyzer · Macie
+  AWS 설정/워크로드 :  Config · Security Hub · Prowler · Inspector · Trivy · kube-bench · IAM Access Analyzer · Macie(S3 전용)
   AWS 빌드 게이트   :  CI에서 Checkov/OPA(IaC) · Trivy(이미지)
-  Azure            :  Defender for Cloud · Entra ID(CIEM) · Storage 점검
+  Azure            :  Entra ID(CIEM: 과도권한 앱·위험한 consent·권한상승) · Defender for Cloud(리소스 secure score)
         │  (ASFF / OCSF 정규화)
         ▼
   EventBridge → SQS → Lambda
@@ -38,7 +52,7 @@
   │  거버넌스: 최소권한 · read-only first · 불변 감사로그       │
   └────────────────────────────────────────────────────────────┘
         │
-  [ attack-path 그래프 ]  권한 + 취약점 + 설정 + 데이터 → 탈취 경로(크로스클라우드)
+  [ attack-path 그래프 ]  권한 + 취약점 + 설정 + 데이터 → 탈취 경로(AWS 워크로드→Azure 신원 크로스클라우드)
         │
   위험 → 자동 개선 제안 → 휴먼인더루프(승인) → Step Functions → 감사로그
         │
@@ -55,8 +69,8 @@
 
 | 영역 | 사용 기술 |
 |---|---|
-| **AWS 보안** | CloudTrail, Config, Security Hub, Prowler, Inspector, IAM Access Analyzer, Macie |
-| **Azure 보안** | Defender for Cloud, Microsoft Entra ID, Storage |
+| **AWS 보안** | CloudTrail, Config, Security Hub, Prowler, Inspector, IAM Access Analyzer, Macie(S3 민감데이터 전용) |
+| **Azure 보안** | Microsoft Entra ID(신원·CIEM 핵심), Defender for Cloud(리소스 secure score) — *데이터 저장소 아님* |
 | **워크로드 / 배포** | EKS, ECR, ArgoCD(GitOps), IRSA |
 | **Shift-Left** | GitHub Actions(OIDC), Checkov / OPA, Trivy, kube-bench |
 | **에이전틱 AI** | Amazon Bedrock(멀티에이전트), 수동 RAG, pgvector(RDS/Aurora PostgreSQL) |
@@ -83,10 +97,8 @@ cnapp-agentic/
 
 ## 상세 설계
 
-설계의 배경·결정 근거·로드맵 등 상세 내용은 다음 문서를 참고한다.
+설계의 배경·결정 근거·로드맵 등 상세 내용은 상단 [📂 docs 안내](#-이-레포는-무엇인가--docs-안내) 표의 문서를 참고한다. (project-draft → target-app-design → console-app-design 순)
 
-- [docs/project-draft.md](docs/project-draft.md) — 메인 설계서 (방향·범위·아키텍처·로드맵)
-- [docs/target-app-design.md](docs/target-app-design.md) — 타깃 앱 상세 (결함 목록·골든 attack-path)
-- [CLAUDE.md](CLAUDE.md) — 작업 기준 및 협업 규칙
+---
 
-> 본 프로젝트는 클라우드 보안 엔지니어 포트폴리오 목적의 2인 협업 개인 프로젝트입니다.
+*변경 요약: Azure 역할을 데이터→신원(Entra ID) 중심으로 전환 — 데이터(회원 PII)는 AWS S3 전용·Macie도 S3 전용, Azure는 Entra CIEM + Defender secure score. 크로스클라우드 attack-path를 "AWS 워크로드→Azure 신원 장악" 경로로 갱신. README 상단에 레포 소개·docs 안내 추가.*
