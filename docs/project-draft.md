@@ -270,7 +270,7 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 | `rag/` | corpus 준형 / retrieval 진우 | ❌ 코드 | 이음새=계약⑥ |
 | `attackpath/` | model 준형 / correlation 진우 | ❌ 코드 | 상관규칙 4.4 |
 | `apps/` | target 준형 / console 진우 | ❌ 코드(인프라는 infra/) | |
-| `docs/` `CLAUDE.md` | **안 쪼갬 — 공유** | ❌ | |
+| `docs/` `CLAUDE.md` `troubleshooting.md` | **안 쪼갬 — 공유** | ❌ | `troubleshooting.md`=작업 로그(트러블슈팅+진행) 중앙 1개, `[영역]` 태그 한 줄씩(영역별 파일 금지) |
 
 - **같이 쓰는(공유 편집) 파일은 4개뿐:** `contracts/`, `engine/core/`, `docs/`, `CLAUDE.md`. 나머진 단일 소유라 각자 push해도 충돌 없음.
 - **apply 자동화(병목 방지):** main push → GitHub Actions가 해당 `infra/<영역>` terraform apply. 진우가 콘솔 인프라 필요 시 *사람(준형)*이 아니라 *파이프라인*을 기다림. console 인프라 *요구사항*은 진우가 명세, 구현·CI는 준형 틀.
