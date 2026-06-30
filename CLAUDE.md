@@ -119,7 +119,7 @@ cnapp-agentic/
 
 | 영역 | 준형 | 진우 | 상태 |
 |---|---|---|---|
-| 앱 | 타깃 앱(결함 심기) | 관제 앱(대시보드·시각화) | 확정 |
+| 앱 | **타깃 앱 + 관제 앱(둘 다)** | — (앱 2개 모두 준형 전담) | 확정 |
 | 토대 | CI/CD·Shift-Left·**공유인프라 주도** | 모니터링·관제·추적(Grafana·CloudTrail) | 확정 |
 | 스캐너-CSPM | CSPM(Config·Prowler·Security Hub·**Macie(AWS S3)**) | 워크로드(Inspector·Trivy·kube-bench·**Defender(Azure)**) | 확정 |
 | 스캐너-CIEM | IAM Access Analyzer(AWS) | Entra ID(Azure — **Prowler entra_id_\* 체크**) | 확정 |
