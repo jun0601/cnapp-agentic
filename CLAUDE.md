@@ -17,6 +17,7 @@
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-06-30 / 준형 / CLAUDE.md §6·§7 복구(머지 유실) + §5 손상 수정 + §7.1 Next Up 계획 추가** — `HEAD~4` 머지에서 §6 협업규칙·§7 작업기준이 날아가고 §5 "시간 컷" 불릿이 깨진 채 잘렸던 것 복원(§0의 §6 dead-link 해소). §7.1에 합의된 다음 착수 계획 신설: **착수=둘 동시(contracts+infra 병렬), 데모 컷=절대사수 풀세트, Azure 격리 테넌트=진우 확보.** **`[PULL 필요]`**
 - **2026-06-30 / 준형 / attack-path↔Evidence 순서 2-pass로 통일 + 검증 피드백 3건 미확정 등록** — UC0(§9)와 진우의 트리거/게이트가 상충(Evidence→상관 vs 상관→Evidence)하던 걸 **2-pass**(① 1차 규칙상관이 `attack_path_id` 부여 → ② 트리아지 게이트 → ③ Evidence 증거수집 → ④ 2차 확정·내러티브)로 통일. 추가 검증에서 ①`resource_id` 정규화 규칙 ②INTERNAL `control_id` 카탈로그·매핑 ③remediated 스코프(스캐너별) 미정 발견 → §24 등록(contracts 졸업 시 진우와 확정). `severity_id` 주석 오류("OCSF식" → 내부 컨벤션, 실제 OCSF와 반대) 정정. **`[PULL 필요]`**
 - **2026-06-30 / 진우 / 설계 미확정 9개 항목 전부 닫음** — ① D4 Azure 키리스 인증(Entra Workload Identity Federation) 확정 ② 트리아지 게이트 임계값(`severity_id≤2` OR `attack_path_id!=null`) ③ 자동 조치 카탈로그 MVP 3종(S3 block·SG 제거·IAM diff) ④ 임베딩 모델 Titan v2 서울 확인·fallback(Cohere Embed Multilingual v3) ⑤ RDS 자동재시작 방지(EventBridge Scheduler+Lambda) ⑥ Prowler Azure cron(`0 17 * * *`) ⑦ attack-path 트리거(배치 완료 EventBridge 이벤트) ⑧ §24 타깃앱 세부·자동조치 체크박스 ⑨ console §14 동기화. project-draft·console-app-design·manual-infra 동기화. **`[PULL 필요]`**
 - **2026-06-30 / 준형 / project-draft 17~24번 섹션 복구(유실 사고 수정)** — `cb2c55a`(이음새 계약 커밋)에서 거버넌스(17)·Shift-Left(18)·테스트(19)·KPI(20)·로드맵(21)·비용 가드레일(22)·확장(23)·미확정(24)이 실수로 삭제됐던 것을 `53f8bd6`(v5.4)에서 추출해 복원. console 설계서가 참조하던 17/19/21/24 dead-link 해소. **`[PULL 필요]`**
@@ -124,4 +125,38 @@ cnapp-agentic/
 
 - **의존성(병목):** 0 공유인프라(준형 최우선) → 1 앱·모니터링 ∥ → 2 스캐너 ∥ → 3 수집→정규화 → 4 RAG ∥ → 5 엔진(Evidence∥Reasoning) → 6 출력 ∥ → 7 데모 합류.
 - **공통 계약 7종 초안 확정(project-draft 4.4):** ① OCSF-lite 스키마(`resource_id`·`dedup_key`·`ai_status`) ② 엔진 입출력 ③ attack-path 그래프 JSON ④ Evidence 툴 allowlist ⑤ 수집 봉투(수집부↔정규화부) ⑥ 임베딩 모델+rag_chunk(적재↔검색) ⑦ 엔진 case 핸드오프(트리아지 게이트) + **attack-path 상관규칙 R1~R5**. `contracts/mock-findings.json` 먼저 커밋 → 직렬 의존 끊고 병렬 작업 가능.
-- **시간 컷 우선순�
+- **시간 컷 우선순위:** 엔진 능동조사(1) > attack-path 상관(2) > 스캐너·수집·RAG(3) > 관제앱·CI/CD·포장(4). **"AI가 스스로 증거 모아 공격경로 판단하는 한 장면"** 사수.
+
+**공유 자산(양쪽 함께):** 수집 파이프라인(EventBridge→SQS→Lambda, OCSF 정규화), 에이전틱 엔진 코어(`engine/`), 인프라 골격(`infra/shared/`), 관제 대시보드(`apps/console/`).
+
+---
+
+## 6. 협업 규칙 🔒
+
+1. **작업 시작 전 `git pull`** — 항상 최신 main을 받고 시작. 충돌 줄이기.
+2. **작업 후 `commit` + `push`** — 의미 단위로 커밋하고 바로 push해 상대가 받을 수 있게. 커밋 메시지는 `타입: 내용`(예: `feat: ...`, `docs: ...`, `infra: ...`).
+3. **설계 변경은 docs에 먼저 반영** — 방향·범위·구조·결정이 바뀌면 [docs/](docs/)의 해당 설계 문서(project-draft / target-app-design / console-app-design)를 **먼저** 업데이트하고, 영향이 있으면 본 CLAUDE.md도 갱신. 코드/문서 불일치를 남기지 않는다.
+4. **무료 티어 가드레일 준수** — Organizations/Identity Center/Control Tower 금지. 종량제 서비스(Config·Security Hub·Inspector·Macie·Defender)는 데모 기간만 켜고 `destroy`. Budgets 알림 유지.
+5. **보안 기본** — 장기 키 커밋 금지(OIDC/IRSA 사용), 시크릿은 Secrets Manager+KMS. 에이전트는 read-only first, 변경은 HITL 승인 경로로만.
+
+---
+
+## 7. 앞으로의 작업 기준 🗓️
+
+- **모든 작업은 `docs/`와 이 `CLAUDE.md`를 기준으로 진행한다.** 새 기능·결정·구조 변경은 먼저 설계 문서와 정합성을 확인하고, 어긋나면 문서를 갱신한 뒤 코드를 작성한다.
+- 우선순위 컷라인(설계서 21번): **① 절대사수** = CSPM 본체 + RAG 설명 + 대시보드 + Azure 통합 + Shift-Left + KSPM, **② 보너스** = 공급망 서명·attack-path 정교화·ISMS-P 리포트, **③ 확장** = CWPP 런타임·SOC.
+- 미확정 항목(설계서 24번)은 결정될 때마다 docs에 반영하고 여기 요약을 갱신한다.
+
+### 7.1 다음 착수 계획 (Next Up — 2026-06-30 준형 합의, 완료 시 갱신)
+
+> 전략 = **목업우선**(`contracts/mock-findings.json` 먼저 → 직렬 의존 끊고 병렬). **진우 검증 대기 중인 선행 결정:** attack-path **2-pass 순서**(project-draft §9·4.4), **§24 신규 미확정 3건**(`resource_id` 캐논 규칙·INTERNAL `control_id` 카탈로그·remediated 스코프).
+
+**합의된 방향:**
+- **착수 = 둘 동시(병렬).** 준형이 `contracts/` 졸업과 `infra/shared` 스캐폴드를 같은 구간에 진행.
+- **데모 컷 = 절대사수 풀세트.** CSPM 본체+RAG 설명+대시보드+Azure(Entra) 통합+Shift-Left+KSPM 전부 real 목표(설계서 21번 ①). ※시간 부족 시 컷 순서는 위 **시간 컷 우선순위**(엔진 능동조사 1경로 사수)가 안전망.
+- **Azure 격리 테넌트 = 진우 확보**(골든[4]·SSO 전제 → manual-infra 기록). 진우의 Azure/Defender·Entra CIEM 작업과 연결.
+
+**단계:**
+1. **`contracts/` 졸업**(준형 주도·진우 검증) — 계약 7종 `*.json` + `mock-findings.json`(R1~R5 체이닝 골든 시나리오). 이때 §24 3건 같이 확정 → 양쪽 병렬 unblock.
+2. **병렬 토대** — 준형: `infra/shared` 스캐폴드(VPC·EKS·OIDC·RDS pgvector·ECR·Bedrock IAM + state 버킷 부트스트랩, apply는 검증 후) / 진우: 목업 먹인 콘솔 골격 + findings 읽기 API.
+3. **절대사수 한 장면** — 엔진 능동조사 1경로(Evidence tool-use real) + 골든 attack-path 1경로 시각화 = 데모 심장.
