@@ -20,7 +20,7 @@
 | **계정 기본** | 단일 계정, 콘솔 기본 리전 **서울(ap-northeast-2)**. 계정 별칭 설정 완료. Organizations/Identity Center/Control Tower **미활성 확인됨**. | ✅ |
 | **루트 계정** | MFA(가상 MFA 앱) 활성화. 액세스 키 없음(보유 시 즉시 삭제). 이후 비상용(결제 변경 등)으로만 사용. | ✅ |
 | **결제 가드레일** | IAM 사용자/역할의 결제 정보 액세스 활성화. Free Tier 알림 ON. AWS Budgets **$50/$100** 2단계 알림(임계 80%/100%, 본인+협업자 이메일). | ✅ |
-| **IAM 사용자** | `Admins` 그룹(`AdministratorAccess`) 생성, 본인·협업자 각자 IAM 사용자 소속. **각자 MFA 필수.** 장기 Access Key 미발급 원칙(CLI는 임시 자격증명만). | ✅ |
+| **IAM 사용자** | `Admins` 그룹(`AdministratorAccess`) 생성. 사용자: **`jw_kim`(진우)·`jh_lee`(준형)** — 모두 그룹 소속. **각자 MFA 필수.** 장기 Access Key 미발급 원칙(CLI는 임시 자격증명만). | ✅ |
 | **CloudTrail** | 멀티 리전 트레일 생성(D2 전 리전 수집). 관리 이벤트 읽기/쓰기 활성화. 암호화 SSE-S3(기본). 로그 파일 검증 ON. SNS·CloudWatch Logs 연동 OFF. | ✅ |
 
 ---
@@ -28,13 +28,15 @@
 ## 2. Terraform 부트스트랩 리소스 — 미착수
 
 > Terraform이 state를 저장하기 위해 **Terraform 실행 전** 콘솔/CLI로 먼저 만들어야 하는 리소스. 이후 Terraform이 직접 관리하지 않는다.
-> `infra/` 폴더별 state 파일이 분리되므로 버킷 1개 + prefix로 구분하거나 버킷 3개로 나눌 수 있다.
+> `infra/` 폴더별 state 파일을 분리하기 위해 버킷 1개 + prefix 방식 사용.
 
 | 리소스 | 내용 | 상태 |
 |---|---|---|
-| **S3 state 버킷** | Terraform state 저장용. 버저닝 ON, SSE-S3, public access 차단. `infra/{shared,target,console}` prefix로 분리 사용. | 미착수 |
-| **DynamoDB 락 테이블** | `LockID`(String) 키. 동시 `terraform apply` 충돌 방지. | 미착수 |
+| **S3 state 버킷** | Terraform state + 잠금 파일 저장. 버저닝 ON, SSE-S3, public access 차단. `infra/{shared,target,console}` prefix로 분리. | 미착수 |
 
+> **DynamoDB 락 테이블 미사용 — S3 네이티브 락 채택 (Terraform 1.10+).**
+> 백엔드 설정에 `use_lockfile = true` 추가 시 S3 버킷 자체에 잠금 파일(`.tflock`)을 저장해 동시 apply를 방지한다. 별도 DynamoDB 테이블 없이 버킷 하나로 state + 락을 모두 처리 — 부트스트랩 리소스 최소화.
+>
 > 버킷 이름은 전 세계 고유 — 실제 생성 시 팀 규칙에 맞게 정하고 이 표에 실제 이름을 기록한다.
 
 ---
