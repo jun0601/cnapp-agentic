@@ -16,6 +16,7 @@
 
 > 형식: `날짜 / 작성자(트랙1·트랙2 또는 이름) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-06-30 / 트랙1 / 작업 분담 균형안 도입** — 각 영역(스캐너·수집·엔진·RAG·attack-path)을 반반으로, 의존성 순서·합의 인터페이스 2개(OCSF 스키마·엔진 입출력)·시간 컷 우선순위(엔진 능동조사 사수) 명시. 설계서 4·21번 + CLAUDE.md 5번 동기화. *핵심 영역 분담은 트랙2 협의 후 최종 확정.* **`[PULL 필요]`**
 - **2026-06-30 / 트랙1 / Azure 역할을 데이터→신원(Entra ID) 중심으로 전면 전환** — 데이터(회원 PII)는 AWS S3 전용·Macie도 AWS 전용, Azure 점검은 Entra CIEM + Defender secure score, 골든 시나리오를 크로스클라우드 신원 탈취 경로로 교체. 설계서 3종·README·CLAUDE.md 모두 동기화. **`[PULL 필요]`**
 
 ### 변경 로그 아카이브
@@ -86,17 +87,25 @@ cnapp-agentic/
 
 ---
 
-## 5. 작업 분담 (효율용 트랙)
+## 5. 작업 분담 (균형안 — 효율용 트랙)
 
-> **원칙:** 다른 환경에서 병렬 작업하려고 일을 나누되, **둘 다 상대 영역까지 완전히 이해**한다. 분담은 효율 수단이지 분리 소유가 아니다.
+> **원칙:** 일을 나누되 **둘 다 상대 영역까지 완전히 이해**한다. 각 영역을 반반 갈라 양쪽이 핵심을 다 만진다. 상세·의존성·인터페이스는 설계서 4번이 SSOT.
 
-아래 표는 트랙 1·트랙 2가 각각 맡는 새 역량·보안 영역·핵심 기술을 정리한 것이다.
+**앱·토대:** 트랙1 = 타깃 앱(결함 심기) · CI/CD · Shift-Left · **공유인프라 주도** / 트랙2 = 관제 앱(대시보드·시각화) · 모니터링·관제·추적(Grafana·CloudTrail).
 
-| | **트랙 1** | **트랙 2** |
+| 영역(반반) | 트랙1 | 트랙2 |
 |---|---|---|
-| **새 역량** | CI/CD · GitOps · Shift-Left | 관측 · Grafana · 로그 파이프라인 |
-| **보안 영역** | **CSPM 본체 + Shift-Left CI 게이트** | **워크로드(취약점·KSPM) + CIEM + attack-path 그래프** |
-| **핵심 기술** | GitHub Actions·OIDC·ArgoCD, Checkov/Trivy(CI), Config·Security Hub CSPM·Prowler | Inspector·Trivy(런타임)·kube-bench, IAM Access Analyzer, kube-prometheus-stack·로그 |
+| 스캐너 | CSPM: Config·Prowler·Security Hub·**Macie(AWS S3)** | 워크로드: Inspector·Trivy·kube-bench·**Defender(Azure)** |
+| 수집·정규화 | 수집부: EventBridge→SQS | 정규화부: Lambda→OCSF |
+| 엔진(Bedrock) | **Evidence(tool use)**·Triage | Hypothesis·**Reasoning**·Orchestrator |
+| RAG | 코퍼스·임베딩·pgvector 적재 | 검색·LLM 답변 생성 |
+| attack-path | 그래프 데이터 모델 | 상관 로직·내러티브 |
+
+> ⚠️ 핵심 영역 분담은 **트랙2 협의 후 최종 확정**.
+
+- **의존성(병목):** 0 공유인프라(트랙1 최우선) → 1 앱·모니터링 ∥ → 2 스캐너 ∥ → 3 수집→정규화 → 4 RAG ∥ → 5 엔진(Evidence∥Reasoning) → 6 출력 ∥ → 7 데모 합류.
+- **먼저 합의할 인터페이스 2개:** ① **OCSF 스키마**(findings 정규화 형식, 공통 계약) ② **엔진 입출력 형식**(Evidence→Reasoning, 프로젝트의 심장). 이 둘만 정하면 나머지는 병렬.
+- **시간 컷 우선순위:** 엔진 능동조사(1) > attack-path 상관(2) > 스캐너·수집·RAG(3) > 관제앱·CI/CD·포장(4). **"AI가 스스로 증거 모아 공격경로 판단하는 한 장면"** 사수.
 
 **공유 자산(양쪽 함께):** 수집 파이프라인(EventBridge→SQS→Lambda, OCSF 정규화), 에이전틱 엔진 코어(`engine/`), 인프라 골격(`infra/shared/`), 관제 대시보드(`apps/console/`).
 
