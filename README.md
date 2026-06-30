@@ -2,7 +2,7 @@
 
 > 멀티클라우드(**AWS = 워크로드의 주인 / Azure = 신원의 주인(Entra ID)**) 환경의 설정부터 워크로드·IaC 코드까지 **code-to-cloud 보안 위험을 점검·통합·상관분석**하고, 그 위에 **에이전틱 AI(Bedrock 멀티에이전트 + RAG)**로 발견 항목을 설명·우선순위화·자동 개선하는 CNAPP형 보안 플랫폼.
 >
-> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 완료·구현 진입.
+> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 1차 완료(SSOT 정합) · 구현 진입 — 공통 계약 졸업 + 공유 인프라 스캐폴드 완료.
 
 ### 📂 이 레포는 무엇인가 / docs 안내
 
@@ -88,7 +88,8 @@ cnapp-agentic/
 ├── CLAUDE.md            작업 기준 · 협업 규칙 · 변경 로그(읽기 우선)
 ├── README.md
 ├── troubleshooting.md   작업 로그 (트러블슈팅 + 진행, [영역] 태그)
-├── contracts/           ★공유 이음새 계약(*.json) + mock-findings.json + control-catalog.json
+├── .github/workflows/   CI — contracts 정합 게이트(validate.py 4-assert)
+├── contracts/           ★공유 이음새 계약(7종 JSON Schema) + control-catalog + 골든 mock + validate.py
 ├── docs/                설계 SSOT — project-draft · target-app-design · console-app-design · manual-infra
 ├── apps/
 │   ├── target/          취약 타깃 앱 (product · order · member) — 코드만
@@ -106,6 +107,18 @@ cnapp-agentic/
 
 ---
 
+## 🚧 구현 현황 (Status)
+
+| 영역 | 상태 |
+|---|---|
+| **공통 계약 (`contracts/`)** | ✅ **졸업** — 계약 7종 JSON Schema + INTERNAL control 카탈로그(13종) + 골든 시나리오 mock(findings·attack-path·case). `validate.py` 4-assert + GitHub Actions CI 게이트로 정합 보장 |
+| **공유 인프라 (`infra/shared`)** | ✅ **스캐폴드** — VPC·NAT Instance·EKS(spot·IRSA)·ECR·RDS pgvector·GitHub OIDC·Evidence/Bedrock IAM. `terraform validate` 통과. apply는 게이트(state 버킷·Bedrock 모델 액세스·Azure 테넌트) 후 |
+| 타깃 앱 · 스캐너 · 수집/정규화 · 엔진 · 관제 콘솔 | ⬜ **예정** — 타깃 앱 기능 베이스 = AWS retail-store-sample-app 확정 |
+
+> **전략 = 계약·목업 우선.** 실제 스캐너/엔진을 기다리지 않고 `contracts/mock-*.json`으로 관제 콘솔·엔진을 끝까지 만든 뒤 실데이터로 교체 — 직렬 의존을 두 병렬 트랙으로 분리한다.
+
+---
+
 ## 상세 설계
 
 설계의 배경·결정 근거·로드맵 등 상세 내용은 상단 [📂 docs 안내](#-이-레포는-무엇인가--docs-안내) 표의 문서를 참고한다. (project-draft → target-app-design → console-app-design 순)
@@ -115,3 +128,5 @@ cnapp-agentic/
 *변경 요약: Azure 역할을 데이터→신원(Entra ID) 중심으로 전환 — 데이터(회원 PII)는 AWS S3 전용·Macie도 S3 전용, Azure는 Entra CIEM + Defender secure score. 크로스클라우드 attack-path를 "AWS 워크로드→Azure 신원 장악" 경로로 갱신. README 상단에 레포 소개·docs 안내 추가.*
 
 *변경 요약(2): 폴더 구조를 실제 구조(`contracts`·`scanners`·`pipeline`·`rag`·`attackpath`·`troubleshooting.md`)로 갱신 — 컴포넌트 단위 분리·terraform 레이어드 반영(docs/project-draft 4.6과 정합).*
+
+*변경 요약(3): 구현 진입 반영 — 상단 상태 갱신 + **구현 현황(Status) 표 신설**(contracts 졸업·infra/shared 스캐폴드·CI 게이트), 폴더 트리에 `.github/workflows` 추가.*
