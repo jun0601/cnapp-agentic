@@ -13,7 +13,7 @@
 | [docs/project-draft.md](docs/project-draft.md) | **전체 설계서(SSOT)** — 방향·범위·핵심 결정(D1~D19)·아키텍처·로드맵·미확정 항목 총괄. 여기부터 읽는다. |
 | [docs/target-app-design.md](docs/target-app-design.md) | **타깃 앱 설계도** — 일부러 취약하게 만드는 고객사 워크로드(findings 소스). 의도적 결함 목록·골든 attack-path. |
 | [docs/console-app-design.md](docs/console-app-design.md) | **관제 앱 설계도** — 우리가 만드는 보안 관제 플랫폼(NOVA 대응). 화면·백엔드·RBAC·RAG↔UI 매핑. |
-| [docs/infra-status.md](docs/infra-status.md) | **인프라 현황 로그** — 설계가 아니라 "지금 실제로 무엇이 구축돼 있는지" 기록. |
+| [docs/manual-infra.md](docs/manual-infra.md) | **수동 관리 리소스 현황** — 콘솔/CLI로 직접 설정한 리소스(계정 초기화·Terraform 부트스트랩·Azure SSO 등). Terraform 관리 대상 제외. |
 | [CLAUDE.md](CLAUDE.md) | **작업 기준·협업 규칙** — 위 설계서들의 요약 + 협업 규칙. |
 
 ---
@@ -73,7 +73,7 @@
 | **Azure 보안** | Microsoft Entra ID(신원·CIEM 핵심), Defender for Cloud(리소스 secure score) — *데이터 저장소 아님* |
 | **워크로드 / 배포** | EKS, ECR, ArgoCD(GitOps), IRSA |
 | **Shift-Left** | GitHub Actions(OIDC), Checkov / OPA, Trivy, kube-bench |
-| **에이전틱 AI** | Amazon Bedrock(멀티에이전트), 수동 RAG, pgvector(RDS/Aurora PostgreSQL) |
+| **에이전틱 AI** | Amazon Bedrock(멀티에이전트), 수동 RAG, pgvector(RDS PostgreSQL t3.micro) |
 | **수집 / 오케스트레이션** | EventBridge, SQS, Lambda, Step Functions, OCSF 정규화 |
 | **인증** | Microsoft Entra ID(IdP) → Cognito → ALB(authenticate-oidc) |
 | **프론트 / 관측** | React, S3 + CloudFront, kube-prometheus-stack |

@@ -2,7 +2,7 @@
 
 > **문서 종류:** 전체 설계서(SSOT) — 프로젝트 방향·결정·아키텍처 총괄
 > **목적:** 이 프로젝트를 *무엇을·왜·어떻게* 만드는지의 단일 진실 공급원. 방향·범위·핵심 결정(D1~D19)·아키텍처·로드맵·미확정 항목을 총괄한다.
-> **관련 문서:** 타깃 앱 상세 → [target-app-design.md](target-app-design.md) · 관제 앱 상세 → [console-app-design.md](console-app-design.md) · 실제 구축 현황 → [infra-status.md](infra-status.md) · 협업 규칙 → [CLAUDE.md](../CLAUDE.md)
+> **관련 문서:** 타깃 앱 상세 → [target-app-design.md](target-app-design.md) · 관제 앱 상세 → [console-app-design.md](console-app-design.md) · 수동 관리 리소스 현황 → [manual-infra.md](manual-infra.md) · 협업 규칙 → [CLAUDE.md](../CLAUDE.md)
 > **읽는 순서:** 처음 합류한 사람은 이 문서를 먼저 통독한 뒤 타깃/관제 상세로 내려간다. 강사·리뷰어는 1·5·6·11번만 봐도 방향이 잡힌다.
 >
 > 상태: 방향·범위·분담·앱·멀티클라우드 확정 / 구현 진입 직전
