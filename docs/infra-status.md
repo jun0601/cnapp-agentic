@@ -19,9 +19,24 @@
 
 ---
 
+## Azure / Entra ID 초기 설정 — 미착수
+
+> 아직 실제 설정 전. 아래는 데모 시작 전 완료해야 할 항목 목록.
+
+| 항목 | 상태 | 메모 |
+|---|---|---|
+| 데모 전용 Entra 테넌트 or sandbox 구독 | 미착수 | 격리 환경 권장(target-app-design.md 6번 SP 스코프 주의) |
+| App Registration — SSO 연동용 | 미착수 | Cognito SAML 연동, `cnapp-viewer`/`cnapp-approver` 그룹 생성 |
+| App Registration — 과도권한 결함용 | 미착수 | Directory.ReadWrite.All 등 결함 시나리오용(격리 테넌트에만) |
+| Service Principal — order 평문 시크릿용 | 미착수 | Directory.Read.All + Application.Read.All 스코프만. 만료일 = 데모+1주 |
+| Defender for Cloud | 미착수 | 데모 기간만 활성, 이후 비활성 |
+| Prowler Azure 스캔 권한(SP) | 미착수 | OCSF 출력 → S3 파이프라인 연동용 read-only SP |
+
+---
+
 ## infra/shared (Terraform) — 미착수
 
-- VPC, EKS, GitHub OIDC→IAM Role 등. 시작 전 레포 구조(모노레포 유지 여부, Terraform 모듈 경계) 결정 필요(project-draft.md 24번 미확정 항목).
+- VPC, EKS, GitHub OIDC→IAM Role, NAT Instance(t3.nano), S3/DynamoDB Gateway Endpoint 등. **레포 = 모노레포 확정**(project-draft 24번), Terraform state는 `infra/{shared,target,console}`별 분리.
 
 ## infra/target — 미착수
 

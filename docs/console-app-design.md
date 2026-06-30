@@ -41,11 +41,11 @@
 | 화면 | 내용 | 연관 유스케이스 |
 |---|---|---|
 | **로그인** | Entra ID SSO (ALB authenticate-oidc 리다이렉트) | 10번 |
-| **대시보드 홈** | AWS+Azure secure score 나란히, 6기둥 요약 카드, **클라우드 경계를 가로지르는 최근 크로스클라우드 attack-path 배너**(멀티클라우드 차별점을 첫 화면에서 강조) | — |
+| **대시보드 홈** | **AWS secure score 카드(주·크게) + Azure Entra CIEM/Defender score 카드(보조·작게)** — 80/20 비중 반영. 6기둥 요약 카드(AWS 중심·Azure CIEM 보조), **클라우드 경계를 가로지르는 최근 크로스클라우드 attack-path 배너**(멀티클라우드 차별점을 첫 화면에서 강조) | — |
 | **Findings 목록** | 6기둥 필터(CSPM/CIEM/취약점/KSPM/데이터/attack-path), 클라우드 필터(AWS/Azure), 상태 필터(open/remediated/suppressed, 기본 open), AI 우선순위 정렬(기본값) | UC2 |
 | **Finding 상세** | AI 설명 카드(왜 위험한지+근거 CIS/KEV+조치법), Evidence 탭(능동 수집한 API 호출·결과), 신뢰점수, 상태 이력(open→remediated 타임라인) | UC0, UC1 |
 | **Attack-path 그래프** | 노드(리소스)+엣지(관계) 시각화, **AWS 워크로드/Azure 신원 클라우드 경계를 시각적으로 구분(레인/박스)하고 경계를 넘는 크로스클라우드 엣지를 강조**, "공격자가 AWS 워크로드로 들어와 ~를 타고 **Azure Entra ID 신원까지 장악**" 내러티브 텍스트 | UC3 |
-| **조치(Remediation)** | 제안 Fix(Terraform/K8s diff), dry-run 결과, 승인/반려 버튼 → Step Functions 진행 상태 | UC4, 17번 HITL |
+| **조치(Remediation)** | 제안 Fix(Terraform/K8s diff), dry-run 결과, 승인/반려 버튼 → Step Functions 진행 상태. **MVP 범위: AWS findings만 자동 조치(Terraform/K8s diff + HITL 실행). Azure findings는 조치 가이드 텍스트 표시 + "수동 조치 필요" 안내(Azure 자동 remediation은 확장 보너스).** | UC4, 17번 HITL |
 | **컴플라이언스 리포트** | ISMS-P 미준수 매핑 + 권고, 내보내기(PDF) | UC5 (보너스) |
 | **자연어 질의(보조)** | 화면 한 귀퉁이 챗 위젯. RAG 조회 보조용, 메인 아님 | — |
 | **감사로그 뷰어** | 모든 AI 판정의 근거·증거·승인 이력 읽기 전용 조회 | 17번 |
@@ -106,14 +106,15 @@
                                                               │ (read-only IAM 역할)
                                             ┌─────────────────┼─────────────────┐
                                             ▼                 ▼                 ▼
-                                   RDS Aurora PostgreSQL   Bedrock        Step Functions
-                                   (pgvector: findings+RAG)  (자연어 질의/   (조치 승인 후 실행,
-                                                              재분석 보조)     StartExecution 트리거만)
+                                   RDS PostgreSQL t3.micro  Bedrock        Step Functions
+                                   (pgvector: findings+RAG,  (자연어 질의/   (조치 승인 후 실행,
+                                    Lambda VPC 배치로 접근)   재분석 보조)     StartExecution 트리거만)
 ```
 
 - `console-backend`(Lambda)는 **read-only IAM 역할**을 기본으로 가지며, 조치 실행은 직접 하지 않고 Step Functions `StartExecution`만 호출(분리된 승인 경로, 17번 거버넌스와 일치).
 - 공유 에이전틱 엔진(`engine/`)은 별도 Lambda/Step Functions로 동작하며 findings 파이프라인 쪽에서 이미 pgvector에 결과를 적재 — console-backend는 **주로 읽기**, 자연어 질의·재분석 요청 시에만 Bedrock을 능동 호출.
 - RDS는 타깃 앱 워크로드가 접근하지 않는 관제 전용 경계에 둔다(타깃은 findings 저장소를 모름, 9번 agentless 원칙).
+- **Lambda→RDS 연결:** Lambda를 RDS와 동일 VPC private subnet에 배치(VPC Lambda 방식). RDS Proxy 미사용($25/월 과함). cold start +1~2초는 데모에서 허용.
 
 > 대안(별도 EKS 클러스터)은 분리는 달성하나 비용·운영 부담이 커 데모 범위에서 제외. 추후 관제 백엔드가 상시 운영·확장성을 요구하면 재검토.
 
@@ -265,7 +266,7 @@ API가 있는 곳은 ① 스캐너↔클라우드 API(읽기) ② console-backen
 | 프론트엔드 | React, S3+CloudFront | 정적 호스팅 |
 | 인증 | Cognito(SP/허브) ← Entra ID(IdP, SAML) ← ALB authenticate-oidc | 10번 |
 | 백엔드 | **Lambda(서버리스) ← ALB(authenticate-oidc)** — 타깃 EKS와 분리 | 4번(v2 확정) |
-| 데이터/RAG | RDS Aurora PostgreSQL + pgvector | D9, 16번 |
+| 데이터/RAG | **RDS PostgreSQL t3.micro** + pgvector | D9, 16번. free tier·이후 $13/월. Lambda VPC 배치로 접근(RDS Proxy 미사용) |
 | AI | Bedrock(에이전틱 엔진 + 자연어 질의 보조) | 9번(project-draft) |
 | 조치 실행 | Step Functions + S3 Object Lock(감사) | 17번 |
 | 권한 | read-only IAM 기본(Lambda 실행 역할), 조치만 격상 역할 분리 | D5, 17번 |
@@ -280,7 +281,7 @@ API가 있는 곳은 ① 스캐너↔클라우드 API(읽기) ② console-backen
 - S3(정적 자산) + CloudFront 배포
 - **ALB + 리스너 규칙(`authenticate-oidc` 액션) → Lambda 타깃 그룹**(타깃 EKS와 별개 환경)
 - **console-backend Lambda 함수**(read-only 실행 역할) + 로그 그룹
-- RDS Aurora PostgreSQL(pgvector extension 활성화) — `engine/`과 공유, 관제 전용 경계(타깃 워크로드 비접근)
+- **RDS PostgreSQL t3.micro**(pgvector extension 활성화) — `engine/`과 공유, 관제 전용 경계(타깃 워크로드 비접근). Lambda와 동일 VPC private subnet 배치(VPC Lambda 방식)
 - Step Functions 상태 머신(조치 카탈로그 1차 범위는 project-draft 24번 미확정 항목, 결정 시 본 문서 갱신)
 - IAM: 콘솔용 read-only 롤 / 조치 실행용 격상 롤 분리(별도 정책)
 

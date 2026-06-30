@@ -16,6 +16,7 @@
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-06-30 / 준형 / 비용 최적화 + 설계 잔여 갭 해소** — Aurora→RDS PostgreSQL t3.micro 확정, NAT Instance+Gateway Endpoint 전략, Prowler Azure 파이프라인 진입 확정, 에이전트별 Bedrock 모델 배정(Haiku/Sonnet), CIEM 분담 독립 행, Entra CIEM RAG 룰북, D11·13번 갱신. project-draft v5.4·console-app-design·CLAUDE.md·target-app-design·infra-status.md 동기화. **`[PULL 필요]`**
 - **2026-06-30 / 준형 / 공통 계약 4종 초안 확정 + 미확정 2건 닫음** — project-draft **4.4를 "합의 계약"으로 확장**해 ①OCSF-lite finding 스키마(식별자 `resource_id`로 일반화—Azure ARN 부재 대응, `dedup_key` 중복제거, `ai_status` AI레이어 분리) ②엔진 입출력(Evidence→Reasoning) ③attack-path 그래프 JSON ④Evidence 툴 allowlist(read-only) 초안을 박음. 코딩 시 `contracts/*.json`으로 졸업(별도 schema.md 안 만듦). **계약우선/목업우선 전략**(목업 finding 먼저 커밋→직렬 의존 끊기) 명시. 24번 미확정에서 **레포=모노레포 확정**, **attack-path 계산=커스텀 엔진 확정**. console 5·6.1을 4.4 참조 + `resource_id`로 동기화. ※핵심영역 분담·demo-real 범위는 여전히 진우 협의 대기. **`[PULL 필요]`**
 - **2026-06-30 / 준형 / 작업 분담 표 통합 + 실명(준형/진우) 반영** — 앱·토대(확정)와 핵심 영역(협의중)을 한 표의 상태 열로 통합, 담당을 트랙1·트랙2 → 준형·진우로 교체. 분담은 상시 협의로 조정되는 살아있는 문서임을 명시. 두 파일 동기화.
 - **2026-06-30 / 준형 / 작업 분담 균형안 도입** — 각 영역(스캐너·수집·엔진·RAG·attack-path)을 반반으로, 의존성 순서·합의 인터페이스 2개(OCSF 스키마·엔진 입출력)·시간 컷 우선순위(엔진 능동조사 사수) 명시. 설계서 4·21번 + CLAUDE.md 5번 동기화. *핵심 영역 분담은 진우 협의 후 최종 확정.* **`[PULL 필요]`**
@@ -98,7 +99,8 @@ cnapp-agentic/
 |---|---|---|---|
 | 앱 | 타깃 앱(결함 심기) | 관제 앱(대시보드·시각화) | 확정 |
 | 토대 | CI/CD·Shift-Left·**공유인프라 주도** | 모니터링·관제·추적(Grafana·CloudTrail) | 확정 |
-| 스캐너 | CSPM(Config·Prowler·Security Hub·**Macie(AWS S3)**) | 워크로드(Inspector·Trivy·kube-bench·**Defender(Azure)**) | 협의중 |
+| 스캐너-CSPM | CSPM(Config·Prowler·Security Hub·**Macie(AWS S3)**) | 워크로드(Inspector·Trivy·kube-bench·**Defender(Azure)**) | 협의중 |
+| 스캐너-CIEM | IAM Access Analyzer(AWS) | Entra ID(Azure — **Prowler entra_id_\* 체크**) | 협의중 |
 | 수집·정규화 | 수집부(EventBridge→SQS) | 정규화부(Lambda→OCSF) | 협의중 |
 | 엔진(Bedrock) | **Evidence(tool use)**·Triage | Hypothesis·**Reasoning**·Orchestrator | 협의중 |
 | RAG | 코퍼스·임베딩·pgvector 적재 | 검색·LLM 답변 생성 | 협의중 |
@@ -107,7 +109,7 @@ cnapp-agentic/
 > 앱·토대=확정, 핵심 영역(스캐너·수집·엔진·RAG·attack-path)=**협의중**(둘이 상시 조율).
 
 - **의존성(병목):** 0 공유인프라(준형 최우선) → 1 앱·모니터링 ∥ → 2 스캐너 ∥ → 3 수집→정규화 → 4 RAG ∥ → 5 엔진(Evidence∥Reasoning) → 6 출력 ∥ → 7 데모 합류.
-- **먼저 합의할 인터페이스 2개:** ① **OCSF 스키마**(findings 정규화 형식, 공통 계약) ② **엔진 입출력 형식**(Evidence→Reasoning, 프로젝트의 심장). 이 둘만 정하면 나머지는 병렬.
+- **공통 계약 4종 초안 확정(project-draft 4.4):** ① OCSF-lite 스키마(`resource_id`·`dedup_key`·`ai_status`) ② 엔진 입출력(Evidence→Reasoning) ③ attack-path 그래프 JSON ④ Evidence 툴 allowlist(read-only). `contracts/mock-findings.json` 먼저 커밋 → 직렬 의존 끊고 병렬 작업 가능.
 - **시간 컷 우선순위:** 엔진 능동조사(1) > attack-path 상관(2) > 스캐너·수집·RAG(3) > 관제앱·CI/CD·포장(4). **"AI가 스스로 증거 모아 공격경로 판단하는 한 장면"** 사수.
 
 **공유 자산(양쪽 함께):** 수집 파이프라인(EventBridge→SQS→Lambda, OCSF 정규화), 에이전틱 엔진 코어(`engine/`), 인프라 골격(`infra/shared/`), 관제 대시보드(`apps/console/`).

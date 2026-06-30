@@ -150,6 +150,7 @@ LLM이 이 신호들(취약점+KSPM+CIEM+CSPM+데이터, **AWS 워크로드→Az
 - **결함 토글:** 결함을 모듈/변수로 켰다 껐다 가능하게 → "결함 있을 때 잡히나 / 고치면 사라지나" 테스트 + 다양한 조합 attack-path 테스트.
 - **golden findings 세트:** 심은 결함 목록 = 기대 findings. CI에서 "전부 탐지됐나" 자동 회귀 테스트.
 - **배포:** EKS(product/order/member 파드) + S3(member PII 버킷) + Azure Entra ID(App Registration·SP, 데이터 저장소 아님). ArgoCD GitOps로 배포(트랙1 CI/CD).
+- **Azure SP 스코프 주의:** order 파드에 심는 "평문 Azure SP 자격증명"은 실제 Entra SP. **`Directory.Read.All` + `Application.Read.All` 수준만 부여** — `Directory.ReadWrite.All` 등 쓰기 권한 절대 금지(실수로 사용 시 실제 테넌트 피해). **데모 전용 격리 테넌트**(별도 Entra 테넌트 또는 sandbox 구독 분리) 권장. SP 만료일 = 데모 종료일 +1주(만료 없는 SP 결함은 IaC 설정으로 시나리오상 심되, 실제 자격증명 자체에는 만료 적용).
 
 ---
 
