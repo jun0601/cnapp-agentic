@@ -15,6 +15,7 @@
 
 > 예시(실제 발생 시 이 형식으로 교체·추가):
 
+- `2026-06-30 / 준형 / [contracts] 진우 9개 확정 검증 — attack-path 상관과 Evidence 실행순서 상충 발견(UC0 vs 트리거/게이트) → 2-pass(1차 규칙상관→트리아지 게이트→Evidence→2차 확정)로 docs 통일. dedup용 resource_id 캐논·INTERNAL control_id 카탈로그·remediated 스캐너별 스코프 3건은 §24 미확정 등록`
 - `2026-06-30 / 준형 / [docs] project-draft 17~24번이 커밋 cb2c55a에서 파일 꼬리째 유실된 것 발견 → git show 53f8bd6(v5.4)에서 ## 17~끝 구간 추출해 복원, 이음매 빈 줄 정리`
 - `2026-06-30 / 준형 / [docs] git pull이 .git/index.lock·ORIG_HEAD.lock stale로 막힘 → del /S /Q .git\*.lock 후 재pull로 해결`
 <!-- 여기부터 실제 항목을 위에 추가 -->
