@@ -5,15 +5,34 @@
 
 ---
 
+## 0. 작업 규칙 (모든 클로드·협업자가 지킬 것) ⚡
+
+1. **시작 전:** 어떤 작업이든 시작 전 반드시 이 **CLAUDE.md를 먼저 읽고**, `git pull`로 최신 main을 받는다.
+2. **변경 로그 기록:** 작업 중 중요한 변경·결정·방향 전환이 생기면 아래 [변경 로그](#변경-로그-최신이-위로)에 한 줄로 남긴다. *사소한 수정(오타·포맷 등)은 적지 않는다 — 다른 사람이 알아야 할 것만.*
+3. **`[PULL 필요]` 태그:** 상대가 반드시 pull해야 할 중요 변경(설계 방향 전환, 핵심 결정, 구조 변경)은 변경 로그에 **`[PULL 필요]`** 태그를 붙여 명시한다.
+4. **작업 후:** `commit` + `push`로 공유한다(커밋 메시지 `타입: 내용`). 상세 협업 규칙은 [6번](#6-협업-규칙-) 참조.
+
+### 변경 로그 (최신이 위로)
+
+> 형식: `날짜 / 작성자(트랙1·트랙2 또는 이름) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
+
+- **2026-06-30 / 트랙1 / Azure 역할을 데이터→신원(Entra ID) 중심으로 전면 전환** — 데이터(회원 PII)는 AWS S3 전용·Macie도 AWS 전용, Azure 점검은 Entra CIEM + Defender secure score, 골든 시나리오를 크로스클라우드 신원 탈취 경로로 교체. 설계서 3종·README·CLAUDE.md 모두 동기화. **`[PULL 필요]`**
+
+### 변경 로그 아카이브
+
+> (아직 없음 — 변경 로그가 15개를 넘으면 오래된 항목을 여기로 이동.)
+
+---
+
 ## 1. 한 줄 요약
 
-멀티클라우드(AWS 워크로드 + Azure 신원·데이터) 환경의 설정(Posture)부터 워크로드·IaC 코드까지 **code-to-cloud 보안 위험을 점검·통합·상관분석**하고, 그 위에 **에이전틱 AI(Bedrock 멀티에이전트 + RAG)**로 발견 항목을 설명·우선순위화·자동 개선하는 **CNAPP형 보안 플랫폼**.
+멀티클라우드(**AWS = 워크로드의 주인 / Azure = 신원의 주인(Entra ID)**) 환경의 설정(Posture)부터 워크로드·IaC 코드까지 **code-to-cloud 보안 위험을 점검·통합·상관분석**하고, 그 위에 **에이전틱 AI(Bedrock 멀티에이전트 + RAG)**로 발견 항목을 설명·우선순위화·자동 개선하는 **CNAPP형 보안 플랫폼**. (데이터/회원 PII는 AWS S3 전용 — Azure에는 데이터를 두지 않는다.)
 
 ---
 
 ## 2. 핵심 키워드
 
-- **Multi-Cloud** — AWS(워크로드의 주인) + Azure(신원·데이터의 주인). 흩어진 보안 상태를 OCSF로 정규화해 단일 뷰로 통합하고, **AWS 침해가 Azure 신원·데이터로 번지는 크로스클라우드 attack-path**까지 추적.
+- **Multi-Cloud** — AWS(워크로드의 주인) + Azure(신원의 주인, Entra ID). *각 클라우드 장점대로 — 컨테이너 워크로드는 AWS, Microsoft 생태계 신원은 Azure.* 흩어진 보안 상태를 OCSF로 정규화해 단일 뷰로 통합하고, **AWS 워크로드 침해가 Azure 신원(Entra) 장악으로 번지는 크로스클라우드 attack-path**까지 추적. (데이터는 AWS S3 전용, 중복 저장은 명분이 약해 Azure는 신원만.)
 - **CNAPP** — CSPM·CIEM·취약점·KSPM·데이터(DSPM 맛)·attack-path 6기둥. CSPM을 넓히지 않고 **워크로드(코드 방향)로 깊게** 심화. SOC(실시간 위협탐지/대응)는 범위 밖(확장 훅만).
 - **Agentic** — 챗봇이 아니라 에이전트가 능동적으로 일한다. **챗봇 탈출의 단일 기준 = LLM이 read-only API를 스스로 호출해 증거를 모으는가(tool use).** Orchestrator → Triage → Hypothesis → Evidence → Reasoning 루프(가설→증거→판정).
 
@@ -34,7 +53,9 @@
 | **취약점은 IaC에 심음** | 앱 코드 버그가 아니라 인프라/설정 결함. 기능 최소, 결함 다양성 최대. |
 | **Bedrock + 수동 RAG** | SageMaker 미사용. 벡터DB = **pgvector(RDS/Aurora PostgreSQL)** 확정(코퍼스 작아 OpenSearch는 오버스펙). |
 | **앱 SSO = Cognito 허브** | Entra ID(IdP) ─SAML→ Cognito ─OIDC→ ALB(authenticate-oidc). 워크포스 SSO 크레딧 회피. |
-| **Azure는 Defender for Cloud로 점검** | Security Hub는 AWS 전용. Prowler로 멀티클라우드 병행. |
+| **Azure = 신원(Entra ID) 중심** | 점검 핵심은 **Entra CIEM**(과도권한 앱 등록·위험한 consent·권한상승) + **Defender for Cloud**(리소스 secure score, 멀티클라우드 통합 뷰). Security Hub는 AWS 전용, Prowler로 멀티클라우드 병행. **Azure에 데이터는 두지 않음**(Defender 데이터 탐지 미사용). |
+| **데이터는 AWS S3 전용 / Macie도 AWS 전용** | 회원 PII는 AWS S3에만 보관, 데이터 탐지(DSPM 맛)는 **Macie(AWS S3 전용)**. Azure는 데이터 저장소가 아니라 신원의 주인. |
+| **골든 시나리오 = 크로스클라우드 신원 탈취** | product 취약 이미지 침투 → order 과도 IRSA + **평문 시크릿의 Azure 자격증명** → member 공개 S3로 AWS PII 탈취 → 탈취 자격증명으로 **Azure Entra ID 과도권한 앱/계정 장악**(디렉터리 전체 통제권). MVP는 분석·시각화 수준, 실제 횡단 동작은 보너스. |
 | **Read-only first + HITL** | 에이전트는 기본 조회만. 변경(remediation)은 분리된 승인 경로(Step Functions) + 불변 감사로그(S3 Object Lock). |
 
 **연결 구조(꼭 기억):** 타깃 앱은 AWS/Azure에 *배포*만 됨 → 스캐너가 계정을 **read-only로 스캔** → findings → EventBridge→SQS→Lambda → OCSF 정규화 → pgvector/엔진 → 관제 앱이 findings 저장소를 **읽어서** 표시. 타깃 앱↔관제 앱 직접 API 없음.
