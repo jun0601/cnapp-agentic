@@ -198,7 +198,64 @@ LLM이 이 신호들(취약점+KSPM+CIEM+CSPM+데이터, **AWS 워크로드→Az
 
 ---
 
+## 7. 구현 계획 (Implementation Plan) 🛠️
+
+> **이 절은 타깃 앱을 "어떻게" 만들지의 청사진이다.** §1~§5(무엇을)·§6(메모)을 묶어 *어떻게*(소스·이미지·결함을 IaC로·폴더구조·배포·회귀)로 구체화. **이 절을 리뷰·피드백한 뒤 코딩 착수.** 담당 = 준형. 원칙: 기능 최소 · **결함은 IaC에 변수 토글로** · 정답지 = `contracts/mock-findings.json`(§2.0).
+
+### 7.1 앱 코드 — 가져오고 최소만 작성
+
+| 서비스 | 방법 | 작업량 |
+|---|---|---|
+| `product` | retail-store `catalog` fork → cart/checkout 의존 제거 슬림화. **이미지만 KEV 취약 베이스로 재빌드**(7.2) | 소 |
+| `order` | retail-store `orders` fork → product·member 참조만. env에 평문 Azure SP(f5) | 소 |
+| `member` | **신규 작성(최소)** — 회원 가입/조회 REST + 기동 시 가짜 PII를 S3 업로드. 스택 = Node/Express 또는 Python/FastAPI(택1, 가벼운 쪽) | 중 |
+
+> `ui`는 생략(필요 시 최소 스킨). 가짜 PII = faker로 이름+주민번호 *패턴*(실데이터 아님) 생성 → Macie가 잡도록 한국형 패턴 포함.
+
+### 7.2 product 취약 이미지 (f1)
+
+- 오래된 베이스(예: 구버전 distro/런타임) + **KEV 등재 CVE 1건**이 포함된 패키지 고정 → Trivy/Inspector가 KEV로 잡음.
+- `apps/target/product/Dockerfile`에 결함 버전 핀, CI(Trivy)에서 *의도적으로 통과*(게이트 예외 태그) → ECR push. ※ 어떤 CVE를 쓸지는 코딩 시 KEV 목록에서 1건 선택(mock f1 = CVE-2024-3094 자리).
+
+### 7.3 결함 = IaC에 변수 토글 (정답지 f1~f9 ↔ 산출물)
+
+> 각 결함을 terraform 변수/k8s 매니페스트로 표현하고 `var.enable_<defect>`로 on/off → "결함 있을 때 잡히나/고치면 사라지나"(§6) 시연. 매핑은 §2.0 표가 앵커.
+
+| finding | 산출물(어디에) | 토글 |
+|---|---|---|
+| f1 취약 이미지 | `apps/target/product/Dockerfile` + ECR | 이미지 태그 |
+| f2 privileged | `apps/target/product/k8s/deployment.yaml` `securityContext.privileged` | `var.enable_privileged` |
+| f3 SG 0.0.0.0/0 | `infra/target` SG 리소스 | `var.enable_open_sg` |
+| f4 과도 IRSA | `infra/target` IAM role/policy(`s3:*`) | `var.enable_overpriv_irsa` |
+| f5 평문 Azure SP | `order` k8s env(평문) | `var.enable_plaintext_secret` |
+| f6 공개 S3 | `infra/target` S3 public access block off | `var.enable_public_bucket` |
+| f7 PII | member 기동 시 업로드 + `infra/target` 버킷 | (member 동작) |
+| f8·f9 Entra 과도권한·consent | **수동(manual-infra 3)** — IaC 아님, 격리 테넌트 App Reg | 수동 |
+
+### 7.4 폴더 구조
+
+```
+apps/target/
+├── product/   (catalog fork + Dockerfile[취약] + k8s/)
+├── order/     (orders fork + k8s/ env 평문 SP)
+└── member/    (신규 — 소스 + Dockerfile + k8s/ + PII seeder)
+infra/target/  Terraform(레이어드, infra/shared 출력 참조) — S3·SG·IRSA + 결함 토글 변수
+               + argocd/ (Application 매니페스트, GitOps 배포)
+```
+
+### 7.5 배포·회귀
+
+- **배포:** ECR push → ArgoCD가 EKS(infra/shared 클러스터)에 GitOps 배포. S3·IAM은 `infra/target` apply.
+- **골든 회귀:** 심은 결함 = `contracts/mock-findings.json`의 기대 findings. 스캐너 실제 결과 vs 기대를 CI에서 대조(contracts/validate.py 확장 또는 별도 스크립트) → "전부 탐지됐나"(§6).
+- **Azure:** f8·f9 + order SP는 **수동 셋업**(manual-infra 3, 진우 테넌트). IaC로 관리하지 않음.
+
+> **피드백 요청 2건:** ① member 서비스 스택(Node vs Python) ② 결함 토글 입도 — 개별 `var.enable_*`(세밀, 조합 테스트 쉬움) vs 프로파일 1개(`var.defects_on`, 단순). 권장 = 개별 토글.
+
+---
+
 *타깃 앱 설계도 — 메인 설계서(project-draft v5)의 8번 타깃 앱을 구현용으로 상세화. 결함 다양성↑, 기능 최소, agentless 연결 명시.*
+
+*변경 요약(3): **§7 구현 계획(Implementation Plan) 신설** — 타깃 앱을 "어떻게" 만들지 청사진. 앱 소스 가져오기(retail-store fork + 커스텀 member), product 취약 이미지 재빌드(f1), **결함 f1~f9 ↔ IaC 산출물·변수 토글 매핑표**, apps/target·infra/target 폴더 구조, 배포(ArgoCD)·골든 회귀, 피드백 2건(member 스택·토글 입도).*
 
 *변경 요약(2): **기능 베이스 = retail-store-sample-app 확정**(§1.1, catalog·orders 2서비스 + 커스텀 member, AWSGoat 미사용). **정답지 = contracts/ 매핑표 신설**(§2.0, 골든 9건 ↔ 앱 리소스·control_id) + **계약 정합 체크리스트 4건**(§2.1 — f5 resource_id↔type, control 3종 신규, 검증기 4-assert CI 게이트). §6 구현 메모 첫 줄을 retail-store 베이스로 교체.*
 

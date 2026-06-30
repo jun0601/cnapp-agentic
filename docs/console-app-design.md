@@ -316,8 +316,81 @@ Day 단위 콘솔 작업과 연계 절을 정리한 표다.
 
 ---
 
+## 15. 구현 계획 (Implementation Plan) 🛠️
+
+> **이 절은 관제 앱을 "어떻게" 만들지의 청사진이다.** 위(§2~§13)가 *무엇을*(화면·데이터·백엔드 구조)이라면, 여기는 *어떻게*(스택·폴더구조·API 표면·목업 하니스). **이 절을 리뷰·피드백한 뒤 코딩 착수**한다.
+> 담당 = 준형(앱 2개 전담). 원칙: 백엔드 분리(§4) · **목업우선**(project-draft 4.4 — `contracts/mock-*.json`으로 백엔드 없이 화면 완성 후 실데이터 스왑). 아래 선택은 **제안(피드백 대상)**이며, 굵게 표시된 3건이 가장 검토가 필요한 결정.
+
+### 15.1 기술 스택 (제안)
+
+| 영역 | 선택 | 이유 / 대안 |
+|---|---|---|
+| 빌드·언어 | **Vite + React + TypeScript** | SPA를 정적 빌드 → S3+CloudFront(§3). SSR 불필요라 Next.js 제외. TS = contracts 타입 안전 |
+| 라우팅 | React Router | 표준 SPA 라우팅 |
+| 데이터 패칭 | **TanStack Query** | 30~60초 폴링(§6.2)·캐싱·수동 새로고침(invalidate)이 선언적 |
+| 스타일/UI | Tailwind CSS (+ 최소 헤드리스 컴포넌트) | 보안 대시보드 빠른 구성, 무거운 디자인시스템 회피 |
+| **attack-path 그래프** | **React Flow (@xyflow/react)** | §3의 "D3/Recharts"를 구체화 — 노드·엣지·팬/줌·AWS/Azure 레인 배경(2.2)을 네이티브 지원. raw D3보다 빠름. ※검토 포인트 |
+| 점수/차트 | Recharts | secure score·6기둥 요약 카드(바/도넛) |
+| **목업 하니스** | **MSW (Mock Service Worker)** | API 호출을 가로채 `contracts/mock-*.json` 반환 → 백엔드 0으로 화면 완성. 실 API 나오면 MSW만 끔(스왑 포인트). ※검토 포인트 |
+| 타입 | **contracts/\*.schema.json → TS 타입 생성** | `json-schema-to-typescript`로 finding/case/attack-path 타입 자동 생성 → 계약이 타입 SSOT, drift 0 |
+
+### 15.2 console-backend (Lambda) API 표면
+
+> ALB(authenticate-oidc) → Lambda(§4·§12). 전부 **read-only**(쓰기는 Step Functions로만). 응답 스키마 = contracts. **백엔드 언어 = TypeScript(Node) 제안** — 프론트와 단일 언어·계약 타입 공유. (대안: Python. ※검토 포인트)
+
+| 메서드·경로 | 화면(UC) | 응답 = 계약 | 목업 파일 |
+|---|---|---|---|
+| `GET /findings?cloud&pillar&status&sort` | Findings 목록(UC2) | `finding[]` | mock-findings.json |
+| `GET /findings/:id` | Finding 상세(UC0·UC1) | finding + explanation + case | mock-findings + mock-cases |
+| `GET /attack-paths` | 대시보드 배너 | `attack_path[]`(요약) | mock-attack-paths.json |
+| `GET /attack-paths/:id` | attack-path 화면(UC3) | attack_path(nodes·edges·narrative) | mock-attack-paths.json |
+| `GET /scores` | 대시보드 홈 | `{aws, azure}` secure score | (목업 상수) |
+| `POST /remediations/:id/{approve,reject}` | 조치(UC4) | → Step Functions `StartExecution`만 | (목업 200) |
+| `GET /audit` | 감사로그 뷰어 | `audit[]` | (목업) |
+| `POST /chat` | 자연어 질의(보조) | Bedrock RAG 응답 | (목업 에코) |
+
+### 15.3 apps/console 폴더 구조
+
+```
+apps/console/
+├── src/
+│   ├── main.tsx · App.tsx · router.tsx
+│   ├── pages/        Dashboard · Findings · FindingDetail · AttackPath · Remediation · Compliance · Audit · Login
+│   ├── components/   FindingCard · SeverityBadge · PillarFilter · AttackPathGraph(ReactFlow) · ScoreCard · EvidenceTab · EmptyState
+│   ├── api/          client.ts(typed fetch) · queries.ts(TanStack) · types.ts(contracts 생성)
+│   ├── mocks/        handlers.ts(MSW) ← contracts/mock-*.json import
+│   └── lib/          auth.ts(Cognito 토큰) · polling.ts
+├── index.html · vite.config.ts · tailwind.config.js · package.json
+└── (빌드 산출물 → infra/console가 S3+CloudFront 배포)
+```
+
+### 15.4 화면 ↔ mock 파일 1:1 (목업우선 앵커)
+
+| 화면 | 먹는 mock | 비고 |
+|---|---|---|
+| Findings 목록·상세 | `contracts/mock-findings.json` | 20건, open/remediated/suppressed 필터 시연 |
+| Finding 상세 — **Evidence 탭** | `contracts/mock-cases.json` | 계약⑦ case — "AI가 read-only API 4회 호출" 능동조사 장면을 엔진 없이 렌더 |
+| Attack-path 그래프 | `contracts/mock-attack-paths.json` | 골든 1경로, `cross_cloud:true` 엣지 강조(2.2) |
+| 대시보드 점수 | 목업 상수 | AWS 크게 / Azure CIEM 보조(2.0 비중) |
+
+### 15.5 개발·빌드·배포
+
+- **로컬:** `npm run dev`(Vite) + MSW on → 백엔드·인프라 0으로 전 화면 동작.
+- **빌드:** `npm run build` → 정적 자산 → `infra/console`가 S3+CloudFront에 배포.
+- **실데이터 전환:** MSW off + `VITE_API_BASE`=ALB URL. 화면 코드 무변경(계약 동일).
+
+### 15.6 데모 시연 동선 (이 앱으로 보여줄 한 흐름)
+
+대시보드(AWS/Azure 점수) → Findings(AI 우선순위 정렬) → Finding 상세(AI 설명 카드 + **Evidence 탭의 능동조사**) → Attack-path 그래프(**AWS→Azure 크로스클라우드 횡단**) → 조치 승인(RBAC: viewer→approver). ※ "AI가 스스로 증거 모아 공격경로 판단" 한 장면을 Evidence 탭에서 사수.
+
+> **피드백 요청 3건(굵게 표시):** ① attack-path 그래프 = React Flow(vs raw D3) ② 목업 하니스 = MSW(vs 로컬 목업 서버) ③ console-backend 언어 = TS(vs Python). 나머지(Vite·TanStack·Tailwind·Recharts)는 표준 선택이라 이견 적을 것으로 봄.
+
+---
+
 *관제 앱 설계도 — 메인 설계서(project-draft v5)의 8.2·9·10·12~17번을 구현용으로 상세화.*
 
 *v2 변경 요약: Finding 상태 동기화 루프(6.1)·갱신 주기(6.2 폴링) 추가, 백엔드를 타깃 EKS와 분리해 Lambda로 확정(4·11·12번), attack-path 콘솔 렌더링 커스텀 postgres 확정(5.1)·구현 순서 Day 7~8로 상향(13번), 빈 상태(2.1)·크로스클라우드 attack-path 시각화(2.2)·RBAC 데모 시연(7번) 보강, 14번 미확정을 project-draft 24번과 동기화.*
+
+*v3 변경 요약: **§15 구현 계획(Implementation Plan) 신설** — 관제 앱을 "어떻게" 만들지 청사진. 기술 스택 제안(Vite+React+TS·TanStack·Tailwind·**React Flow**(attack-path)·**MSW**(목업)·contracts→TS 타입), console-backend API 표면(엔드포인트↔계약↔mock), apps/console 폴더 구조, 화면↔mock 1:1, 빌드·배포, 데모 동선. 피드백 후 코딩 착수 — 검토 포인트 3건(React Flow·MSW·백엔드 언어).*
 
 *v2.1 변경 요약: **Azure 역할을 데이터→신원(Entra ID) 중심으로 전환에 맞춰 attack-path 화면·시각화 갱신.** 크로스클라우드 엣지를 "공개 S3→Azure 공개 Blob"에서 **"order 평문 시크릿의 Azure 자격증명→Entra ID 과도권한 앱/계정 장악"**으로 교체, 레인을 AWS 워크로드 / Azure 신원으로 명시, 내러티브를 "디렉터리 전체 통제권 장악"으로 갱신. MVP는 분석·시각화 수준이고 실제 횡단 동작은 보너스임을 명시. 문서 식별 헤더 추가.*

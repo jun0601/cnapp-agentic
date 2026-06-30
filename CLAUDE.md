@@ -17,6 +17,7 @@
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-07-01 / 준형 / 앱 2개 구현 청사진 신설(피드백→코딩 흐름)** — 코딩 전에 "어떻게 만들지"를 설계 문서에 박음: **console §15**(Vite+React+TS·TanStack·Tailwind·React Flow·MSW 목업·contracts→TS 타입, API 표면, 폴더구조, 화면↔mock 1:1, 데모 동선) + **target §7**(retail-store fork+커스텀 member, 취약 이미지, 결함 f1~f9↔IaC 토글 매핑, 폴더구조, 배포·회귀). 각 절에 피드백 요청 포인트 명시 → 리뷰 후 착수. **`[PULL 필요]`**
 - **2026-07-01 / 준형 / 프로젝트 명칭 확정 → §24 전부 닫힘** — 명칭 = "에이전틱 AI 기반 멀티클라우드 CNAPP 보안 플랫폼"(잠정), 레포 = `cnapp-agentic`. **열린 설계 미확정 0건**(UC5 PDF는 console 보너스).
 - **2026-07-01 / 준형 / target-app-design §2.1을 "할 일→완료"로 정정 + §2.0 SP행 추가** — §2.1 제목·본문을 *완료형*("validate.py가 강제")으로 교체(이미 c463054에서 처리된 걸 미완 TODO로 오해 방지). §2.0 표 f5 행을 실제 캐논 resource_id로·골든 편입된 f16(SP, 노드 n4) 행 추가(골든 10건). §6 결함 메모의 "AWSGoat 참고"를 §1.1(AWSGoat 미사용)과 일관되게 TerraGoat/CloudGoat/EKS Goat로 정정. (문서 정합만, 코드 변경 없음)
 - **2026-07-01 / 준형 / contracts 계약 정합 4건 수정(target-app-design §2.1 닫음) + validate.py CI 게이트** — ① f5 `resource_id`를 캐논 위반(`aws:eks_pod:…`+type secret_plaintext) → `aws:secret_plaintext:shop/order/AZURE_SP_CRED`로 교정(4.4.1a 예시도 갱신). ② 의미 안 맞는 id 재사용 해소 — 신규 control 3종(`INTERNAL-ECR-SCAN-DISABLED-001`·`INTERNAL-ENTRA-SP-CRED-001`·`INTERNAL-ENTRA-INSECURE-CFG-001`)을 카탈로그에 추가하고 f12/f16/f17 재배정. ③ **f16(Azure SP)을 골든 경로에 편입** — attack-path 노드 n4에 대응 finding이 없던 빈틈을 메움(assert c 충족). ④ `contracts/validate.py`(4-assert: pillar·resource_id↔type·node-finding·dedup_key) + `.github/workflows/contracts-validate.yml` CI 게이트 신설. 검증 통과. **`[PULL 필요]`**
