@@ -29,9 +29,53 @@
 
 ---
 
+## 1.1 기능 베이스 — AWS retail-store-sample-app (확정)
+
+기능 껍데기는 맨땅에서 안 짠다. **AWS 공식 [retail-store-sample-app](https://github.com/aws-containers/retail-store-sample-app)**(EKS 네이티브 · ArgoCD/GitOps · 사전 빌드 이미지 · Prometheus/OTel 계측)를 베이스로 **3서비스만 슬림**하게 가져온다.
+
+| 우리 서비스 | 베이스 매핑 | 비고 |
+|---|---|---|
+| `product` | 샘플 `catalog` 서비스 | 상품 조회·공개 API. 외부노출 침투지점. **이미지만 KEV 등재 취약 베이스로 재빌드**(취약점 결함 심기) |
+| `order` | 샘플 `orders` 서비스 | 주문 생성(product·member 참조) + IRSA. 측면이동 발판 + 평문 Azure SP |
+| `member` | **커스텀 신규(소규모)** | 샘플엔 PII/회원 서비스가 없음 → 직접 작성. 회원 가입/조회 + **가짜 PII를 S3에 적재**. 데이터 기둥·AWS 탈취 종착지 |
+
+> `cart`·`checkout`·`ui`는 **제외**(필요 시 ui만 최소 스킨). "기능 최소" 원칙. 앱은 데모에서 가장 안 중요 — 시간 쏟지 않는다.
+> **AWSGoat은 베이스로 쓰지 않는다** — ECS/서버리스 기반 + OWASP 앱-레이어 취약점(SQLi 등)이라 우리의 *EKS·설정결함(IaC)·크로스클라우드* 원칙과 4박자가 어긋나고, 우리 스캐너로는 절반이 안 보인다. goat류(TerraGoat·CloudGoat·Kubernetes/EKS Goat)는 **미스컨피그 패턴 참고용**으로만.
+
+---
+
 ## 2. 심는 결함 (정답지) 🔒 — 기둥별로 촘촘하게
 
 > 진우 초안의 핵심 결함 + 각 기둥이 더 풍부하게 발화하도록 보강(★ = 보강분). 데모에선 일부만 켜도 되지만, 목록은 넉넉히.
+
+### 2.0 정답지 = contracts/ (이 앱이 재현해야 할 findings)
+
+타깃 앱의 정답지는 산문이 아니라 **`contracts/mock-findings.json` + `contracts/control-catalog.json`**이다. 골든 경로 9건이 앱 어디에 심기는지:
+
+| finding | 서비스·리소스 | 심는 결함(IaC) | control_id | 스캐너 |
+|---|---|---|---|---|
+| f1 | product / `aws:eks_pod:shop/product` | KEV 등재 취약 베이스 이미지 | INTERNAL-VULN-KEV-001 | Trivy/Inspector |
+| f2 | product / pod | `securityContext.privileged=true` | INTERNAL-KSPM-PRIVILEGED-001 | kube-bench |
+| f3 | product / `aws:security_group:sg-…` | SG 인바운드 0.0.0.0/0 (80/443) | INTERNAL-SG-OPEN-INGRESS-001 | SecurityHub/Prowler |
+| f4 | order / `aws:iam_role:order-irsa` | IRSA 정책 `s3:*` on `Resource:*` | INTERNAL-IAM-OVERPRIV-001 | AccessAnalyzer/Prowler |
+| f5 | order / pod env | 평문 Azure SP 자격증명(`AZURE_CLIENT_ID/SECRET`) | INTERNAL-SECRET-PLAINTEXT-001 | Prowler/custom |
+| f6 | member / `aws:s3_bucket:member-pii-prod` | 버킷 public access | INTERNAL-S3-PUBLIC-001 | SecurityHub/Config/Prowler |
+| f7 | member / 버킷 객체 | 가짜 PII(이름+주민번호 패턴) 업로드 | INTERNAL-DATA-PII-EXPOSED-001 | Macie |
+| f8 | Azure / `azure:app_registration:…` | App Reg `Directory.ReadWrite.All` | INTERNAL-ENTRA-OVERPRIV-APP-001 | Prowler entra_id_* |
+| f9 | Azure / 동 App Reg | 미검증 앱에 `User.ReadWrite.All` consent | INTERNAL-ENTRA-RISKY-CONSENT-001 | Prowler entra_id_* |
+
+> 잔결함(f10~f20, secure-score·remediated·suppressed 샘플)도 같은 방식으로 mock-findings에 정의됨. **이 표가 §2 상세 결함 목록의 "계약 앵커"** — §2의 각 결함은 여기 control_id로 환원된다.
+
+### 2.1 계약 정합 체크리스트 (구현 전 contracts 고칠 것)
+
+mock-findings를 그대로 앱으로 옮기기 전에, 검증(json.load)이 못 잡은 의미 불일치 4건을 먼저 정리한다:
+
+- **f5 resource_id↔type 불일치** — `resource_id: aws:eks_pod:…` 인데 `resource_type: secret_plaintext`(4.4.1a 캐논 위반). → 시크릿을 `aws:secret_plaintext:shop/order/AZURE_SP_CRED`로 모델하거나 `resource_type`을 `eks_pod`로 맞춘다(택1).
+- **control-catalog 전용 control 3개 추가** — 현재 의미 안 맞는 id 재사용 중:
+  - f12 ECR 스캔 미설정 → `INTERNAL-VULN-KEV-001`(vuln) 재사용 → 신규 `INTERNAL-ECR-SCAN-DISABLED-001`(cspm)
+  - f16 SP 무만료 자격증명 → `INTERNAL-ENTRA-OVERPRIV-APP-001` 재사용 → 신규 `INTERNAL-ENTRA-SP-CRED-001`(ciem)
+  - f17 insecure redirect URI → `INTERNAL-ENTRA-RISKY-CONSENT-001` 재사용 → 신규 `INTERNAL-ENTRA-INSECURE-CFG-001`
+- **검증기 4-assert를 CI 게이트로** — (a) finding.pillar == catalog[control_id].pillar (b) resource_id 2번째 세그먼트 == resource_type (c) 모든 attack-path node.resource_id에 해당 path의 finding ≥1 (d) dedup_key == resource_id|control_id.
 
 ### `product` — 침투 지점
 | 결함 | 잡는 도구(기둥) |
@@ -145,7 +189,7 @@ LLM이 이 신호들(취약점+KSPM+CIEM+CSPM+데이터, **AWS 워크로드→Az
 
 ## 6. 구현 메모
 
-- **앱 코드:** aws-samples 계열 컨테이너 데모 베이스 + Claude Code로 부족분 생성. 기능 개발에 시간 쓰지 않음.
+- **앱 코드:** retail-store-sample-app(§1.1)에서 catalog·orders 2서비스 + 커스텀 member. 기능 개발에 시간 쓰지 않음. product 이미지만 KEV 취약 베이스로 재빌드.
 - **결함:** Terraform/k8s 매니페스트에 의도적으로 심음. CloudGoat/AWSGoat/Terragoat 패턴 참고(정답지가 명확해짐).
 - **결함 토글:** 결함을 모듈/변수로 켰다 껐다 가능하게 → "결함 있을 때 잡히나 / 고치면 사라지나" 테스트 + 다양한 조합 attack-path 테스트.
 - **golden findings 세트:** 심은 결함 목록 = 기대 findings. CI에서 "전부 탐지됐나" 자동 회귀 테스트.
@@ -155,5 +199,7 @@ LLM이 이 신호들(취약점+KSPM+CIEM+CSPM+데이터, **AWS 워크로드→Az
 ---
 
 *타깃 앱 설계도 — 메인 설계서(project-draft v5)의 8번 타깃 앱을 구현용으로 상세화. 결함 다양성↑, 기능 최소, agentless 연결 명시.*
+
+*변경 요약(2): **기능 베이스 = retail-store-sample-app 확정**(§1.1, catalog·orders 2서비스 + 커스텀 member, AWSGoat 미사용). **정답지 = contracts/ 매핑표 신설**(§2.0, 골든 9건 ↔ 앱 리소스·control_id) + **계약 정합 체크리스트 4건**(§2.1 — f5 resource_id↔type, control 3종 신규, 검증기 4-assert CI 게이트). §6 구현 메모 첫 줄을 retail-store 베이스로 교체.*
 
 *변경 요약: **Azure 종착지를 데이터(Blob)→신원(Entra ID)으로 전환.** Azure 결함을 과도권한 App Registration·위험한 consent·권한상승·SP 자격증명 노출로 교체, order에 "평문 시크릿 속 Azure 자격증명" 결함 추가. 골든 attack-path를 크로스클라우드 신원 탈취 경로([4] Entra 신원 장악)로 갱신, 결함 분포표도 동기화. 데이터(PII)는 AWS S3 전용·Macie도 S3 전용 명시. MVP는 분석·시각화 수준/횡단 동작은 보너스. 문서 식별 헤더 추가.*
