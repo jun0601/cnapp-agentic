@@ -729,7 +729,7 @@ MVP 코퍼스: A(CIS AWS+K8s) + FSBP + C(KEV) + E(자체 루브릭).
 
 ## 24. ❓ 미확정 (다음에 닫을 것)
 
-- [ ] 프로젝트 정식 명칭 / 레포 네이밍
+- [x] **프로젝트 명칭 = "에이전틱 AI 기반 멀티클라우드 CNAPP 보안 플랫폼"** (잠정 — 바뀔 수 있음) / 레포 = `cnapp-agentic`(사용 중). → **§24 전부 닫힘, 열린 설계 미확정 0건**(UC5 PDF는 console §14 보너스).
 - [x] **레포 = 모노레포 확정** — 단일 레포(`cnapp-agentic`) 안에 `apps/`·`engine/`·`infra/` 폴더로 관리. 레포가 하나여도 배포는 폴더별로 분리(target=EKS, console=S3+Lambda). 모듈 경계 = 폴더 분리 + Terraform state를 `infra/{shared,target,console}`별로 분리. 2인·2주엔 멀티레포보다 모노레포가 정답(pull 한 번, 문서·코드 동거).
 - [x] **타깃 앱 마이크로서비스 세부 확정** — product·order·member 3개, 기능·결함·골든 attack-path 전체 목록은 [target-app-design.md](target-app-design.md)가 SSOT.
 - [x] **벡터DB = pgvector (RDS PostgreSQL t3.micro)** 확정 — 코퍼스 규모 작아 OpenSearch Serverless는 오버스펙·고비용. Aurora는 idle $43/월로 과함. RDS PostgreSQL t3.micro(free tier 12개월, 이후 $13/월)로 확정. 저렴·단순·finding 메타데이터와 동거 가능.
