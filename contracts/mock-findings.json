@@ -1,0 +1,227 @@
+{
+  "_description": "계약①(finding.schema.json) 목업 데이터 — 목업우선 전략(project-draft 4.4)의 핵심 fixture. 골든 시나리오(R1~R5 체이닝) 핵심 finding + secure-score 잔결함 filler. attack_path_id가 채워진 finding은 1차 상관(4.4 2-pass) 후 상태를 표현. 골든 경로 id = a0000000-0000-4000-8000-000000000001 (mock-attack-paths.json과 동일). 실데이터 교체 전까지 콘솔·엔진·attackpath가 이 파일을 먹고 끝까지 개발.",
+  "golden_attack_path_id": "a0000000-0000-4000-8000-000000000001",
+  "findings": [
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000001",
+      "cloud": "aws", "resource_id": "aws:eks_pod:shop/product", "resource_type": "eks_pod",
+      "pillar": "vuln", "control_id": "INTERNAL-VULN-KEV-001",
+      "title": "KEV-listed CVE (CVE-2024-3094) in product image",
+      "severity_id": 1, "status": "open",
+      "sources": ["inspector:CVE-2024-3094", "trivy:CVE-2024-3094"],
+      "dedup_key": "aws:eks_pod:shop/product|INTERNAL-VULN-KEV-001",
+      "priority_score": 0.97, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
+      "ai_status": "done", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000002",
+      "cloud": "aws", "resource_id": "aws:eks_pod:shop/product", "resource_type": "eks_pod",
+      "pillar": "kspm", "control_id": "INTERNAL-KSPM-PRIVILEGED-001",
+      "title": "Privileged container in product pod (Pod Security violation)",
+      "severity_id": 2, "status": "open",
+      "sources": ["kube-bench:5.2.5"],
+      "dedup_key": "aws:eks_pod:shop/product|INTERNAL-KSPM-PRIVILEGED-001",
+      "priority_score": null, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000003",
+      "cloud": "aws", "resource_id": "aws:security_group:sg-0product1234", "resource_type": "security_group",
+      "pillar": "cspm", "control_id": "INTERNAL-SG-OPEN-INGRESS-001",
+      "title": "product Security Group allows 0.0.0.0/0 inbound on 80/443 (external exposure)",
+      "severity_id": 2, "status": "open",
+      "sources": ["securityhub:EC2.19", "prowler:ec2_securitygroup_allow_ingress_from_internet_to_any_port"],
+      "dedup_key": "aws:security_group:sg-0product1234|INTERNAL-SG-OPEN-INGRESS-001",
+      "priority_score": null, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000004",
+      "cloud": "aws", "resource_id": "aws:iam_role:order-irsa", "resource_type": "iam_role",
+      "pillar": "ciem", "control_id": "INTERNAL-IAM-OVERPRIV-001",
+      "title": "order IRSA role has wildcard s3:* on Resource:* (over-privileged)",
+      "severity_id": 1, "status": "open",
+      "sources": ["accessanalyzer:UnusedPermission", "prowler:iam_inline_policy_allows_privilege_escalation"],
+      "dedup_key": "aws:iam_role:order-irsa|INTERNAL-IAM-OVERPRIV-001",
+      "priority_score": 0.9, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000005",
+      "cloud": "aws", "resource_id": "aws:eks_pod:shop/order", "resource_type": "secret_plaintext",
+      "pillar": "cspm", "control_id": "INTERNAL-SECRET-PLAINTEXT-001",
+      "title": "Plaintext Azure service principal credential in order pod env (Secrets Manager 미사용)",
+      "severity_id": 1, "status": "open",
+      "sources": ["prowler:eks_cluster_secret_in_env", "custom:manifest-scan"],
+      "dedup_key": "aws:eks_pod:shop/order|INTERNAL-SECRET-PLAINTEXT-001",
+      "priority_score": 0.95, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000006",
+      "cloud": "aws", "resource_id": "aws:s3_bucket:member-pii-prod", "resource_type": "s3_bucket",
+      "pillar": "cspm", "control_id": "INTERNAL-S3-PUBLIC-001",
+      "title": "member-pii-prod S3 bucket allows public access",
+      "severity_id": 1, "status": "open",
+      "sources": ["securityhub:S3.8", "config:s3-bucket-public-read-prohibited", "prowler:s3_bucket_public_access"],
+      "dedup_key": "aws:s3_bucket:member-pii-prod|INTERNAL-S3-PUBLIC-001",
+      "priority_score": 0.98, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
+      "ai_status": "done", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000007",
+      "cloud": "aws", "resource_id": "aws:s3_bucket:member-pii-prod", "resource_type": "s3_bucket",
+      "pillar": "data", "control_id": "INTERNAL-DATA-PII-EXPOSED-001",
+      "title": "Sensitive PII (names, RRN patterns) detected in member-pii-prod",
+      "severity_id": 1, "status": "open",
+      "sources": ["macie:SensitiveData/PII"],
+      "dedup_key": "aws:s3_bucket:member-pii-prod|INTERNAL-DATA-PII-EXPOSED-001",
+      "priority_score": 0.96, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000008",
+      "cloud": "azure", "resource_id": "azure:app_registration:a1b2c3d4-1111-2222-3333-444455556666", "resource_type": "app_registration",
+      "pillar": "ciem", "control_id": "INTERNAL-ENTRA-OVERPRIV-APP-001",
+      "title": "Entra App Registration granted Directory.ReadWrite.All (over-privileged)",
+      "severity_id": 1, "status": "open",
+      "sources": ["prowler:entra_id_app_directory_readwrite_all"],
+      "dedup_key": "azure:app_registration:a1b2c3d4-1111-2222-3333-444455556666|INTERNAL-ENTRA-OVERPRIV-APP-001",
+      "priority_score": 0.94, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000009",
+      "cloud": "azure", "resource_id": "azure:app_registration:a1b2c3d4-1111-2222-3333-444455556666", "resource_type": "app_registration",
+      "pillar": "ciem", "control_id": "INTERNAL-ENTRA-RISKY-CONSENT-001",
+      "title": "Risky admin consent (User.ReadWrite.All) granted to unverified app",
+      "severity_id": 2, "status": "open",
+      "sources": ["prowler:entra_id_admin_consent_unverified_app"],
+      "dedup_key": "azure:app_registration:a1b2c3d4-1111-2222-3333-444455556666|INTERNAL-ENTRA-RISKY-CONSENT-001",
+      "priority_score": null, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000010",
+      "cloud": "aws", "resource_id": "aws:s3_bucket:member-pii-prod", "resource_type": "s3_bucket",
+      "pillar": "cspm", "control_id": "INTERNAL-S3-NOENCRYPT-001",
+      "title": "member-pii-prod S3 bucket without server-side encryption",
+      "severity_id": 3, "status": "open",
+      "sources": ["securityhub:S3.4"],
+      "dedup_key": "aws:s3_bucket:member-pii-prod|INTERNAL-S3-NOENCRYPT-001",
+      "priority_score": null, "attack_path_id": null,
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000011",
+      "cloud": "aws", "resource_id": "aws:security_group:sg-0order5678", "resource_type": "security_group",
+      "pillar": "cspm", "control_id": "INTERNAL-SG-OPEN-INGRESS-001",
+      "title": "order Security Group allows 0.0.0.0/0 inbound on 22 (SSH)",
+      "severity_id": 2, "status": "open",
+      "sources": ["securityhub:EC2.19"],
+      "dedup_key": "aws:security_group:sg-0order5678|INTERNAL-SG-OPEN-INGRESS-001",
+      "priority_score": null, "attack_path_id": null,
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000012",
+      "cloud": "aws", "resource_id": "aws:ecr_repo:product", "resource_type": "ecr_repo",
+      "pillar": "cspm", "control_id": "INTERNAL-VULN-KEV-001",
+      "title": "ECR repository scan-on-push disabled for product",
+      "severity_id": 3, "status": "open",
+      "sources": ["securityhub:ECR.1"],
+      "dedup_key": "aws:ecr_repo:product|INTERNAL-VULN-KEV-001",
+      "priority_score": null, "attack_path_id": null,
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000013",
+      "cloud": "aws", "resource_id": "aws:eks_pod:shop/member", "resource_type": "eks_pod",
+      "pillar": "kspm", "control_id": "INTERNAL-KSPM-PRIVILEGED-001",
+      "title": "member pod runs as root user (runAsNonRoot 미설정)",
+      "severity_id": 3, "status": "open",
+      "sources": ["kube-bench:5.2.6"],
+      "dedup_key": "aws:eks_pod:shop/member|INTERNAL-KSPM-PRIVILEGED-001",
+      "priority_score": null, "attack_path_id": null,
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000014",
+      "cloud": "aws", "resource_id": "aws:iam_role:member-irsa", "resource_type": "iam_role",
+      "pillar": "ciem", "control_id": "INTERNAL-IAM-OVERPRIV-001",
+      "title": "member IRSA role has unused permissions (permission creep)",
+      "severity_id": 3, "status": "open",
+      "sources": ["accessanalyzer:UnusedPermission"],
+      "dedup_key": "aws:iam_role:member-irsa|INTERNAL-IAM-OVERPRIV-001",
+      "priority_score": null, "attack_path_id": null,
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000015",
+      "cloud": "aws", "resource_id": "aws:s3_bucket:cnapp-access-logs", "resource_type": "s3_bucket",
+      "pillar": "cspm", "control_id": "INTERNAL-S3-NOENCRYPT-001",
+      "title": "access-logs bucket versioning/logging not enabled",
+      "severity_id": 4, "status": "open",
+      "sources": ["config:s3-bucket-versioning-enabled"],
+      "dedup_key": "aws:s3_bucket:cnapp-access-logs|INTERNAL-S3-NOENCRYPT-001",
+      "priority_score": null, "attack_path_id": null,
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000016",
+      "cloud": "azure", "resource_id": "azure:service_principal:b2c3d4e5-7777-8888-9999-aaaabbbbcccc", "resource_type": "service_principal",
+      "pillar": "ciem", "control_id": "INTERNAL-ENTRA-OVERPRIV-APP-001",
+      "title": "Service Principal credential without expiry (leak risk)",
+      "severity_id": 2, "status": "open",
+      "sources": ["prowler:entra_id_sp_credential_no_expiry"],
+      "dedup_key": "azure:service_principal:b2c3d4e5-7777-8888-9999-aaaabbbbcccc|INTERNAL-ENTRA-OVERPRIV-APP-001",
+      "priority_score": null, "attack_path_id": null,
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000017",
+      "cloud": "azure", "resource_id": "azure:app_registration:c3d4e5f6-2222-3333-4444-555566667777", "resource_type": "app_registration",
+      "pillar": "cspm", "control_id": "INTERNAL-ENTRA-RISKY-CONSENT-001",
+      "title": "Defender for Cloud secure score: insecure default on app registration",
+      "severity_id": 4, "status": "open",
+      "sources": ["prowler:entra_id_app_redirect_uri_insecure"],
+      "dedup_key": "azure:app_registration:c3d4e5f6-2222-3333-4444-555566667777|INTERNAL-ENTRA-RISKY-CONSENT-001",
+      "priority_score": null, "attack_path_id": null,
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000018",
+      "cloud": "aws", "resource_id": "aws:s3_bucket:order-invoices", "resource_type": "s3_bucket",
+      "pillar": "cspm", "control_id": "INTERNAL-S3-NOENCRYPT-001",
+      "title": "order-invoices bucket without server-side encryption",
+      "severity_id": 3, "status": "remediated",
+      "sources": ["securityhub:S3.4"],
+      "dedup_key": "aws:s3_bucket:order-invoices|INTERNAL-S3-NOENCRYPT-001",
+      "priority_score": null, "attack_path_id": null,
+      "ai_status": "done", "first_seen": "2026-06-28T02:00:00Z", "last_seen": "2026-06-29T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000019",
+      "cloud": "aws", "resource_id": "aws:s3_bucket:legacy-public-assets", "resource_type": "s3_bucket",
+      "pillar": "cspm", "control_id": "INTERNAL-S3-PUBLIC-001",
+      "title": "legacy-public-assets bucket public (accepted risk — static assets)",
+      "severity_id": 2, "status": "suppressed",
+      "sources": ["securityhub:S3.8", "prowler:s3_bucket_public_access"],
+      "dedup_key": "aws:s3_bucket:legacy-public-assets|INTERNAL-S3-PUBLIC-001",
+      "priority_score": null, "attack_path_id": null,
+      "ai_status": "done", "first_seen": "2026-06-25T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    },
+    {
+      "finding_id": "f0000000-0000-4000-8000-000000000020",
+      "cloud": "aws", "resource_id": "aws:iam_role:ci-deploy", "resource_type": "iam_role",
+      "pillar": "ciem", "control_id": "INTERNAL-IAM-OVERPRIV-001",
+      "title": "ci-deploy role allows iam:PassRole with wildcard",
+      "severity_id": 2, "status": "open",
+      "sources": ["prowler:iam_policy_allows_passrole_wildcard"],
+      "dedup_key": "aws:iam_role:ci-deploy|INTERNAL-IAM-OVERPRIV-001",
+      "priority_score": null, "attack_path_id": null,
+      "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "_description": "4.4.1(b) INTERNAL control_id 카탈로그 (MVP — 골든 경로 R1~R5 + 6기둥 발화 필수분). 소스 무관 내부 통일 id ← 각 스캐너 native 체크 매핑. finding.control_id·rag_chunks.metadata.control_id가 이 id를 공유. severity_default는 내부 컨벤션(1=Critical~5=Info). source_coverage(역인덱스)는 remediated 스코프(4.4.1c) 판정에 사용. isms_p는 RAG 코퍼스 D 작업 시 채움(현재 null=미지정).",
+  "version": "mvp-2026-06-30",
+  "severity_convention": "1=Critical 2=High 3=Medium 4=Low 5=Info (내부, OCSF와 반대)",
+  "controls": {
+    "INTERNAL-VULN-KEV-001": {
+      "pillar": "vuln",
+      "title": "KEV-listed CVE in container image",
+      "severity_default": 1,
+      "sources": ["inspector:CVE-*", "trivy:CVE-*"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "build"
+    },
+    "INTERNAL-KSPM-PRIVILEGED-001": {
+      "pillar": "kspm",
+      "title": "Privileged or hostPath pod (Pod Security violation)",
+      "severity_default": 2,
+      "sources": ["kube-bench:5.2.*", "trivy-k8s:KSV*"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "runtime"
+    },
+    "INTERNAL-IAM-OVERPRIV-001": {
+      "pillar": "ciem",
+      "title": "Over-privileged IAM/IRSA policy (wildcard action/resource)",
+      "severity_default": 1,
+      "sources": ["accessanalyzer:*", "prowler:iam_policy_allows_privilege_escalation", "prowler:iam_inline_policy_allows_*"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "runtime"
+    },
+    "INTERNAL-SECRET-PLAINTEXT-001": {
+      "pillar": "cspm",
+      "title": "Plaintext secret in pod env/manifest (Secrets Manager 미사용)",
+      "severity_default": 1,
+      "sources": ["prowler:eks_*_secret_*", "custom:manifest-scan"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "build"
+    },
+    "INTERNAL-S3-PUBLIC-001": {
+      "pillar": "cspm",
+      "title": "S3 bucket allows public access",
+      "severity_default": 1,
+      "sources": ["securityhub:S3.8", "config:s3-bucket-public-read-prohibited", "prowler:s3_bucket_public_access"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "runtime"
+    },
+    "INTERNAL-S3-NOENCRYPT-001": {
+      "pillar": "cspm",
+      "title": "S3 bucket without server-side encryption (KMS)",
+      "severity_default": 3,
+      "sources": ["securityhub:S3.4", "config:s3-bucket-server-side-encryption-enabled"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "runtime"
+    },
+    "INTERNAL-DATA-PII-EXPOSED-001": {
+      "pillar": "data",
+      "title": "Sensitive PII detected in exposed S3 bucket",
+      "severity_default": 1,
+      "sources": ["macie:SensitiveData/*"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "runtime"
+    },
+    "INTERNAL-SG-OPEN-INGRESS-001": {
+      "pillar": "cspm",
+      "title": "Security Group allows 0.0.0.0/0 inbound",
+      "severity_default": 2,
+      "sources": ["securityhub:EC2.19", "config:restricted-common-ports", "prowler:ec2_securitygroup_allow_ingress_from_internet_to_any_port"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "runtime"
+    },
+    "INTERNAL-ENTRA-OVERPRIV-APP-001": {
+      "pillar": "ciem",
+      "title": "Over-privileged Entra App Registration (e.g. Directory.ReadWrite.All)",
+      "severity_default": 1,
+      "sources": ["prowler:entra_id_app_*_overprivileged", "prowler:entra_id_application_*"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "runtime"
+    },
+    "INTERNAL-ENTRA-RISKY-CONSENT-001": {
+      "pillar": "ciem",
+      "title": "Risky admin consent grant to unverified app",
+      "severity_default": 2,
+      "sources": ["prowler:entra_id_admin_consent_*", "prowler:entra_id_*_consent_*"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "runtime"
+    }
+  },
+  "_note_source_coverage": "remediated 스코프(4.4.1c): 각 source는 위 sources[]에서 자신을 포함하는 control 집합만 커버. 예) trivy는 INTERNAL-VULN-KEV-001만 → trivy 배치는 S3 control을 remediated로 만들지 않음."
+}

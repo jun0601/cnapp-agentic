@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cnapp-agentic/contracts/finding.schema.json",
+  "title": "OCSF-lite Finding",
+  "description": "계약① — 수집↔정규화↔엔진↔콘솔 공통 finding 스키마. project-draft 4.4 계약① + 4.4.1 정규화 규칙. resource_id는 클라우드 불문 {cloud}:{type}:{native_id}(4.4.1a, Azure Entra ARN 부재 대응). severity_id는 내부 컨벤션(1=Critical~5=Info)이며 실제 OCSF(높을수록 심각)와 반대 — 정규화 시 매핑 주의.",
+  "type": "object",
+  "required": ["finding_id", "cloud", "resource_id", "resource_type", "pillar", "control_id", "title", "severity_id", "status", "sources", "dedup_key", "ai_status", "first_seen", "last_seen"],
+  "additionalProperties": false,
+  "properties": {
+    "finding_id": { "type": "string", "format": "uuid" },
+    "cloud": { "enum": ["aws", "azure"] },
+    "resource_id": {
+      "type": "string",
+      "pattern": "^(aws|azure):[a-z_]+:.+$",
+      "description": "{cloud}:{type}:{native_id} — 4.4.1(a) 캐논 규칙. ARN은 마지막 세그먼트만, 대소문자 보존, 계정ID·리전·path 제외. 예: aws:s3_bucket:member-pii-prod"
+    },
+    "resource_type": {
+      "enum": ["s3_bucket", "iam_role", "eks_pod", "security_group", "secret_plaintext", "app_registration", "service_principal", "ecr_repo", "other"]
+    },
+    "pillar": { "enum": ["cspm", "ciem", "vuln", "kspm", "data", "attack_path"] },
+    "control_id": { "type": "string", "description": "INTERNAL-* 내부 통일 id (contracts/control-catalog.json)" },
+    "title": { "type": "string" },
+    "severity_id": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "1=Critical 2=High 3=Medium 4=Low 5=Info (내부 컨벤션 — 낮을수록 심각, 실제 OCSF와 반대)"
+    },
+    "status": { "enum": ["open", "remediated", "suppressed"], "default": "open" },
+    "sources": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "원본 스캐너 체크 id 누적. dedup_key 충돌 시 머지하며 출처 누적. 예: securityhub:S3.8"
+    },
+    "dedup_key": { "type": "string", "description": "resource_id|control_id — 중복 제거·상태 매칭 키" },
+    "priority_score": { "type": ["number", "null"], "description": "엔진(Triage)이 채움. 초기 null" },
+    "attack_path_id": { "type": ["string", "null"], "description": "1차 상관(4.4 2-pass)이 채움. 경로에 속하면 attack_paths.attack_path_id" },
+    "ai_status": { "enum": ["pending", "done", "failed"], "default": "pending", "description": "AI 레이어를 finding 레이어와 분리 — 엔진 실패해도 대시보드는 산다" },
+    "first_seen": { "type": "string", "format": "date-time" },
+    "last_seen": { "type": "string", "format": "date-time" },
+    "raw_ref": { "type": ["string", "null"], "description": "원본 s3 포인터" }
+  }
+}

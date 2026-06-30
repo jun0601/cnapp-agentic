@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cnapp-agentic/contracts/rag-chunk.schema.json",
+  "title": "RAG Chunk",
+  "description": "계약⑥ — RAG 적재(준형)↔검색(진우) 이음새. embedding_model·dim을 고정 계약으로 박아 적재·검색 벡터가 맞도록 보장. metadata.control_id가 finding.control_id와 동일 택소노미 → 검색 시 finding→관련 청크 조인. project-draft 4.4 계약⑥·16번.",
+  "type": "object",
+  "required": ["chunk_id", "text", "embedding", "embedding_model", "dim", "metadata"],
+  "additionalProperties": false,
+  "properties": {
+    "chunk_id": { "type": "string", "format": "uuid" },
+    "text": { "type": "string", "description": "'컨트롤/룰 1개 = 1청크'(16번)" },
+    "embedding": { "type": "array", "items": { "type": "number" }, "minItems": 1024, "maxItems": 1024 },
+    "embedding_model": {
+      "const": "amazon.titan-embed-text-v2:0",
+      "description": "고정 — 적재·검색 동일 필수. 서울(ap-northeast-2) 가용 확인됨. fallback: cohere.embed-multilingual-v3(동일 dim 1024)."
+    },
+    "dim": { "const": 1024 },
+    "metadata": {
+      "type": "object",
+      "required": ["control_id"],
+      "properties": {
+        "cloud": { "enum": ["aws", "azure", "generic"] },
+        "service": { "type": "string" },
+        "framework": { "type": "string", "description": "CIS | FSBP | ISMS-P | CSAP | KEV | ..." },
+        "control_id": { "type": "string", "description": "finding.control_id와 동일 택소노미(INTERNAL-* 또는 표준 control)" },
+        "severity": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "isms_p": { "type": ["string", "null"], "description": "ISMS-P 매핑(RAG 코퍼스 D 작업 시 채움, 현재 일부 미지정)" },
+        "lifecycle": { "enum": ["runtime", "build"] },
+        "remediable": { "type": "boolean" }
+      }
+    }
+  }
+}

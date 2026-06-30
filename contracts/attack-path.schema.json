@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cnapp-agentic/contracts/attack-path.schema.json",
+  "title": "Attack-path Graph",
+  "description": "계약③ — 상관 로직↔콘솔 렌더↔Reasoning 내러티브 공통. cross_cloud:true 엣지가 콘솔의 경계 횡단 강조 렌더 트리거, 노드 cloud가 AWS/Azure 레인 배치 결정. 상관 규칙 R1~R5(project-draft 4.4)가 생성, 콘솔은 읽어 렌더(console 5.1).",
+  "type": "object",
+  "required": ["attack_path_id", "severity_id", "nodes", "edges", "narrative_text"],
+  "additionalProperties": false,
+  "properties": {
+    "attack_path_id": { "type": "string", "format": "uuid" },
+    "severity_id": { "type": "integer", "minimum": 1, "maximum": 5, "description": "체인 길이>=3이면 Critical(1) 격상 — 독성 조합" },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "cloud", "resource_id", "label", "pillar"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "cloud": { "enum": ["aws", "azure"] },
+          "resource_id": { "type": "string", "description": "finding.resource_id와 동일 캐논(4.4.1a)" },
+          "label": { "type": "string" },
+          "pillar": { "enum": ["cspm", "ciem", "vuln", "kspm", "data", "attack_path"] }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "type": { "enum": ["lateral_move", "credential_theft", "data_exfil", "identity_takeover"], "description": "R2~R5 엣지 type" },
+          "cross_cloud": { "type": "boolean", "default": false, "description": "AWS↔Azure 경계 횡단 엣지 — 콘솔 강조 렌더 트리거" },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "narrative_text": { "type": "string", "description": "Reasoning이 작성한 공격 서사(UC3)" }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cnapp-agentic/contracts/case.schema.json",
+  "title": "Engine Case (agent handoff)",
+  "description": "계약⑦ — 에이전트 간 단일 case 객체 패싱(이음새 1개). 각 에이전트가 자기 구간만 채워 다음으로 넘김. evidence/reasoning 구간이 계약②(Evidence→Reasoning = 프로젝트의 심장). triage.escalate가 비용 통제 게이트.",
+  "type": "object",
+  "required": ["case_id", "finding", "stage"],
+  "additionalProperties": false,
+  "properties": {
+    "case_id": { "type": "string", "format": "uuid" },
+    "finding": {
+      "description": "단일 OCSF-lite finding, 또는 상관 시 finding_ids[]",
+      "oneOf": [
+        { "$ref": "finding.schema.json" },
+        {
+          "type": "object",
+          "required": ["finding_ids"],
+          "additionalProperties": false,
+          "properties": { "finding_ids": { "type": "array", "items": { "type": "string" } } }
+        }
+      ]
+    },
+    "stage": { "enum": ["triage", "hypothesis", "evidence", "reasoning"] },
+    "triage": {
+      "type": "object",
+      "description": "★게이트 — escalate=true(severity_id<=2 OR attack_path_id!=null)만 Hypothesis→Evidence 풀 루프로 승급(4.4 2-pass·트리아지 게이트).",
+      "properties": {
+        "priority_score": { "type": "number" },
+        "escalate": { "type": "boolean" },
+        "reason": { "type": "string" }
+      }
+    },
+    "hypotheses": { "type": "array", "items": { "type": "string" } },
+    "evidence": {
+      "type": "array",
+      "description": "계약② — Evidence 에이전트가 read-only API(계약④ allowlist)로 수집한 증거.",
+      "items": { "$ref": "#/$defs/evidenceItem" }
+    },
+    "evidence_meta": {
+      "type": "object",
+      "description": "계약② Evidence 출력 메타.",
+      "properties": {
+        "tool_calls_count": { "type": "integer" },
+        "confidence_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "verdict": { "enum": ["confirmed", "refuted", "inconclusive"] }
+      }
+    },
+    "reasoning": {
+      "type": "object",
+      "description": "종합·신뢰점수·리포트(Reasoning 에이전트 출력).",
+      "properties": {
+        "verdict": { "type": "string" },
+        "confidence_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "narrative": { "type": "string" },
+        "rag_refs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "model_trace": {
+      "type": "array",
+      "description": "단계별 Bedrock 모델·토큰(비용 추적, 15번 Haiku/Sonnet 배정).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stage": { "type": "string" },
+          "model": { "type": "string" },
+          "tokens": { "type": "integer" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "evidenceItem": {
+      "type": "object",
+      "required": ["tool", "resource_id", "result_summary", "ts"],
+      "properties": {
+        "tool": { "type": "string", "description": "계약④ allowlist의 read-only API. 예: s3:GetBucketPolicy" },
+        "resource_id": { "type": "string" },
+        "result_summary": { "type": "string" },
+        "raw": { "type": "object", "description": "원본 응답(선택)" },
+        "ts": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

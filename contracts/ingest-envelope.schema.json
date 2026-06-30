@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cnapp-agentic/contracts/ingest-envelope.schema.json",
+  "title": "Ingest Envelope",
+  "description": "계약⑤ — 수집부↔정규화부 이음새. 두 입구(AWS 스캐너 EventBridge 이벤트 + Prowler가 S3에 떨군 OCSF 객체의 S3 이벤트)를 하나의 봉투로 흡수. 정규화 '전' 원본 포인터(정규화 '후'가 계약① finding). scan_batch_id=(source,배치)로 remediated 판정 스코프 결정(4.4.1c).",
+  "type": "object",
+  "required": ["envelope_id", "source", "source_format", "cloud_hint", "scan_batch_id", "ingested_at"],
+  "additionalProperties": false,
+  "properties": {
+    "envelope_id": { "type": "string", "format": "uuid" },
+    "source": { "enum": ["securityhub", "config", "inspector", "prowler-aws", "prowler-azure", "trivy", "kube-bench", "macie", "synthetic"] },
+    "source_format": { "enum": ["asff", "ocsf", "prowler-json", "trivy-json", "custom"] },
+    "cloud_hint": { "enum": ["aws", "azure"] },
+    "scan_batch_id": {
+      "type": "string",
+      "description": "한 스캔 실행 묶음. remediated 판정 = 이 source가 커버하는 control 집합 안에서 다음 동일 source 배치에 같은 dedup_key가 없으면 remediated(4.4.1c). 이종 스캐너 간 오판 방지."
+    },
+    "ingested_at": { "type": "string", "format": "date-time" },
+    "raw_location": { "type": ["string", "null"], "description": "큰 원본은 s3 포인터" },
+    "raw_inline": { "type": ["object", "null"], "description": "작으면 인라인(raw_location과 택1)" }
+  }
+}

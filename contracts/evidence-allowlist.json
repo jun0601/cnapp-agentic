@@ -1,0 +1,25 @@
+{
+  "_description": "계약④ — Evidence 에이전트가 '스스로 호출'하는 API의 read-only 화이트리스트. 변경/쓰기 API 절대 미포함(거버넌스 17번 Read-only first). 단일 read-only IAM 역할 + Azure read-only Graph 앱 1개로 스코프. project-draft 4.4 계약④.",
+  "version": "mvp-2026-06-30",
+  "aws": [
+    "s3:GetBucketPolicy",
+    "s3:GetBucketAcl",
+    "s3:GetPublicAccessBlock",
+    "iam:GetRolePolicy",
+    "iam:ListAttachedRolePolicies",
+    "iam:SimulatePrincipalPolicy",
+    "macie2:GetFindings",
+    "ec2:DescribeSecurityGroups",
+    "accessanalyzer:ListFindings"
+  ],
+  "azure_ms_graph": [
+    "Application.Read.All",
+    "Directory.Read.All",
+    "RoleManagement.Read.Directory"
+  ],
+  "rules": [
+    "read-only only — 변경/쓰기/삭제 API 금지(allowlist 외 호출 시도는 엔진이 차단)",
+    "AWS는 단일 read-only IAM 역할로, Azure는 read-only MS Graph 앱 1개로 스코프",
+    "변경(remediation)은 Evidence가 절대 안 함 — HITL 승인 후 Step Functions(분리된 격상 역할)만"
+  ]
+}

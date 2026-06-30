@@ -1,0 +1,23 @@
+{
+  "_description": "계약③(attack-path.schema.json) 목업 — 골든 시나리오 1경로. 콘솔이 엔진 없이도 크로스클라우드 그래프(2.2)를 렌더할 수 있게 함. mock-findings.json의 attack_path_id=a0000000-...0001 finding들이 이 경로로 묶임. 4개 엣지 type(lateral_move·data_exfil·credential_theft·identity_takeover) 전부 발화, cross_cloud:true가 AWS→Azure 경계 횡단 강조.",
+  "attack_paths": [
+    {
+      "attack_path_id": "a0000000-0000-4000-8000-000000000001",
+      "severity_id": 1,
+      "nodes": [
+        { "id": "n1", "cloud": "aws", "resource_id": "aws:eks_pod:shop/product", "label": "product 취약 이미지(KEV CVE)", "pillar": "vuln" },
+        { "id": "n2", "cloud": "aws", "resource_id": "aws:iam_role:order-irsa", "label": "order 과도 IRSA 권한(s3:*)", "pillar": "ciem" },
+        { "id": "n3", "cloud": "aws", "resource_id": "aws:s3_bucket:member-pii-prod", "label": "member 공개 S3 + 회원 PII", "pillar": "data" },
+        { "id": "n4", "cloud": "azure", "resource_id": "azure:service_principal:b2c3d4e5-7777-8888-9999-aaaabbbbcccc", "label": "탈취된 Azure SP 자격증명", "pillar": "ciem" },
+        { "id": "n5", "cloud": "azure", "resource_id": "azure:app_registration:a1b2c3d4-1111-2222-3333-444455556666", "label": "과도권한 App Registration(Directory.ReadWrite.All)", "pillar": "ciem" }
+      ],
+      "edges": [
+        { "from": "n1", "to": "n2", "type": "lateral_move", "cross_cloud": false, "label": "product 침투 → order 과도 IRSA 권한 탈취" },
+        { "from": "n2", "to": "n3", "type": "data_exfil", "cross_cloud": false, "label": "s3:* 권한으로 member 공개 S3의 PII 탈취" },
+        { "from": "n2", "to": "n4", "type": "credential_theft", "cross_cloud": true, "label": "order 평문 시크릿의 Azure 자격증명으로 클라우드 경계 횡단" },
+        { "from": "n4", "to": "n5", "type": "identity_takeover", "cross_cloud": false, "label": "탈취 자격증명으로 과도권한 App Registration 장악 → 디렉터리 전체 통제권" }
+      ],
+      "narrative_text": "공격자가 product의 취약 이미지(KEV CVE)로 침투해 order 파드의 과도 IRSA 권한을 탈취(측면 이동)하고, 그 권한으로 member의 공개 S3 버킷에서 회원 PII를 탈취했다. 동시에 order 파드 평문 시크릿에 노출된 Azure 서비스 주체 자격증명으로 클라우드 경계를 넘어, Azure Entra ID의 과도권한 App Registration을 장악해 디렉터리 전체 통제권을 확보했다. 단일 finding은 각각 중간 위험이나, 묶이면 AWS 워크로드→Azure 신원을 가로지르는 Critical 탈취 경로가 된다."
+    }
+  ]
+}

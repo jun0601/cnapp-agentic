@@ -15,6 +15,7 @@
 
 > 예시(실제 발생 시 이 형식으로 교체·추가):
 
+- `2026-06-30 / 준형 / [contracts] contracts/ 졸업 — 계약 7종 JSON Schema + control-catalog + mock 3종 생성. python json.load 10/10 통과, 교차참조(control_id 카탈로그·dedup_key·골든 경로 id·case finding_ids·evidence allowlist) 정합 검증 통과. 콘솔 출력 cp949 em대시 깨짐은 PYTHONIOENCODING=utf-8로 우회`
 - `2026-06-30 / 준형 / [contracts] 검증 후속 확정 — 4.4.1 정규화 규칙 3종(resource_id 캐논·INTERNAL control_id 카탈로그·remediated source별 스코프) 신설, §24 3건 닫음, 2-pass·핵심영역 분담 확정 전환. README 폴더구조 실제 구조로 갱신`
 - `2026-06-30 / 준형 / [docs] CLAUDE.md §6·§7이 HEAD~4 머지에서 유실 + §5 "시간 컷" 불릿이 깨진 바이트(ef bf bd)로 잘린 것 발견 → head -126으로 온전부 보존 + HEAD~5에서 §6/§7 추출 복원, §7.1 Next Up 추가`
 - `2026-06-30 / 준형 / [contracts] 진우 9개 확정 검증 — attack-path 상관과 Evidence 실행순서 상충 발견(UC0 vs 트리거/게이트) → 2-pass(1차 규칙상관→트리아지 게이트→Evidence→2차 확정)로 docs 통일. dedup용 resource_id 캐논·INTERNAL control_id 카탈로그·remediated 스캐너별 스코프 3건은 §24 미확정 등록`
