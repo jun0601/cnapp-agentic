@@ -53,6 +53,7 @@
 | **App Registration — 과도권한 결함용** | `Directory.ReadWrite.All` 등 CIEM finding 소스용(격리 테넌트에만). | 미착수 |
 | **Service Principal — order 평문 시크릿용** | `Directory.Read.All` + `Application.Read.All` 스코프만. 만료일 = 데모 종료일 +1주. order 파드 env에 의도적으로 평문 노출(결함). | 미착수 |
 | **Service Principal — Prowler 스캔용** | `Security Reader` 역할 수준 read-only SP. Prowler Azure 모드가 이 SP로 Entra/Defender 스캔 → OCSF 출력 → S3 파이프라인. | 미착수 |
+| **Federated Identity Credential (Prowler SP)** | Prowler 스캔 SP에 GitHub 저장소를 Federated Credential로 등록. Subject: `repo:jun0601/cnapp-agentic:ref:refs/heads/main`. GitHub Actions가 client-secret 없이 Azure 인증(project-draft D4 키리스 원칙). | 미착수 |
 | **Defender for Cloud** | 데모 기간만 활성, 이후 비활성(종량제 — project-draft 22번). | 미착수 |
 
 ---

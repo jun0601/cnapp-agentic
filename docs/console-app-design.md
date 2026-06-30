@@ -310,8 +310,8 @@ Day 단위 콘솔 작업과 연계 절을 정리한 표다.
 **v2에서 확정(미확정에서 제거):** 백엔드 컴퓨트 = Lambda·타깃 EKS와 분리(4번) / attack-path 콘솔 렌더링 = 커스텀 postgres 인접 리스트(5.1) / 갱신 주기 = 30~60초 폴링+수동 새로고침(6.2) / RBAC = 2역할·Entra 그룹 매핑(7번).
 
 **여전히 열린 항목:**
-- [ ] **attack-path 상류 상관 계산 소스** — Security Hub exposure vs 엔진 커스텀 상관 vs 병행. **project-draft 24번과 동일 항목.** (콘솔 렌더링 방식은 5.1에서 커스텀 postgres로 확정; 무엇이 경로를 *계산*하는지가 열림.)
-- [ ] **자동 조치 카탈로그 1차 범위** — 어떤 finding까지 자동 Fix 제안을 허용할지. **project-draft 24번과 동일 항목**, 콘솔 UI 노출 범위와 직결.
+- [x] **attack-path 상류 상관 계산 소스 확정** — **커스텀 엔진(R1~R5 규칙 기반)**. 정규화 Lambda 배치 완료 → `cnapp.findings.batch.completed` EventBridge 이벤트 → attack-path 상관 Lambda → 계약③ JSON으로 DB upsert → 콘솔이 읽어 렌더(project-draft 4.4·24번 확정).
+- [x] **자동 조치 카탈로그 1차 범위 확정(MVP 3종)** — ① S3 Public Access Block ② SG 0.0.0.0/0 인바운드 제거 ③ IAM 최소권한 diff 제안(제안만, 승인 후 적용). ①②는 HITL 승인 후 자동 실행. Azure findings는 가이드 텍스트 + "수동 조치 필요"(자동 실행 없음). project-draft §24 동기화.
 - [ ] 컴플라이언스 리포트(UC5) PDF 내보내기 구현 방식 — 보너스 우선순위라 후순위.
 
 ---

@@ -198,7 +198,7 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 }
 ```
 
-> `metadata.control_id`가 finding의 `control_id`와 동일 택소노미 → 검색 시 finding→관련 청크 조인. ※ 임베딩 모델은 Bedrock 서울 리전 가용성 1주차 실측 대상(없으면 cross-region).
+> `metadata.control_id`가 finding의 `control_id`와 동일 택소노미 → 검색 시 finding→관련 청크 조인. **Titan embed v2 서울(ap-northeast-2) 가용 확인됨.** fallback: 서울 미가용 시 `cohere.embed-multilingual-v3`(동일 dim 1024, 동가격)으로 교체 — cross-region inference는 NAT 트래픽 비용 발생으로 최후 수단.
 
 #### 계약 ⑦ 엔진 에이전트 핸드오프 (case 객체) — 트리아지 게이트 포함
 
@@ -218,6 +218,7 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 ```
 
 > **트리아지 게이트(비용 통제):** `triage.escalate=true`(고위험·attack-path 후보)만 Hypothesis→Evidence 풀 루프로 승급, 나머지는 UC1 설명(control_id 캐시)에서 멈춤 → finding 1000건이라도 풀 루프는 소수. 9번 비용 통제·15번 모델 배정(Haiku/Sonnet)과 직결.
+> **`escalate` 판정 기준(확정):** `severity_id ≤ 2`(Critical/High) **OR** `attack_path_id != null`(attack-path 후보 finding). 이 조건 외에는 Triage에서 멈춤.
 
 #### attack-path 상관 규칙 (MVP — 골든 1경로 규칙 기반)
 
@@ -232,6 +233,8 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 | R5 신원 장악 | 탈취 Azure 자격증명 + Entra 과도권한 App Registration | 엣지(→Entra 노드) | `identity_takeover`, `cross_cloud:true` |
 
 > 상관 = 한 규칙의 *대상*이 다음 규칙의 *조건 resource*가 되면 엣지를 잇는다(체이닝). 체인 길이 ≥ 3이면 severity를 Critical로 격상(독성 조합). 출력은 계약③ JSON, 콘솔은 그걸 읽어 렌더(console 5.1).
+
+> **attack-path 상관 계산 트리거:** 정규화부 Lambda가 배치 완료 시 `cnapp.findings.batch.completed` 이벤트를 EventBridge에 발행 → attack-path 상관 Lambda 기동. Prowler Azure 스케줄 완료 후에도 동일 이벤트 발행. 결과는 계약③ JSON으로 DB에 upsert.
 
 ### 4.5 우선순위 (시간 쪼들릴 때 기준)
 
@@ -448,7 +451,7 @@ CSPM(S3·SG·IAM·암호화) · CIEM(AWS 과도 권한 + **Azure Entra 과도권
 | D1 | 새 계정 + **단일 계정**(Organizations 미사용) | 무료 플랜에서 Organizations 켜면 유료 전환·크레딧 소멸. |
 | D2 | **단일 리전(서울)** + CloudTrail/Config **전 리전 수집** | 비용↓, 단 리전 드리프트 탐지는 전 리전. |
 | D3 | **IAM 어드민 + MFA, 루트 잠금**(Identity Center 미사용) | Identity Center는 Organizations 동반 → 크레딧 소멸 회피. |
-| D4 | CI/CD **GitHub OIDC → IAM Role**(키 없음) | 장기 자격증명 미사용 2026 표준. |
+| D4 | CI/CD **GitHub OIDC → IAM Role**(AWS, 키 없음) + **Entra Workload Identity Federation**(Azure, 키 없음) | AWS는 GitHub OIDC→IAM Role, Azure는 App Registration에 Federated Identity Credential 등록 → GitHub Actions가 client-secret 없이 Azure 인증. 양쪽 모두 장기 자격증명 없는 키리스. |
 | D5 | 파드 **IRSA / Pod Identity** | 스코프된 임시 자격증명. |
 | D6 | **EKS + ArgoCD GitOps** | 배포·CI/CD 목표 핵심. |
 | D7 | **앱 2개**(취약 타깃 + 관제 대시보드) | findings 소스 + NOVA 대응. |
@@ -548,6 +551,8 @@ CSPM(S3·SG·IAM·암호화) · CIEM(AWS 과도 권한 + **Azure Entra 과도권
 | | Defender for Cloud | Azure 리소스 CSPM — secure score·권고·컴플라이언스(멀티클라우드 통합 뷰) | AWS Security Hub 대응. **데이터 탐지(sensitive data discovery)는 쓰지 않음** — Azure는 데이터 저장소가 아님 |
 | 강추 | Azure Policy | 리소스 규정 준수 평가 | Defender 연계, 컴플라이언스 매핑 |
 | 선택 | Log Analytics Workspace | Defender/Entra 로그 수집·쿼리 | findings 파이프라인 연동 시 |
+
+**Prowler Azure 스캔 스케줄:** GitHub Actions cron `0 17 * * *`(UTC = 매일 새벽 2시 KST) → OCSF 출력 → S3 → EventBridge S3 이벤트 → 기존 SQS→Lambda 파이프라인 합류. 인증은 D4 Entra Workload Identity Federation(키 없음).
 
 **의도적 미스컨피그(Azure — 신원 중심, 4~5개):** ① 과도권한 App Registration(예: `Directory.ReadWrite.All` 등 디렉터리 광범위 권한), ② 위험한 consent grant(검증 안 된 앱에 광범위 위임), ③ Entra 권한상승 경로(과도한 디렉터리 역할 할당), ④ Service Principal에 만료 없는/유출 위험 자격증명, ⑤ (선택) Defender secure score를 깎는 일반 리소스 미스컨피그. **Storage/Blob 등 데이터 결함은 심지 않음** — 데이터는 AWS S3에만 있고 Azure는 신원만 다룬다.
 
@@ -665,7 +670,7 @@ MVP 코퍼스: A(CIS AWS+K8s) + FSBP + C(KEV) + E(자체 루브릭).
 - 크레딧 소멸 트리거: **Organizations / Identity Center / Control Tower → 절대 안 켬.**
 - Config·Security Hub·Inspector·Macie·Defender는 종량제 → **데모 기간만 켜고 `destroy`.** 서비스별 1일 추정: Config ~$0.30, Security Hub ~$0.03, Inspector ~$0.01, Macie 첫 달 무료(이후 $1/버킷), Defender ~$0.02/서버/시간.
 - **EKS:** NAT Gateway 제거 → **NAT Instance(t3.nano, ~$3.40/월) + S3·DynamoDB Gateway Endpoint(무료)** 조합. ※ Interface VPC Endpoint는 개당 $7.30/월 — 6개 시 $43.80/월로 NAT Gateway($32.85)보다 비쌈. **spot + 작은 노드(t3.small×2)**, 비데모 시 **노드 스케일-0**(Cluster Autoscaler minSize=0), 완전 비사용 시 `terraform destroy`, **Budgets 알림($50/$100)**.
-- **DB: RDS PostgreSQL t3.micro + pgvector** (Aurora 미사용 — idle 최소 $43/월). free tier 12개월. 이후 ~$13/월. 비데모 시 **RDS Stop**(최대 7일 자동유지, 이후 재시작) → 스토리지만 $0.115/GB/월(20GB ≈ $2.30/월).
+- **DB: RDS PostgreSQL t3.micro + pgvector** (Aurora 미사용 — idle 최소 $43/월). free tier 12개월. 이후 ~$13/월. 비데모 시 **RDS Stop**(최대 7일 자동유지, 이후 재시작) → 스토리지만 $0.115/GB/월(20GB ≈ $2.30/월). **7일 자동 재기동 방지: EventBridge Scheduler(daily 새벽 2시 KST) + Lambda → RDS 상태 확인 후 `available`이면 자동 Stop.** infra/shared 포함, 비용 ~$0.
 - Azure: Entra ID 무료 티어(신원·App Registration), 컴퓨팅·스토리지 미사용으로 사실상 $0, Defender 소액(데모만).
 - 오픈소스(Trivy·Checkov·kube-bench·cosign)는 컴퓨팅 비용만.
 - 인증 레이어(Cognito·IAM·Entra 무료)는 사실상 $0.
@@ -687,13 +692,13 @@ MVP 코퍼스: A(CIS AWS+K8s) + FSBP + C(KEV) + E(자체 루브릭).
 
 - [ ] 프로젝트 정식 명칭 / 레포 네이밍
 - [x] **레포 = 모노레포 확정** — 단일 레포(`cnapp-agentic`) 안에 `apps/`·`engine/`·`infra/` 폴더로 관리. 레포가 하나여도 배포는 폴더별로 분리(target=EKS, console=S3+Lambda). 모듈 경계 = 폴더 분리 + Terraform state를 `infra/{shared,target,console}`별로 분리. 2인·2주엔 멀티레포보다 모노레포가 정답(pull 한 번, 문서·코드 동거).
-- [ ] 타깃 앱 마이크로서비스 세부(개수·기능·미스컨피그·취약 이미지 — 완전한 목록)
+- [x] **타깃 앱 마이크로서비스 세부 확정** — product·order·member 3개, 기능·결함·골든 attack-path 전체 목록은 [target-app-design.md](target-app-design.md)가 SSOT.
 - [x] **벡터DB = pgvector (RDS PostgreSQL t3.micro)** 확정 — 코퍼스 규모 작아 OpenSearch Serverless는 오버스펙·고비용. Aurora는 idle $43/월로 과함. RDS PostgreSQL t3.micro(free tier 12개월, 이후 $13/월)로 확정. 저렴·단순·finding 메타데이터와 동거 가능.
 - [x] **Azure 역할 = 신원(Entra ID) 중심 확정** — 데이터(회원 PII)는 **AWS S3 전용**, Azure에는 데이터를 두지 않는다(중복 저장은 명분 약함). Azure 점검은 Entra CIEM(과도권한 앱·위험한 consent·권한상승) + Defender for Cloud secure score. Macie는 AWS S3 전용, Defender의 데이터 탐지는 미사용.
 - [x] **MVP 데모 골든 시나리오 = 크로스클라우드 신원 탈취 경로 확정** — product 취약 이미지 침투 → order 평문 시크릿에서 Azure 자격증명 발견 → member 공개 S3로 AWS PII 탈취 → 탈취 자격증명으로 Azure Entra ID 과도권한 앱/계정 장악. MVP는 이 경로를 **분석·시각화**하는 수준, 실제 AWS→Azure 횡단 동작은 보너스.
 - [x] **attack-path 계산 = 커스텀 엔진 상관 확정** — 새 Security Hub exposure는 AWS 내부만 엮고 Azure를 못 덮어 크로스클라우드(AWS→Azure) 경로를 단독으로 못 그림 → 선택지가 사실상 커스텀뿐. 우리가 규칙 기반으로 finding을 엮어 4.4 계약 ③ 형식으로 출력(MVP는 골든 1경로 규칙, 규칙 추가로 확장). 콘솔 렌더링은 커스텀 postgres 인접 리스트(console 5.1).
 - [x] **Azure findings 파이프라인 진입 = Prowler(Azure 모드) 확정** — Prowler가 AWS·Azure 모두 지원(entra_id_* 체크·Defender 연동), OCSF 포맷 출력. GitHub Actions 스케줄 실행 → S3 저장 → EventBridge S3 이벤트 → 기존 SQS→Lambda 파이프라인 합류. 별도 Azure Event Grid·Function 불필요.
-- [ ] 자동 조치 카탈로그 1차 범위
+- [x] **자동 조치 카탈로그 1차 범위 확정(MVP 3종)** — ① S3 Public Access Block(1 API, 가역, 고임팩트) ② Security Group 0.0.0.0/0 인바운드 제거(특정 포트 룰 삭제) ③ IAM 최소권한 diff 제안(실제 사용 권한 기반 축소 정책 생성 — 승인 후 적용). ①②는 HITL 승인 후 자동 실행, ③은 제안만. Azure findings는 가이드 텍스트 + "수동 조치 필요" 표시(자동 실행 없음). console-app-design.md §14 동기화.
 
 ---
 
