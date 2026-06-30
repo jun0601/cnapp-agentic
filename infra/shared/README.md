@@ -6,17 +6,12 @@
 
 ## 무엇이 들어있나
 
-| 파일 | 리소스 |
+> `.tf`는 3개로 단순화 — Terraform은 폴더 내 모든 `.tf`를 합쳐 읽으므로 리소스는 `main.tf` 한 파일에 **구역 주석**으로 묶고, 관례대로 `variables`·`outputs`만 분리.
+
+| 파일 | 내용 |
 |---|---|
-| `versions.tf` / `providers.tf` / `backend.tf` | TF·provider 버전, AWS provider(서울), S3 백엔드(네이티브 락) |
+| **`main.tf`** | 전체 리소스 — 구역: `[TF·BACKEND]`(버전·S3 백엔드 네이티브 락) · `[PROVIDER]` · `[VPC]`(2AZ, NAT GW 끔, Gateway Endpoint) · `[NAT]`(raw NAT Instance t4g.nano) · `[EKS]`(spot t3.small·scale 0~2·IRSA) · `[ECR]`(4종, scan-on-push) · `[RDS]`(PG t3.micro+pgvector, Secrets Manager) · `[IAM-OIDC]`(GitHub OIDC, 키 없음) · `[IAM-ENGINE]`(Evidence read-only=계약④, Bedrock invoke) |
 | `variables.tf` / `terraform.tfvars.example` | 입력 변수 + 예시 |
-| `vpc.tf` | VPC(2 AZ), **NAT Gateway 끔**, S3·DynamoDB Gateway Endpoint(무료) |
-| `nat.tf` | **NAT Instance(fck-nat, t4g.nano)** — 비용(22번) |
-| `eks.tf` | EKS(**spot t3.small, scale 0~2**, IRSA, API access entry) |
-| `ecr.tf` | ECR repo 4개(product·order·member·console-backend), scan-on-push |
-| `rds.tf` | **RDS PostgreSQL t3.micro + pgvector**, private subnet, Secrets Manager |
-| `iam-github-oidc.tf` | **GitHub OIDC→IAM Role**(키 없음, D4) |
-| `iam-engine.tf` | **Evidence read-only 정책**(contracts/evidence-allowlist.json과 동기화) + Bedrock invoke 정책 |
 | `outputs.tf` | 하위 레이어가 참조할 출력(vpc·eks·ecr·rds·iam) |
 
 ## apply 전 사전작업 (필수)
