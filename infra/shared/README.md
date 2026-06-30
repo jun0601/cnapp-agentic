@@ -1,0 +1,50 @@
+# infra/shared — 공유 기반 레이어 (Terraform)
+
+> **레이어드 terraform의 0번 — 가장 먼저 apply.** 모든 영역(target·console·scanners·pipeline·engine)이 이 출력을 참조한다(project-draft 4.6). 준형이 최초 apply.
+>
+> ⚠️ **현재 상태 = 스캐폴드.** apply 전 아래 사전작업 + `TODO` 마커를 채우고 리뷰해야 한다. 비용 발생(EKS·RDS·NAT) — 데모 기간만 켜고 `destroy`.
+
+## 무엇이 들어있나
+
+| 파일 | 리소스 |
+|---|---|
+| `versions.tf` / `providers.tf` / `backend.tf` | TF·provider 버전, AWS provider(서울), S3 백엔드(네이티브 락) |
+| `variables.tf` / `terraform.tfvars.example` | 입력 변수 + 예시 |
+| `vpc.tf` | VPC(2 AZ), **NAT Gateway 끔**, S3·DynamoDB Gateway Endpoint(무료) |
+| `nat.tf` | **NAT Instance(fck-nat, t4g.nano)** — 비용(22번) |
+| `eks.tf` | EKS(**spot t3.small, scale 0~2**, IRSA, API access entry) |
+| `ecr.tf` | ECR repo 4개(product·order·member·console-backend), scan-on-push |
+| `rds.tf` | **RDS PostgreSQL t3.micro + pgvector**, private subnet, Secrets Manager |
+| `iam-github-oidc.tf` | **GitHub OIDC→IAM Role**(키 없음, D4) |
+| `iam-engine.tf` | **Evidence read-only 정책**(contracts/evidence-allowlist.json과 동기화) + Bedrock invoke 정책 |
+| `outputs.tf` | 하위 레이어가 참조할 출력(vpc·eks·ecr·rds·iam) |
+
+## apply 전 사전작업 (필수)
+
+1. **state 버킷 부트스트랩** — manual-infra.md 2번. S3 버킷 1개(버저닝·SSE·public 차단). 만든 뒤:
+   - `backend.tf`의 `bucket` 값 교체, 또는 `terraform init -backend-config="bucket=..."`.
+2. **Bedrock 모델 액세스** — 콘솔에서 서울(ap-northeast-2) 리전에 Claude Haiku/Sonnet·Titan Embed v2 **모델 액세스 요청**(승인까지 시간 소요 가능). 가용성 실측 후 `iam-engine.tf`·`variables.tf`의 모델 ARN 좁히기.
+3. **TODO 마커 채우기** — `cluster_admin_principal_arns`(jh_lee·jw_kim ARN), `github_repo`, NAT/모델 ARN 등.
+4. **fck-nat 모듈 변수 검증** — 고정 버전(`~> 1.3`) 문서로 변수명 확인.
+
+## apply 순서
+
+```bash
+cd infra/shared
+cp terraform.tfvars.example terraform.tfvars   # 값 채우기
+terraform init -backend-config="bucket=<state-bucket>"
+terraform plan      # 반드시 리뷰
+terraform apply     # 비용 발생 시작
+# ...데모 종료 후...
+terraform destroy   # 비용 0
+```
+
+## 비용 메모 (project-draft 22번)
+
+- NAT Instance(t4g.nano) ~$3/월 · RDS t3.micro free tier(이후 ~$13/월) · EKS 컨트롤플레인 $0.10/h · spot 노드.
+- 비데모: EKS 노드 scale-to-0, RDS Stop(+EventBridge 재-Stop, rds.tf TODO), 완전 비사용 시 `destroy`.
+- Budgets $50/$100 알림 유지(manual-infra).
+
+## 다음 레이어
+
+이 출력을 `terraform_remote_state`로 읽어 `infra/target`(준형)·`infra/console`(진우)·`infra/{scanners,pipeline,engine}`(영역 주인)이 위에 쌓는다.

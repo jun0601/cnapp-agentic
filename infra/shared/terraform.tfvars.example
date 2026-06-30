@@ -1,0 +1,23 @@
+# cp terraform.tfvars.example terraform.tfvars 후 실제 값으로 채움.
+# terraform.tfvars는 커밋 금지(.gitignore).
+
+region      = "ap-northeast-2"
+project     = "cnapp-agentic"
+env         = "demo"
+github_repo = "jun0601/cnapp-agentic"
+
+# EKS 노드 (비용)
+node_instance_types = ["t3.small"]
+node_min            = 0
+node_max            = 2
+node_desired        = 2
+
+# RDS
+db_instance_class = "db.t3.micro"
+db_engine_version = "16.4"
+
+# 운영자 EKS admin — 실제 IAM 사용자 ARN으로 채우기
+cluster_admin_principal_arns = [
+  # "arn:aws:iam::<ACCOUNT_ID>:user/jh_lee",
+  # "arn:aws:iam::<ACCOUNT_ID>:user/jw_kim",
+]
