@@ -11,11 +11,14 @@
 2. **변경 로그 기록:** 작업 중 중요한 변경·결정·방향 전환이 생기면 아래 [변경 로그](#변경-로그-최신이-위로)에 한 줄로 남긴다. *사소한 수정(오타·포맷 등)은 적지 않는다 — 다른 사람이 알아야 할 것만.*
 3. **`[PULL 필요]` 태그:** 상대가 반드시 pull해야 할 중요 변경(설계 방향 전환, 핵심 결정, 구조 변경)은 변경 로그에 **`[PULL 필요]`** 태그를 붙여 명시한다.
 4. **작업 후:** `commit` + `push`로 공유한다(커밋 메시지 `타입: 내용`). 상세 협업 규칙은 [6번](#6-협업-규칙-) 참조.
+5. **작업 로그 기입:** 구현하며 겪은 문제·해결과 추가·작업한 것은 루트의 **[troubleshooting.md](troubleshooting.md)** 에 한 줄씩 남긴다(중앙 1개 파일, 영역별 파일 금지). 형식 `YYYY-MM-DD / 작성자 / [영역] / 내용`, 영역 태그 `[infra]` `[scanners]` `[pipeline]` `[engine]` `[rag]` `[attackpath]` `[apps-target]` `[apps-console]` `[contracts]` `[docs]` `[ci]`. *굵직한 설계 변경*은 여기 말고 위 변경 로그에(목적 분리: troubleshooting=작업 디테일, 변경 로그=pull 알림).
 
 ### 변경 로그 (최신이 위로)
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-06-30 / 준형 / 작업 로그(troubleshooting.md) 신설 + 레포 구조 트리 갱신** — 루트에 **`troubleshooting.md`** 생성: 트러블슈팅 + 진행 로그를 **중앙 1개 파일**에 `[영역]` 태그로 한 줄씩(영역별 파일 금지 — 스프롤·교차패턴 손실 방지). 작업규칙 5번에 기입 형식 명시. CLAUDE 4번 폴더트리를 실제 구조(contracts·scanners·pipeline·rag·attackpath·manual-infra 포함)로 갱신, project-draft 4.6과 정합. **`[PULL 필요]`**
+- **2026-06-30 / 준형 / 이음새 계약 3종 추가 + terraform 레이어링·폴더소유 확정(4.6)** — 반반 분담으로 드러난 이음새를 계약으로 박음: **⑤ 수집 봉투**(수집부↔정규화부, EventBridge·Prowler-S3 두 입구 흡수, `scan_batch_id`) **⑥ 임베딩 모델+rag_chunk**(적재↔검색, `amazon.titan-embed-text-v2:0`/1024 고정) **⑦ 엔진 case 핸드오프**(단일 객체 패싱, `triage.escalate` **트리아지 게이트**=비용통제) + **attack-path 상관규칙 R1~R5**(골든 1경로, 계약③을 채우는 알고리즘). **4.6 신설**: terraform=레이어드(`infra/shared` 기반 먼저→`infra/<영역>` 영역주인 apply, 쪼개기 영역단위까지), 폴더=컴포넌트로(사람폴더 금지)+소유표, 공유편집 4파일(`contracts/`·`engine/core/`·`docs/`·`CLAUDE.md`), CI apply 자동화. **`[PULL 필요]`**
 - **2026-06-30 / 준형 / 비용 최적화 + 설계 잔여 갭 해소** — Aurora→RDS PostgreSQL t3.micro 확정, NAT Instance+Gateway Endpoint 전략, Prowler Azure 파이프라인 진입 확정, 에이전트별 Bedrock 모델 배정(Haiku/Sonnet), CIEM 분담 독립 행, Entra CIEM RAG 룰북, D11·13번 갱신. project-draft v5.4·console-app-design·CLAUDE.md·target-app-design·infra-status.md 동기화. **`[PULL 필요]`**
 - **2026-06-30 / 준형 / 공통 계약 4종 초안 확정 + 미확정 2건 닫음** — project-draft **4.4를 "합의 계약"으로 확장**해 ①OCSF-lite finding 스키마(식별자 `resource_id`로 일반화—Azure ARN 부재 대응, `dedup_key` 중복제거, `ai_status` AI레이어 분리) ②엔진 입출력(Evidence→Reasoning) ③attack-path 그래프 JSON ④Evidence 툴 allowlist(read-only) 초안을 박음. 코딩 시 `contracts/*.json`으로 졸업(별도 schema.md 안 만듦). **계약우선/목업우선 전략**(목업 finding 먼저 커밋→직렬 의존 끊기) 명시. 24번 미확정에서 **레포=모노레포 확정**, **attack-path 계산=커스텀 엔진 확정**. console 5·6.1을 4.4 참조 + `resource_id`로 동기화. ※핵심영역 분담·demo-real 범위는 여전히 진우 협의 대기. **`[PULL 필요]`**
 - **2026-06-30 / 준형 / 작업 분담 표 통합 + 실명(준형/진우) 반영** — 앱·토대(확정)와 핵심 영역(협의중)을 한 표의 상태 열로 통합, 담당을 트랙1·트랙2 → 준형·진우로 교체. 분담은 상시 협의로 조정되는 살아있는 문서임을 명시. 두 파일 동기화.
@@ -70,23 +73,31 @@
 
 ```
 cnapp-agentic/
-├── CLAUDE.md                 # 이 문서 — 작업 기준 + 협업 규칙
+├── CLAUDE.md                 # 작업 기준 + 협업 규칙 + 변경 로그
 ├── README.md
+├── troubleshooting.md        # 작업 로그 (트러블슈팅 + 진행, [영역] 태그 한 줄씩)
+├── contracts/                # ★공유 이음새 계약(4.4): *.json 스키마 + mock-findings.json (코딩 시 생성)
 ├── docs/                     # ★ 설계 SSOT (변경 시 반드시 여기 먼저 반영)
-│   ├── project-draft.md      #   메인 설계서 v5 (방향·범위·아키텍처·로드맵)
+│   ├── project-draft.md      #   메인 설계서 (방향·범위·계약 4.4·구조 4.6·로드맵)
 │   ├── target-app-design.md  #   타깃 앱 상세 (결함 목록·골든 attack-path)
-│   └── console-app-design.md #   관제 앱 상세 (화면 구조·백엔드·RBAC·RAG 매핑)
+│   ├── console-app-design.md #   관제 앱 상세 (화면·백엔드·RBAC·RAG 매핑)
+│   └── manual-infra.md       #   수동 관리 리소스 현황 (계정·부트스트랩·Azure/Entra)
 ├── apps/
-│   ├── target/               # 취약 타깃 앱 (커머스 3 마이크로서비스: product/order/member). findings 소스
-│   └── console/              # 관제 앱 (React, posture·findings·attack-path·AI 설명/조치)
-├── engine/                   # 공유 에이전틱 엔진 코어 (Bedrock 멀티에이전트 + RAG + OCSF 정규화)
-└── infra/                    # Terraform IaC
-    ├── shared/               #   공유 골격 (계정·VPC·EKS·인증·수집 파이프라인·벡터DB)
-    ├── target/               #   타깃 앱 인프라 (★ 의도적 결함을 IaC에 심는 곳)
-    └── console/              #   관제 앱 인프라 (S3+CloudFront·ALB·Cognito·Step Functions)
+│   ├── target/               # 취약 타깃 앱 (product/order/member). 코드만
+│   └── console/              # 관제 앱 (React). 코드만
+├── scanners/                 # cspm(준형) / workload(진우). 코드만
+├── pipeline/                 # ingest(준형) / normalize(진우). 코드만
+├── engine/                   # core(공유) / triage·evidence(준형) / hypothesis·reasoning(진우)
+├── rag/                      # corpus(준형) / retrieval(진우). 코드만
+├── attackpath/               # model(준형) / correlation(진우). 코드만
+└── infra/                    # Terraform — 레이어드(4.6). apply는 여기서만
+    ├── shared/               #   기반(준형 최초 apply): VPC·EKS·OIDC·RDS pgvector·Bedrock·ECR
+    ├── target/               #   취약 워크로드+의도적 결함(준형, 휘발성·격리)
+    ├── console/              #   ALB·Cognito·console Lambda·SFn·CloudFront(진우)
+    └── {scanners,pipeline,engine,…}/  # 영역별 terraform(영역 주인이 apply)
 ```
 
-> **레포 = 모노레포 확정**(설계서 24번). 레포는 하나여도 배포는 폴더별 분리(target=EKS, console=S3+Lambda), Terraform state는 `infra/{shared,target,console}`별 분리. 코딩 시작 시 공통 계약은 `contracts/*.json`(project-draft 4.4 초안 졸업)으로 추가. 구조를 바꿀 땐 docs에 먼저 반영.
+> **레포 = 모노레포 확정**(설계서 24번). 배포는 폴더별 분리(target=EKS, console=S3+Lambda). **terraform = 레이어드(project-draft 4.6)**: `infra/shared`(기반, 준형 최초 apply) → `infra/<영역>`(영역 주인이 apply, 쪼개기 영역 단위까지). 컴포넌트 폴더(scanners·pipeline·engine·rag·attackpath)는 코드만. **폴더는 컴포넌트로 나눔(사람폴더 금지)**, 소유표·이음새는 4.6. 공유편집 4파일=`contracts/`·`engine/core/`·`docs/`·`CLAUDE.md`. 코딩 시 공통 계약은 `contracts/*.json`(4.4 초안 졸업). 구조를 바꿀 땐 docs에 먼저 반영.
 
 ---
 
@@ -109,25 +120,5 @@ cnapp-agentic/
 > 앱·토대=확정, 핵심 영역(스캐너·수집·엔진·RAG·attack-path)=**협의중**(둘이 상시 조율).
 
 - **의존성(병목):** 0 공유인프라(준형 최우선) → 1 앱·모니터링 ∥ → 2 스캐너 ∥ → 3 수집→정규화 → 4 RAG ∥ → 5 엔진(Evidence∥Reasoning) → 6 출력 ∥ → 7 데모 합류.
-- **공통 계약 4종 초안 확정(project-draft 4.4):** ① OCSF-lite 스키마(`resource_id`·`dedup_key`·`ai_status`) ② 엔진 입출력(Evidence→Reasoning) ③ attack-path 그래프 JSON ④ Evidence 툴 allowlist(read-only). `contracts/mock-findings.json` 먼저 커밋 → 직렬 의존 끊고 병렬 작업 가능.
-- **시간 컷 우선순위:** 엔진 능동조사(1) > attack-path 상관(2) > 스캐너·수집·RAG(3) > 관제앱·CI/CD·포장(4). **"AI가 스스로 증거 모아 공격경로 판단하는 한 장면"** 사수.
-
-**공유 자산(양쪽 함께):** 수집 파이프라인(EventBridge→SQS→Lambda, OCSF 정규화), 에이전틱 엔진 코어(`engine/`), 인프라 골격(`infra/shared/`), 관제 대시보드(`apps/console/`).
-
----
-
-## 6. 협업 규칙 🔒
-
-1. **작업 시작 전 `git pull`** — 항상 최신 main을 받고 시작. 충돌 줄이기.
-2. **작업 후 `commit` + `push`** — 의미 단위로 커밋하고 바로 push해 상대가 받을 수 있게. 커밋 메시지는 `타입: 내용`(예: `feat: ...`, `docs: ...`, `infra: ...`).
-3. **설계 변경은 docs에 먼저 반영** — 방향·범위·구조·결정이 바뀌면 [docs/](docs/)의 해당 설계 문서(project-draft / target-app-design / console-app-design)를 **먼저** 업데이트하고, 영향이 있으면 본 CLAUDE.md도 갱신. 코드/문서 불일치를 남기지 않는다.
-4. **무료 티어 가드레일 준수** — Organizations/Identity Center/Control Tower 금지. 종량제 서비스(Config·Security Hub·Inspector·Macie·Defender)는 데모 기간만 켜고 `destroy`. Budgets 알림 유지.
-5. **보안 기본** — 장기 키 커밋 금지(OIDC/IRSA 사용), 시크릿은 Secrets Manager+KMS. 에이전트는 read-only first, 변경은 HITL 승인 경로로만.
-
----
-
-## 7. 앞으로의 작업 기준 🗓️
-
-- **모든 작업은 `docs/`와 이 `CLAUDE.md`를 기준으로 진행한다.** 새 기능·결정·구조 변경은 먼저 설계 문서와 정합성을 확인하고, 어긋나면 문서를 갱신한 뒤 코드를 작성한다.
-- 우선순위 컷라인(설계서 21번): **① 절대사수** = CSPM 본체 + RAG 설명 + 대시보드 + Azure 통합 + Shift-Left + KSPM, **② 보너스** = 공급망 서명·attack-path 정교화·ISMS-P 리포트, **③ 확장** = CWPP 런타임·SOC.
-- 미확정 항목(설계서 24번)은 결정될 때마다 docs에 반영하고 여기 요약을 갱신한다.
+- **공통 계약 7종 초안 확정(project-draft 4.4):** ① OCSF-lite 스키마(`resource_id`·`dedup_key`·`ai_status`) ② 엔진 입출력 ③ attack-path 그래프 JSON ④ Evidence 툴 allowlist ⑤ 수집 봉투(수집부↔정규화부) ⑥ 임베딩 모델+rag_chunk(적재↔검색) ⑦ 엔진 case 핸드오프(트리아지 게이트) + **attack-path 상관규칙 R1~R5**. `contracts/mock-findings.json` 먼저 커밋 → 직렬 의존 끊고 병렬 작업 가능.
+- **시간 컷 우선순�
