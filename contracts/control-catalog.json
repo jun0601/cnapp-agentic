@@ -92,6 +92,33 @@
       "isms_p": null,
       "remediable": true,
       "lifecycle": "runtime"
+    },
+    "INTERNAL-ECR-SCAN-DISABLED-001": {
+      "pillar": "cspm",
+      "title": "ECR repository scan-on-push disabled",
+      "severity_default": 3,
+      "sources": ["securityhub:ECR.1", "config:ecr-private-image-scanning-enabled"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "build"
+    },
+    "INTERNAL-ENTRA-SP-CRED-001": {
+      "pillar": "ciem",
+      "title": "Entra Service Principal credential without expiry / leak risk",
+      "severity_default": 2,
+      "sources": ["prowler:entra_id_sp_credential_no_expiry", "prowler:entra_id_sp_*_credential_*"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "runtime"
+    },
+    "INTERNAL-ENTRA-INSECURE-CFG-001": {
+      "pillar": "cspm",
+      "title": "Entra App Registration insecure configuration (redirect URI etc., secure-score)",
+      "severity_default": 4,
+      "sources": ["prowler:entra_id_app_redirect_uri_insecure", "prowler:entra_id_app_*_insecure"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "runtime"
     }
   },
   "_note_source_coverage": "remediated 스코프(4.4.1c): 각 source는 위 sources[]에서 자신을 포함하는 control 집합만 커버. 예) trivy는 INTERNAL-VULN-KEV-001만 → trivy 배치는 S3 control을 remediated로 만들지 않음."

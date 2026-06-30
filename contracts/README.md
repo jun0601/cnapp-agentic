@@ -21,9 +21,14 @@
 
 | 파일 | 내용 |
 |---|---|
-| [mock-findings.json](mock-findings.json) | 골든 시나리오 핵심 + 잔결함 filler 20건(open/remediated/suppressed 혼합). 골든 9건은 `attack_path_id`로 묶임 |
+| [mock-findings.json](mock-findings.json) | 골든 시나리오 핵심 + 잔결함 filler 20건(open/remediated/suppressed 혼합). 골든 10건은 `attack_path_id`로 묶임(attack-path 노드 전부 대응) |
 | [mock-attack-paths.json](mock-attack-paths.json) | 골든 1경로 그래프 — 4개 엣지 type 전부, `cross_cloud:true`로 AWS→Azure 횡단 |
 | [mock-cases.json](mock-cases.json) | 엔진 능동조사 한 장면(UC0) — Evidence가 read-only API 4회 호출 → Reasoning 판정. "챗봇 탈출" 시연용 |
+
+## 검증 (CI 게이트)
+
+`python contracts/validate.py` — JSON 유효성 + 의미 정합 4-assert(target-app-design §2.1). `contracts/*` 바뀌는 PR·push에서 [.github/workflows/contracts-validate.yml](../.github/workflows/contracts-validate.yml)이 자동 실행, 실패 시 머지 차단.
+- (a) finding.pillar == catalog[control_id].pillar · (b) resource_id 2번째 세그먼트 == resource_type · (c) attack-path 노드마다 해당 path finding ≥1 · (d) dedup_key == resource_id|control_id.
 
 ## 핵심 규칙 (자주 틀리는 것)
 
@@ -36,8 +41,9 @@
 
 ## 졸업 상태
 
-- [x] 계약 7종 스키마 + control-catalog 초안
+- [x] 계약 7종 스키마 + control-catalog(INTERNAL control 13종)
 - [x] mock 데이터(findings·attack-paths·cases) — 골든 시나리오
+- [x] **계약 정합 4건 수정(target-app-design §2.1)** — f5 resource_id 캐논(`secret_plaintext`), control 3종 신규(ECR-SCAN·ENTRA-SP-CRED·ENTRA-INSECURE-CFG), validate.py 4-assert + CI 게이트
 - [ ] `embedding` 벡터는 mock에 미포함(1024 float) — rag 적재 시 Titan v2로 실제 생성
 - [ ] ISMS-P 매핑(control-catalog `isms_p`) — RAG 코퍼스 D 작업 시 채움
 - [ ] control-catalog 전체 확장 — 스캐너 연동하며 체크 추가

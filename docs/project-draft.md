@@ -250,7 +250,7 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 | `iam_role` | role명(path 제외) | `aws:iam_role:order-irsa` |
 | `eks_pod` | `namespace/워크로드명` | `aws:eks_pod:shop/product` |
 | `security_group` | sg-id | `aws:security_group:sg-0abc123` |
-| `secret_plaintext` | 보유 리소스 native_id 재사용 | `aws:eks_pod:shop/order` |
+| `secret_plaintext` | `{보유 워크로드}/{시크릿 키}` (type 세그먼트는 `secret_plaintext` 유지) | `aws:secret_plaintext:shop/order/AZURE_SP_CRED` |
 | `app_registration` | appId(client id) | `azure:app_registration:<appId>` |
 | `service_principal` | objectId | `azure:service_principal:<objId>` |
 
