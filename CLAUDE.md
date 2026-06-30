@@ -17,6 +17,7 @@
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-06-30 / 준형 / 검증 후속 전부 확정 + README 폴더구조 갱신** — 진우 "피드백 없음" → 대기 항목 확정: **4.4.1 정규화 규칙 3종**(`resource_id` 캐논 표·INTERNAL `control_id` 카탈로그·remediated source별 스코프) 신설하고 §24 3건 닫음, attack-path **2-pass**·**핵심 영역 분담** 전부 `확정`으로 전환(§5/4.1). README를 실제 폴더구조(contracts·scanners·pipeline·rag·attackpath·troubleshooting)로 갱신 + docs 안내 dead-link(infra-status→manual-infra) 수정. **`[PULL 필요]`**
 - **2026-06-30 / 준형 / CLAUDE.md §6·§7 복구(머지 유실) + §5 손상 수정 + §7.1 Next Up 계획 추가** — `HEAD~4` 머지에서 §6 협업규칙·§7 작업기준이 날아가고 §5 "시간 컷" 불릿이 깨진 채 잘렸던 것 복원(§0의 §6 dead-link 해소). §7.1에 합의된 다음 착수 계획 신설: **착수=둘 동시(contracts+infra 병렬), 데모 컷=절대사수 풀세트, Azure 격리 테넌트=진우 확보.** **`[PULL 필요]`**
 - **2026-06-30 / 준형 / attack-path↔Evidence 순서 2-pass로 통일 + 검증 피드백 3건 미확정 등록** — UC0(§9)와 진우의 트리거/게이트가 상충(Evidence→상관 vs 상관→Evidence)하던 걸 **2-pass**(① 1차 규칙상관이 `attack_path_id` 부여 → ② 트리아지 게이트 → ③ Evidence 증거수집 → ④ 2차 확정·내러티브)로 통일. 추가 검증에서 ①`resource_id` 정규화 규칙 ②INTERNAL `control_id` 카탈로그·매핑 ③remediated 스코프(스캐너별) 미정 발견 → §24 등록(contracts 졸업 시 진우와 확정). `severity_id` 주석 오류("OCSF식" → 내부 컨벤션, 실제 OCSF와 반대) 정정. **`[PULL 필요]`**
 - **2026-06-30 / 진우 / 설계 미확정 9개 항목 전부 닫음** — ① D4 Azure 키리스 인증(Entra Workload Identity Federation) 확정 ② 트리아지 게이트 임계값(`severity_id≤2` OR `attack_path_id!=null`) ③ 자동 조치 카탈로그 MVP 3종(S3 block·SG 제거·IAM diff) ④ 임베딩 모델 Titan v2 서울 확인·fallback(Cohere Embed Multilingual v3) ⑤ RDS 자동재시작 방지(EventBridge Scheduler+Lambda) ⑥ Prowler Azure cron(`0 17 * * *`) ⑦ attack-path 트리거(배치 완료 EventBridge 이벤트) ⑧ §24 타깃앱 세부·자동조치 체크박스 ⑨ console §14 동기화. project-draft·console-app-design·manual-infra 동기화. **`[PULL 필요]`**
@@ -114,17 +115,17 @@ cnapp-agentic/
 |---|---|---|---|
 | 앱 | 타깃 앱(결함 심기) | 관제 앱(대시보드·시각화) | 확정 |
 | 토대 | CI/CD·Shift-Left·**공유인프라 주도** | 모니터링·관제·추적(Grafana·CloudTrail) | 확정 |
-| 스캐너-CSPM | CSPM(Config·Prowler·Security Hub·**Macie(AWS S3)**) | 워크로드(Inspector·Trivy·kube-bench·**Defender(Azure)**) | 협의중 |
-| 스캐너-CIEM | IAM Access Analyzer(AWS) | Entra ID(Azure — **Prowler entra_id_\* 체크**) | 협의중 |
-| 수집·정규화 | 수집부(EventBridge→SQS) | 정규화부(Lambda→OCSF) | 협의중 |
-| 엔진(Bedrock) | **Evidence(tool use)**·Triage | Hypothesis·**Reasoning**·Orchestrator | 협의중 |
-| RAG | 코퍼스·임베딩·pgvector 적재 | 검색·LLM 답변 생성 | 협의중 |
-| attack-path | 그래프 데이터 모델 | 상관 로직·내러티브 | 협의중 |
+| 스캐너-CSPM | CSPM(Config·Prowler·Security Hub·**Macie(AWS S3)**) | 워크로드(Inspector·Trivy·kube-bench·**Defender(Azure)**) | 확정 |
+| 스캐너-CIEM | IAM Access Analyzer(AWS) | Entra ID(Azure — **Prowler entra_id_\* 체크**) | 확정 |
+| 수집·정규화 | 수집부(EventBridge→SQS) | 정규화부(Lambda→OCSF) | 확정 |
+| 엔진(Bedrock) | **Evidence(tool use)**·Triage | Hypothesis·**Reasoning**·Orchestrator | 확정 |
+| RAG | 코퍼스·임베딩·pgvector 적재 | 검색·LLM 답변 생성 | 확정 |
+| attack-path | 그래프 데이터 모델 | 상관 로직·내러티브 | 확정 |
 
-> 앱·토대=확정, 핵심 영역(스캐너·수집·엔진·RAG·attack-path)=**협의중**(둘이 상시 조율).
+> **전 영역 확정(진우 검증 완료).** 단 살아있는 분담 — 바뀌면 이 표와 설계서 4.1을 함께 갱신.
 
 - **의존성(병목):** 0 공유인프라(준형 최우선) → 1 앱·모니터링 ∥ → 2 스캐너 ∥ → 3 수집→정규화 → 4 RAG ∥ → 5 엔진(Evidence∥Reasoning) → 6 출력 ∥ → 7 데모 합류.
-- **공통 계약 7종 초안 확정(project-draft 4.4):** ① OCSF-lite 스키마(`resource_id`·`dedup_key`·`ai_status`) ② 엔진 입출력 ③ attack-path 그래프 JSON ④ Evidence 툴 allowlist ⑤ 수집 봉투(수집부↔정규화부) ⑥ 임베딩 모델+rag_chunk(적재↔검색) ⑦ 엔진 case 핸드오프(트리아지 게이트) + **attack-path 상관규칙 R1~R5**. `contracts/mock-findings.json` 먼저 커밋 → 직렬 의존 끊고 병렬 작업 가능.
+- **공통 계약 7종 + 정규화 규칙 3종 확정(project-draft 4.4·4.4.1):** 계약 ① OCSF-lite 스키마(`resource_id`·`dedup_key`·`ai_status`) ② 엔진 입출력 ③ attack-path 그래프 JSON ④ Evidence 툴 allowlist ⑤ 수집 봉투 ⑥ 임베딩 모델+rag_chunk ⑦ 엔진 case 핸드오프(트리아지 게이트) + **상관규칙 R1~R5**. 정규화 규칙 **(a) `resource_id` 캐논 (b) INTERNAL `control_id` 카탈로그 (c) remediated 스코프(source별)**. `contracts/*.json` + `mock-findings.json`(R1~R5 체이닝) + `control-catalog.json`으로 졸업 → 직렬 의존 끊고 병렬.
 - **시간 컷 우선순위:** 엔진 능동조사(1) > attack-path 상관(2) > 스캐너·수집·RAG(3) > 관제앱·CI/CD·포장(4). **"AI가 스스로 증거 모아 공격경로 판단하는 한 장면"** 사수.
 
 **공유 자산(양쪽 함께):** 수집 파이프라인(EventBridge→SQS→Lambda, OCSF 정규화), 에이전틱 엔진 코어(`engine/`), 인프라 골격(`infra/shared/`), 관제 대시보드(`apps/console/`).
@@ -149,7 +150,7 @@ cnapp-agentic/
 
 ### 7.1 다음 착수 계획 (Next Up — 2026-06-30 준형 합의, 완료 시 갱신)
 
-> 전략 = **목업우선**(`contracts/mock-findings.json` 먼저 → 직렬 의존 끊고 병렬). **진우 검증 대기 중인 선행 결정:** attack-path **2-pass 순서**(project-draft §9·4.4), **§24 신규 미확정 3건**(`resource_id` 캐논 규칙·INTERNAL `control_id` 카탈로그·remediated 스코프).
+> 전략 = **목업우선**(`contracts/mock-findings.json` 먼저 → 직렬 의존 끊고 병렬). **선행 결정 전부 확정(진우 검증 완료):** attack-path **2-pass 순서**(§9·4.4), **정규화 규칙 3종**(4.4.1 — `resource_id` 캐논·INTERNAL `control_id` 카탈로그·remediated 스코프), **핵심 영역 분담**(§5 전 영역 확정). → 막힘 없이 `contracts/` 졸업 착수 가능.
 
 **합의된 방향:**
 - **착수 = 둘 동시(병렬).** 준형이 `contracts/` 졸업과 `infra/shared` 스캐폴드를 같은 구간에 진행.

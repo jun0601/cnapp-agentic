@@ -85,12 +85,23 @@
 
 ```
 cnapp-agentic/
-├── docs/        설계 문서 (단일 진실 공급원)
+├── CLAUDE.md            작업 기준 · 협업 규칙 · 변경 로그(읽기 우선)
+├── README.md
+├── troubleshooting.md   작업 로그 (트러블슈팅 + 진행, [영역] 태그)
+├── contracts/           ★공유 이음새 계약(*.json) + mock-findings.json + control-catalog.json
+├── docs/                설계 SSOT — project-draft · target-app-design · console-app-design · manual-infra
 ├── apps/
-│   ├── target/  취약 타깃 앱 (커머스 마이크로서비스 — findings 소스)
-│   └── console/ 관제 앱 (posture·findings·attack-path 대시보드)
-├── engine/      공유 에이전틱 엔진 (Bedrock 멀티에이전트 + RAG + OCSF 정규화)
-└── infra/       Terraform IaC (shared / target / console)
+│   ├── target/          취약 타깃 앱 (product · order · member) — 코드만
+│   └── console/         관제 앱 (React 대시보드) — 코드만
+├── scanners/            cspm · workload 스캐너 연동 — 코드만
+├── pipeline/            ingest(EventBridge→SQS) · normalize(Lambda→OCSF) — 코드만
+├── engine/              공유 에이전틱 엔진 — core / triage·evidence / hypothesis·reasoning
+├── rag/                 corpus·임베딩 적재 · retrieval·검색 — 코드만
+├── attackpath/          상관 모델 · R1~R5 상관 로직 — 코드만
+└── infra/               Terraform (레이어드) — shared 먼저 → target · console · 영역별
+
+# 컴포넌트 폴더(scanners·pipeline·engine·rag·attackpath)는 코드만 — 배포는 CI가 infra/에서 apply.
+# 폴더는 사람이 아니라 컴포넌트로 나눔(소유·이음새는 docs/project-draft 4.6).
 ```
 
 ---
@@ -102,3 +113,5 @@ cnapp-agentic/
 ---
 
 *변경 요약: Azure 역할을 데이터→신원(Entra ID) 중심으로 전환 — 데이터(회원 PII)는 AWS S3 전용·Macie도 S3 전용, Azure는 Entra CIEM + Defender secure score. 크로스클라우드 attack-path를 "AWS 워크로드→Azure 신원 장악" 경로로 갱신. README 상단에 레포 소개·docs 안내 추가.*
+
+*변경 요약(2): 폴더 구조를 실제 구조(`contracts`·`scanners`·`pipeline`·`rag`·`attackpath`·`troubleshooting.md`)로 갱신 — 컴포넌트 단위 분리·terraform 레이어드 반영(docs/project-draft 4.6과 정합).*
