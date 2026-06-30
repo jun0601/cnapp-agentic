@@ -125,13 +125,13 @@ pgvector 위에 둘 주요 테이블과 컬럼·용도를 정리한 표다.
 
 | 테이블 | 주요 컬럼 | 용도 |
 |---|---|---|
-| `findings` | id, cloud(aws/azure), pillar(cspm/ciem/vuln/kspm/data/attack_path), severity, resource_arn, control_id, status(open/remediated/suppressed), priority_score, attack_path_id | 목록·필터·정렬 |
+| `findings` | id, cloud(aws/azure), pillar(cspm/ciem/vuln/kspm/data/attack_path), severity, **resource_id**, control_id, dedup_key, status(open/remediated/suppressed), priority_score, attack_path_id, ai_status | 목록·필터·정렬 |
 | `finding_explanations` | finding_id, ai_summary, evidence_json, confidence_score, rag_refs[] | Finding 상세 카드(UC0·UC1) |
 | `attack_paths` | id, narrative_text, nodes_json, edges_json, severity | attack-path 화면(UC3) |
 | `remediation_requests` | id, finding_id, proposed_fix_diff, status(pending/approved/rejected/applied), approver, step_function_arn | 조치 승인 플로우(UC4) |
 | `rag_chunks` (pgvector) | embedding, text, metadata{cloud, service, framework, control_id, severity, isms_p} | RAG 코퍼스(16번) |
 
-> OCSF 정규화 결과를 `findings`에 매핑, 16번 RAG 코퍼스 청킹 규칙("컨트롤/룰 1개=1청크")을 `rag_chunks.metadata`에 그대로 사용.
+> **finding 스키마의 단일 진실 = project-draft 4.4 계약 ①(OCSF-lite)** — 위 표는 그 계약을 pgvector 테이블에 매핑한 것이며, 필드 정의가 어긋나면 4.4가 우선. `resource_id`(클라우드 불문 `{cloud}:{type}:{native_id}`, Azure Entra ARN 부재 대응)·`dedup_key`(중복 제거)·`ai_status`(엔진 실패해도 대시보드 생존)는 4.4에서 확정. 16번 RAG 코퍼스 청킹 규칙("컨트롤/룰 1개=1청크")을 `rag_chunks.metadata`에 그대로 사용.
 
 ### 5.1 attack-path 그래프 렌더링 방식 — 확정
 
@@ -170,7 +170,7 @@ pgvector 위에 둘 주요 테이블과 컬럼·용도를 정리한 표다.
 [다음 스캔 주기]  스캐너 재스캔(Config/Prowler/Inspector/Trivy/kube-bench/Defender) → 그 위반을 더는 발견 못 함
      │
      ▼
-[수집 파이프라인]  재스캔 결과 OCSF 정규화 → 엔진이 기존 finding과 (resource_arn + control_id) 키로 대조
+[수집 파이프라인]  재스캔 결과 OCSF 정규화 → 엔진이 기존 finding과 dedup_key(resource_id + control_id)로 대조
      │
      ▼
 [상태 갱신]  해당 키가 이번 스캔에 없음 → findings.status: open → remediated  (DB는 파이프라인이 갱신)
@@ -180,7 +180,7 @@ pgvector 위에 둘 주요 테이블과 컬럼·용도를 정리한 표다.
         (이력은 'remediated' 상태 필터로 조회, Finding 상세의 상태 타임라인에 보존)
 ```
 
-- **매칭 키:** `resource_arn + control_id`. 재스캔에서 같은 키가 다시 잡히면 `remediated → open`으로 되돌림(드리프트 = 재발 탐지) → project-draft 19번 #3(역방향 수정→소멸)·드리프트 검증과 직결.
+- **매칭 키:** `dedup_key`(= `resource_id + control_id`, project-draft 4.4 계약 ①). Azure Entra(ARN 없음)도 같은 키로 묶임. 재스캔에서 같은 키가 다시 잡히면 `remediated → open`으로 되돌림(드리프트 = 재발 탐지) → project-draft 19번 #3(역방향 수정→소멸)·드리프트 검증과 직결.
 - **삭제가 아니라 상태 전이:** 사라진 finding을 지우지 않고 `remediated`로 두어 "고쳤다"는 증거·MTTR(KPI) 산정 근거로 남긴다.
 - **콘솔이 직접 바꾸는 유일한 상태 = `suppressed`:** approver가 "위험 수용/오탐"으로 수동 보류. open/remediated 전이는 콘솔이 손대지 않음.
 - 데모에서는 스캐너 주기를 기다리는 대신, 합성 finding 주입/제거(19번 #4)나 수동 재스캔 트리거로 이 루프를 빠르게 시연.

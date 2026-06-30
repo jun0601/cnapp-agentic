@@ -16,6 +16,7 @@
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-06-30 / 준형 / 공통 계약 4종 초안 확정 + 미확정 2건 닫음** — project-draft **4.4를 "합의 계약"으로 확장**해 ①OCSF-lite finding 스키마(식별자 `resource_id`로 일반화—Azure ARN 부재 대응, `dedup_key` 중복제거, `ai_status` AI레이어 분리) ②엔진 입출력(Evidence→Reasoning) ③attack-path 그래프 JSON ④Evidence 툴 allowlist(read-only) 초안을 박음. 코딩 시 `contracts/*.json`으로 졸업(별도 schema.md 안 만듦). **계약우선/목업우선 전략**(목업 finding 먼저 커밋→직렬 의존 끊기) 명시. 24번 미확정에서 **레포=모노레포 확정**, **attack-path 계산=커스텀 엔진 확정**. console 5·6.1을 4.4 참조 + `resource_id`로 동기화. ※핵심영역 분담·demo-real 범위는 여전히 진우 협의 대기. **`[PULL 필요]`**
 - **2026-06-30 / 준형 / 작업 분담 표 통합 + 실명(준형/진우) 반영** — 앱·토대(확정)와 핵심 영역(협의중)을 한 표의 상태 열로 통합, 담당을 트랙1·트랙2 → 준형·진우로 교체. 분담은 상시 협의로 조정되는 살아있는 문서임을 명시. 두 파일 동기화.
 - **2026-06-30 / 준형 / 작업 분담 균형안 도입** — 각 영역(스캐너·수집·엔진·RAG·attack-path)을 반반으로, 의존성 순서·합의 인터페이스 2개(OCSF 스키마·엔진 입출력)·시간 컷 우선순위(엔진 능동조사 사수) 명시. 설계서 4·21번 + CLAUDE.md 5번 동기화. *핵심 영역 분담은 진우 협의 후 최종 확정.* **`[PULL 필요]`**
 - **2026-06-30 / 준형 / Azure 역할을 데이터→신원(Entra ID) 중심으로 전면 전환** — 데이터(회원 PII)는 AWS S3 전용·Macie도 AWS 전용, Azure 점검은 Entra CIEM + Defender secure score, 골든 시나리오를 크로스클라우드 신원 탈취 경로로 교체. 설계서 3종·README·CLAUDE.md 모두 동기화. **`[PULL 필요]`**
@@ -84,7 +85,7 @@ cnapp-agentic/
     └── console/              #   관제 앱 인프라 (S3+CloudFront·ALB·Cognito·Step Functions)
 ```
 
-> 폴더 경계(모노레포 vs 멀티레포, Terraform 모듈 경계, 공유 코어 위치)는 설계서 24번 "미확정"에 일부 열려 있음. 구조를 바꿀 땐 docs에 먼저 반영.
+> **레포 = 모노레포 확정**(설계서 24번). 레포는 하나여도 배포는 폴더별 분리(target=EKS, console=S3+Lambda), Terraform state는 `infra/{shared,target,console}`별 분리. 코딩 시작 시 공통 계약은 `contracts/*.json`(project-draft 4.4 초안 졸업)으로 추가. 구조를 바꿀 땐 docs에 먼저 반영.
 
 ---
 
