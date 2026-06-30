@@ -50,7 +50,7 @@
 
 ### 2.0 정답지 = contracts/ (이 앱이 재현해야 할 findings)
 
-타깃 앱의 정답지는 산문이 아니라 **`contracts/mock-findings.json` + `contracts/control-catalog.json`**이다. 골든 경로 9건이 앱 어디에 심기는지:
+타깃 앱의 정답지는 산문이 아니라 **`contracts/mock-findings.json` + `contracts/control-catalog.json`**이다. 골든 경로 10건이 앱 어디에 심기는지(attack-path 노드와 1:1):
 
 | finding | 서비스·리소스 | 심는 결함(IaC) | control_id | 스캐너 |
 |---|---|---|---|---|
@@ -58,24 +58,24 @@
 | f2 | product / pod | `securityContext.privileged=true` | INTERNAL-KSPM-PRIVILEGED-001 | kube-bench |
 | f3 | product / `aws:security_group:sg-…` | SG 인바운드 0.0.0.0/0 (80/443) | INTERNAL-SG-OPEN-INGRESS-001 | SecurityHub/Prowler |
 | f4 | order / `aws:iam_role:order-irsa` | IRSA 정책 `s3:*` on `Resource:*` | INTERNAL-IAM-OVERPRIV-001 | AccessAnalyzer/Prowler |
-| f5 | order / pod env | 평문 Azure SP 자격증명(`AZURE_CLIENT_ID/SECRET`) | INTERNAL-SECRET-PLAINTEXT-001 | Prowler/custom |
+| f5 | order / `aws:secret_plaintext:shop/order/AZURE_SP_CRED` | 평문 Azure SP 자격증명(`AZURE_CLIENT_ID/SECRET`) | INTERNAL-SECRET-PLAINTEXT-001 | Prowler/custom |
 | f6 | member / `aws:s3_bucket:member-pii-prod` | 버킷 public access | INTERNAL-S3-PUBLIC-001 | SecurityHub/Config/Prowler |
 | f7 | member / 버킷 객체 | 가짜 PII(이름+주민번호 패턴) 업로드 | INTERNAL-DATA-PII-EXPOSED-001 | Macie |
+| f16 | Azure / `azure:service_principal:…` | 만료 없는/유출 위험 SP 자격증명(노드 n4 = 탈취 자격증명) | INTERNAL-ENTRA-SP-CRED-001 | Prowler entra_id_* |
 | f8 | Azure / `azure:app_registration:…` | App Reg `Directory.ReadWrite.All` | INTERNAL-ENTRA-OVERPRIV-APP-001 | Prowler entra_id_* |
 | f9 | Azure / 동 App Reg | 미검증 앱에 `User.ReadWrite.All` consent | INTERNAL-ENTRA-RISKY-CONSENT-001 | Prowler entra_id_* |
 
 > 잔결함(f10~f20, secure-score·remediated·suppressed 샘플)도 같은 방식으로 mock-findings에 정의됨. **이 표가 §2 상세 결함 목록의 "계약 앵커"** — §2의 각 결함은 여기 control_id로 환원된다.
 
-### 2.1 계약 정합 체크리스트 (구현 전 contracts 고칠 것)
+### 2.1 계약 정합 — validate.py가 강제 (완료)
 
-mock-findings를 그대로 앱으로 옮기기 전에, 검증(json.load)이 못 잡은 의미 불일치 4건을 먼저 정리한다:
+검증(json.load)이 못 잡던 의미 불일치 4건은 **수정 완료**(commit c463054). 이후 `contracts/validate.py` + `.github/workflows/contracts-validate.yml`(CI 게이트)가 4-assert로 회귀를 막는다:
+- (a) finding.pillar == catalog[control_id].pillar
+- (b) resource_id 2번째 세그먼트 == resource_type
+- (c) 모든 attack-path node.resource_id에 그 path의 finding ≥1
+- (d) dedup_key == resource_id|control_id
 
-- **f5 resource_id↔type 불일치** — `resource_id: aws:eks_pod:…` 인데 `resource_type: secret_plaintext`(4.4.1a 캐논 위반). → 시크릿을 `aws:secret_plaintext:shop/order/AZURE_SP_CRED`로 모델하거나 `resource_type`을 `eks_pod`로 맞춘다(택1).
-- **control-catalog 전용 control 3개 추가** — 현재 의미 안 맞는 id 재사용 중:
-  - f12 ECR 스캔 미설정 → `INTERNAL-VULN-KEV-001`(vuln) 재사용 → 신규 `INTERNAL-ECR-SCAN-DISABLED-001`(cspm)
-  - f16 SP 무만료 자격증명 → `INTERNAL-ENTRA-OVERPRIV-APP-001` 재사용 → 신규 `INTERNAL-ENTRA-SP-CRED-001`(ciem)
-  - f17 insecure redirect URI → `INTERNAL-ENTRA-RISKY-CONSENT-001` 재사용 → 신규 `INTERNAL-ENTRA-INSECURE-CFG-001`
-- **검증기 4-assert를 CI 게이트로** — (a) finding.pillar == catalog[control_id].pillar (b) resource_id 2번째 세그먼트 == resource_type (c) 모든 attack-path node.resource_id에 해당 path의 finding ≥1 (d) dedup_key == resource_id|control_id.
+처리: ① f5를 `aws:secret_plaintext:shop/order/AZURE_SP_CRED`로 교정(a·b) ② 신규 control 3종(ECR-SCAN-DISABLED·ENTRA-SP-CRED·ENTRA-INSECURE-CFG)으로 의미 불일치 해소 ③ f16(SP 자격증명)을 골든 경로 편입 → 노드 n4 grounding(c).
 
 ### `product` — 침투 지점
 | 결함 | 잡는 도구(기둥) |
@@ -190,7 +190,7 @@ LLM이 이 신호들(취약점+KSPM+CIEM+CSPM+데이터, **AWS 워크로드→Az
 ## 6. 구현 메모
 
 - **앱 코드:** retail-store-sample-app(§1.1)에서 catalog·orders 2서비스 + 커스텀 member. 기능 개발에 시간 쓰지 않음. product 이미지만 KEV 취약 베이스로 재빌드.
-- **결함:** Terraform/k8s 매니페스트에 의도적으로 심음. CloudGoat/AWSGoat/Terragoat 패턴 참고(정답지가 명확해짐).
+- **결함:** Terraform/k8s 매니페스트에 의도적으로 심음. TerraGoat/CloudGoat/EKS Goat 패턴 참고(정답지가 명확해짐). ※ AWSGoat은 베이스로 미사용(§1.1) — 패턴 참고 대상에서도 제외.
 - **결함 토글:** 결함을 모듈/변수로 켰다 껐다 가능하게 → "결함 있을 때 잡히나 / 고치면 사라지나" 테스트 + 다양한 조합 attack-path 테스트.
 - **golden findings 세트:** 심은 결함 목록 = 기대 findings. CI에서 "전부 탐지됐나" 자동 회귀 테스트.
 - **배포:** EKS(product/order/member 파드) + S3(member PII 버킷) + Azure Entra ID(App Registration·SP, 데이터 저장소 아님). ArgoCD GitOps로 배포(트랙1 CI/CD).
