@@ -584,3 +584,125 @@ MVP 코퍼스: A(CIS AWS+K8s) + FSBP + C(KEV) + E(자체 루브릭).
 
 ---
 
+## 17. 🔒 거버넌스 & AI 안전
+
+- **Read-only first** — 에이전트 기본 조회만. 변경은 분리된 승인 경로로만.
+- **최소권한** — 스캔 롤(read-only) ↔ 조치 롤(격상) 분리. IRSA/단기 STS. 시크릿은 Secrets Manager+KMS.
+- **Explainable** — 모든 판정에 근거·신뢰점수·증거.
+- **불변 감사로그** — S3 + Object Lock.
+- **휴먼인더루프** — 비가역 조치는 승인 후. dry-run·롤백·allowlist.
+- **OWASP Top 10 for LLM/Agentic** — 프롬프트 인젝션·도구 오용 방어 + Bedrock Guardrails.
+
+---
+
+## 18. Shift-Left & 공급망
+
+1. **IaC 게이트** — PR 시 Checkov/OPA가 미스컨피그 검사 → 임계 위반 머지 차단. [핵심]
+2. **이미지 게이트** — CI에서 Trivy 스캔 → KEV 등재 Critical 시 빌드 실패. [핵심]
+3. **공급망 무결성** — Syft SBOM + cosign 서명, ArgoCD가 미서명 거부. [보너스]
+4. **런타임 피드백** — 배포 워크로드를 Inspector로 점검, 신규 CVE를 CI로 피드백(폐루프). [핵심 일부]
+
+---
+
+## 19. 테스트 전략
+
+핵심 원리: **의도적 결함을 심으면(정답지) → 스캐너가 잡고 → 관제 앱에 뜬다. 그 흐름 전체가 테스트.**
+
+1. **미스컨피그 탐지** — IaC에 공개 버킷·열린 SG 심고 배포 → Config/Prowler/Security Hub가 잡는지. 심은 개수 = 기대 findings(정답지 명확).
+2. **CVE 탐지** — 취약 베이스 이미지로 빌드 → Trivy/Inspector가 잡는지. KEV 등재분 넣어 우선순위 로직도 검증.
+3. **역방향(수정→소멸)** — 버킷 private로 재배포 → finding 사라지는지. remediation·드리프트 검증.
+4. **합성 finding 주입** — OCSF 가짜 finding을 파이프라인에 직접 주입 → 스캐너 안 기다리고 엔진·RAG·대시보드 빠른 반복.
+5. **attack-path 골든 시나리오** — 취약파드(KEV CVE)+과도 IRSA 권한+평문 시크릿의 Azure 자격증명+공개 S3(PII)+Entra 과도권한 앱을 동시 심기 → **AWS 워크로드 침투 → 평문 시크릿에서 Azure 자격증명 발견 → 공개 S3로 AWS PII 탈취 → 탈취 자격증명으로 Azure Entra ID 신원 장악**을 하나의 크로스클라우드 탈취 경로로 묶는지(데모 하이라이트). ※ MVP는 이 경로를 **분석·시각화**하는 수준이고, 실제 AWS→Azure 횡단 동작 구현은 보너스.
+
+도구: CloudGoat/AWSGoat/Terragoat 패턴으로 취약 IaC 구성(정답지). golden findings 세트로 CI 회귀 테스트.
+
+---
+
+## 20. KPI
+
+아래 표는 프로젝트 성과를 측정할 지표와 목표를 정리한 것이다.
+
+| 지표 | 목표 |
+|---|---|
+| MTTR_remediate(탐지~개선) | 수기 대비 대폭 단축 |
+| 자동 설명률 | finding 중 AI가 근거와 함께 설명한 비율 |
+| 우선순위 정확도 | attack-path 우선순위 vs 실제 위험 일치 |
+| 멀티클라우드 커버리지 | AWS+Azure findings 통합·정규화 성공률 |
+| Shift-Left 차단율 | CI에서 프로덕션 전 차단된 비율 |
+| 취약점 우선순위 적중률 | KEV/EPSS 기반 vs 실제 악용 가능성 |
+| 자동개선 안전성 | 자동 remediation 롤백/오류율 |
+| 감사 완전성 | 모든 판정 근거·로그 100% |
+
+---
+
+## 21. 🗓️ 개발 로드맵 (2주 압축 · 2인 병렬)
+
+> 아래 Day별 타임라인은 **4.3 의존성 순서**(0 공유인프라 → 1 앱·모니터링 → … → 7 데모)를 달력에 펼친 것이다. 분담·병목·합의 인터페이스는 [4번 작업 분담](#4-작업-분담-균형안--효율용-트랙)이 기준이고, 시간이 쪼들릴 때의 컷 순서는 **4.5 우선순위**(엔진 능동조사 사수)를 따른다.
+
+### Week 1 — 뼈대 + 핵심 루프
+| Day | 준형(설정·CI/CD) | 진우(워크로드·관측) |
+|---|---|---|
+| 1–2 | 계정·Terraform 골격, Config/Security Hub/Prowler 활성화, **SSO 검증** | EKS·ArgoCD·ECR 골격, 취약 타깃앱 배포 |
+| 3–4 | 공유 수집 파이프라인·OCSF 정규화 | Inspector/Trivy 연동, 이미지 취약점 finding |
+| 5 | **Bedrock finding 설명(RAG #1) 작동** | kube-bench(KSPM), CIEM 신호 |
+
+### Week 2 — 깊이 + 멀티클라우드 + 마감
+| Day | 준형 | 진우 |
+|---|---|---|
+| 6–7 | 우선순위 정렬(#2)·관제 대시보드 v1 | attack-path 그래프 1차, 관측 스택 |
+| 8 | **Azure Defender + Entra 통합(멀티클라우드)** | 크로스클라우드 attack-path 시나리오 |
+| 9 | Shift-Left CI 게이트 + 자동개선 1~2종(HITL) | 워크로드 finding 대시보드 연계 |
+| 10 | 데모 완성 + KPI 측정 + 스크린샷/영상 | 〃 |
+
+**범위 컷라인(무엇을 만드나):** ① 절대사수 = CSPM 본체+RAG 설명+대시보드+Azure(Entra) 통합+Shift-Left+KSPM ② 보너스 = 공급망 서명, attack-path 정교화, ISMS-P 리포트 ③ 확장 = CWPP 런타임, SOC.
+**시간 컷 순서(쪼들릴 때 무엇부터 포기하나):** 4.5 우선순위를 따른다 — **엔진 능동조사(1) > attack-path 상관(2) > 스캐너·수집·RAG 토대(3) > 관제앱·CI/CD·멀티클라우드 포장(4).** "AI가 스스로 증거를 모아 공격 경로를 판단하는 한 장면"을 끝까지 사수.
+**이후:** 개발 종료 → PPT·문서·발표.
+
+---
+
+## 22. 💰 비용 · 무료 티어 가드레일
+
+- 크레딧 소멸 트리거: **Organizations / Identity Center / Control Tower → 절대 안 켬.**
+- Config·Security Hub·Inspector·Macie·Defender는 종량제 → **데모 기간만 켜고 `destroy`.** 서비스별 1일 추정: Config ~$0.30, Security Hub ~$0.03, Inspector ~$0.01, Macie 첫 달 무료(이후 $1/버킷), Defender ~$0.02/서버/시간.
+- **EKS:** NAT Gateway 제거 → **NAT Instance(t3.nano, ~$3.40/월) + S3·DynamoDB Gateway Endpoint(무료)** 조합. ※ Interface VPC Endpoint는 개당 $7.30/월 — 6개 시 $43.80/월로 NAT Gateway($32.85)보다 비쌈. **spot + 작은 노드(t3.small×2)**, 비데모 시 **노드 스케일-0**(Cluster Autoscaler minSize=0), 완전 비사용 시 `terraform destroy`, **Budgets 알림($50/$100)**.
+- **DB: RDS PostgreSQL t3.micro + pgvector** (Aurora 미사용 — idle 최소 $43/월). free tier 12개월. 이후 ~$13/월. 비데모 시 **RDS Stop**(최대 7일 자동유지, 이후 재시작) → 스토리지만 $0.115/GB/월(20GB ≈ $2.30/월).
+- Azure: Entra ID 무료 티어(신원·App Registration), 컴퓨팅·스토리지 미사용으로 사실상 $0, Defender 소액(데모만).
+- 오픈소스(Trivy·Checkov·kube-bench·cosign)는 컴퓨팅 비용만.
+- 인증 레이어(Cognito·IAM·Entra 무료)는 사실상 $0.
+- **목표 idle 비용(EKS destroy + RDS stop):** ALB ~$6 + S3·CF ~$1 + Secrets Manager ~$2 + RDS storage ~$2.30 = **~$11/월**. EKS 켤 때: 컨트롤플레인 $72 + 노드 ~$8(spot) 추가.
+
+---
+
+## 23. 확장 방향 (본체 아님)
+
+- **CWPP 런타임** — OCSF 스키마·대시보드에 자리만 비워둠 → GuardDuty Runtime/Falco 입력 연결 시 반나절~하루.
+- **탐지/SOC** — 같은 엔진에 위협 알림 입력 추가 시 인시던트 트리아지로 확장.
+- **자율성 점진 확대** — 신뢰점수 높은 저위험부터 자동 개선 범위 확대.
+- **GCP 추가** — Security Command Center로 3-클라우드.
+- **Azure 자동개선** — Azure Policy 기반 remediation.
+
+---
+
+## 24. ❓ 미확정 (다음에 닫을 것)
+
+- [ ] 프로젝트 정식 명칭 / 레포 네이밍
+- [x] **레포 = 모노레포 확정** — 단일 레포(`cnapp-agentic`) 안에 `apps/`·`engine/`·`infra/` 폴더로 관리. 레포가 하나여도 배포는 폴더별로 분리(target=EKS, console=S3+Lambda). 모듈 경계 = 폴더 분리 + Terraform state를 `infra/{shared,target,console}`별로 분리. 2인·2주엔 멀티레포보다 모노레포가 정답(pull 한 번, 문서·코드 동거).
+- [ ] 타깃 앱 마이크로서비스 세부(개수·기능·미스컨피그·취약 이미지 — 완전한 목록)
+- [x] **벡터DB = pgvector (RDS PostgreSQL t3.micro)** 확정 — 코퍼스 규모 작아 OpenSearch Serverless는 오버스펙·고비용. Aurora는 idle $43/월로 과함. RDS PostgreSQL t3.micro(free tier 12개월, 이후 $13/월)로 확정. 저렴·단순·finding 메타데이터와 동거 가능.
+- [x] **Azure 역할 = 신원(Entra ID) 중심 확정** — 데이터(회원 PII)는 **AWS S3 전용**, Azure에는 데이터를 두지 않는다(중복 저장은 명분 약함). Azure 점검은 Entra CIEM(과도권한 앱·위험한 consent·권한상승) + Defender for Cloud secure score. Macie는 AWS S3 전용, Defender의 데이터 탐지는 미사용.
+- [x] **MVP 데모 골든 시나리오 = 크로스클라우드 신원 탈취 경로 확정** — product 취약 이미지 침투 → order 평문 시크릿에서 Azure 자격증명 발견 → member 공개 S3로 AWS PII 탈취 → 탈취 자격증명으로 Azure Entra ID 과도권한 앱/계정 장악. MVP는 이 경로를 **분석·시각화**하는 수준, 실제 AWS→Azure 횡단 동작은 보너스.
+- [x] **attack-path 계산 = 커스텀 엔진 상관 확정** — 새 Security Hub exposure는 AWS 내부만 엮고 Azure를 못 덮어 크로스클라우드(AWS→Azure) 경로를 단독으로 못 그림 → 선택지가 사실상 커스텀뿐. 우리가 규칙 기반으로 finding을 엮어 4.4 계약 ③ 형식으로 출력(MVP는 골든 1경로 규칙, 규칙 추가로 확장). 콘솔 렌더링은 커스텀 postgres 인접 리스트(console 5.1).
+- [x] **Azure findings 파이프라인 진입 = Prowler(Azure 모드) 확정** — Prowler가 AWS·Azure 모두 지원(entra_id_* 체크·Defender 연동), OCSF 포맷 출력. GitHub Actions 스케줄 실행 → S3 저장 → EventBridge S3 이벤트 → 기존 SQS→Lambda 파이프라인 합류. 별도 Azure Event Grid·Function 불필요.
+- [ ] 자동 조치 카탈로그 1차 범위
+
+---
+
+*v5 — 멀티클라우드(AWS 워크로드 / Azure 신원·데이터) 강점 분업, 앱·Bedrock·SSO·테스트 확정. 명칭·레포·세부는 다음 단계.*
+
+*변경 요약(v5.1): **Azure 역할을 데이터→신원(Entra ID) 중심으로 전면 전환.** 회원 PII는 AWS S3 전용, Macie도 AWS S3 전용 명시(Defender 데이터 탐지 미사용). Azure 점검은 Entra CIEM + Defender secure score. 골든 시나리오를 크로스클라우드 신원 탈취 경로(AWS 워크로드→Azure Entra 장악)로 교체, MVP는 분석·시각화 수준/횡단 동작은 보너스. 미확정에서 Azure 역할·골든 시나리오 닫음. 문서 식별 헤더 추가.*
+
+*변경 요약(v5.2): **작업 분담을 균형안으로 갱신**(4번) — 각 영역(스캐너·수집·엔진·RAG·attack-path)을 반반 갈라 양쪽이 핵심을 다 만지게. 의존성 순서(4.3)·합의 인터페이스 2개(OCSF 스키마·엔진 입출력, 4.4)·시간 컷 우선순위(엔진 능동조사 사수, 4.5) 추가. 로드맵(21번)을 이 분담·우선순위와 정합되게 갱신.*
+
+*변경 요약(v5.3): 작업 분담 표를 **하나로 통합**(앱·토대=확정 / 핵심 영역=협의중을 한 표의 상태 열로) + **담당을 실명(준형·진우)으로 교체.** 분담은 상시 협의로 계속 조정되는 살아있는 문서임을 명시. 의존성·인터페이스·우선순위는 그대로 유지.*
+
+*변경 요약(v5.4): **비용 최적화 + 설계 잔여 갭 해소.** ① Aurora→**RDS PostgreSQL t3.micro** 확정(22·24번). ② NAT 전략: NAT Gateway 제거 → **NAT Instance(t3.nano)+S3·DynamoDB Gateway Endpoint**(22번). ③ Azure findings 진입 경로 = **Prowler(Azure 모드)** 확정(12·24번). ④ 에이전트별 **Bedrock 모델 배정**(Haiku/Sonnet, 15번). ⑤ **CIEM 분담 독립 행** 추가(4.1). ⑥ **Entra CIEM 탐지 룰북** RAG 코퍼스 E항목 추가(16번). ⑦ D11·13번 표현 갱신(Entra 중심·OpenSearch 잔재 제거). ⑧ 8.1 마이크로서비스 3개 확정.*
