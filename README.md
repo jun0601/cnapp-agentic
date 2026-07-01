@@ -86,6 +86,7 @@
 ## 🏗️ 폴더 구조
 
 > 마커: ✅ 내용 있음(구현/스캐폴드) · 📁 빈 폴더(자리 확보) · ⬜ 아직 미생성(계획).
+> **각 영역 하위폴더 = 소유자별 2개**(준형/진우, 공유는 예외 — §4.6). ⬜ 영역의 하위폴더 이름은 **가제(계획)** — 실제 폴더는 그 단계에서 생성.
 
 ```
 cnapp-agentic/
@@ -99,11 +100,22 @@ cnapp-agentic/
 ├── apps/
 │   ├── target/               ✅ 취약 타깃 앱 (product · order · member[Python] + PII seeder) — 코드만
 │   └── console/              ✅ 관제 앱 (Vite+React+TS, 8화면 MSW 목업 동작) — 코드만
-├── engine/                   📁 공유 에이전틱 엔진 — core / triage·evidence / hypothesis·reasoning
-├── scanners/                 ⬜ cspm · workload 스캐너 연동 — 코드만
-├── pipeline/                 ⬜ ingest(EventBridge→SQS) · normalize(Lambda→OCSF) — 코드만
-├── rag/                      ⬜ corpus·임베딩 적재 · retrieval·검색 — 코드만
-├── attackpath/               ⬜ 상관 모델 · R1~R5 상관 로직 — 코드만
+├── engine/                   ✅ 공유 에이전틱 엔진 (전체 루프 동작) — 하위=소유자별
+│   ├── core/                 (공유) contracts · tools · case
+│   ├── evidence/             (준형) triage · evidence — 능동조사
+│   └── reasoning/            (진우) hypothesis · reasoning · orchestrator
+├── scanners/                 ⬜ 스캐너 연동 — 하위폴더는 가제(계획)
+│   ├── cspm/                 (준형) Config · Prowler · Security Hub · Macie
+│   └── workload/             (진우) Inspector · Trivy · kube-bench · Defender
+├── pipeline/                 ⬜ 수집·정규화 — 가제
+│   ├── ingest/               (준형) EventBridge→SQS
+│   └── normalize/            (진우) Lambda→OCSF
+├── rag/                      ⬜ RAG — 가제
+│   ├── corpus/               (준형) 코퍼스·임베딩 적재
+│   └── retrieval/            (진우) 검색·LLM 답변
+├── attackpath/               ⬜ attack-path — 가제
+│   ├── model/                (준형) 그래프 데이터 모델
+│   └── correlation/          (진우) R1~R5 상관·내러티브
 └── infra/                    Terraform (레이어드) — shared 먼저 → target · console · 영역별
     ├── shared/               ✅ VPC·NAT·EKS·ECR·RDS pgvector·OIDC·IAM (main.tf 스캐폴드, validate 통과)
     ├── target/               ✅ 취약 워크로드 + 의도적 결함 IaC(f3·f4·f6 var.enable_* 토글)
