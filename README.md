@@ -14,6 +14,7 @@
 | [docs/target-app-design.md](docs/target-app-design.md) | **타깃 앱 설계도** — 일부러 취약하게 만드는 고객사 워크로드(findings 소스). 기능 베이스(retail-store)·의도적 결함 목록·골든 attack-path + **§7 구현 청사진**(결함↔IaC 토글 매핑). |
 | [docs/console-app-design.md](docs/console-app-design.md) | **관제 앱 설계도** — 우리가 만드는 보안 관제 플랫폼(NOVA 대응). 화면·백엔드·RBAC·RAG↔UI 매핑 + **§15 구현 청사진**(스택·API 표면·화면↔mock). |
 | [docs/manual-infra.md](docs/manual-infra.md) | **수동 관리 리소스 현황** — 콘솔/CLI로 직접 설정한 리소스(계정 초기화·Terraform 부트스트랩·Azure SSO 등). Terraform 관리 대상 제외. |
+| [docs/cost-strategy.md](docs/cost-strategy.md) | 💰 **비용 최적화 전략** — 무료 크레딧·평가판 안에서 프로덕션급 아키텍처를 증명한 FinOps 결정 원장(mock-first·경량 대체·모델 티어링·destroy 규율 + 정직한 트레이드오프). |
 | [CLAUDE.md](CLAUDE.md) | **작업 기준·협업 규칙** — 위 설계서들의 요약 + 협업 규칙. |
 
 ---
@@ -96,7 +97,7 @@ cnapp-agentic/
 ├── cnapp-architecture.svg    ✅ 아키텍처 다이어그램
 ├── .github/workflows/        ✅ CI — contracts 정합 게이트(contracts-validate.yml, validate.py 4-assert)
 ├── contracts/                ✅ ★공유 이음새 계약(7종 JSON Schema) + control-catalog(14종) + 골든 mock 3종 + validate.py
-├── docs/                     ✅ 설계 SSOT — project-draft · target-app-design · console-app-design · manual-infra
+├── docs/                     ✅ 설계 SSOT — project-draft · target/console-app-design · manual-infra · cost-strategy
 ├── apps/
 │   ├── target/               ✅ 취약 타깃 앱 (product · order · member[Python] + PII seeder) — 코드만
 │   └── console/              ✅ 관제 앱 (Vite+React+TS, 8화면 MSW 목업 동작) — 코드만
