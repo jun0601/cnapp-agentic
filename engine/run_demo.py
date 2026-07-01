@@ -18,7 +18,7 @@ import os
 from engine.core import case as case_mod
 from engine.core.contracts import load_attack_paths, load_findings
 from engine.core.tools import MockToolExecutor
-from engine.orchestrator.orchestrator import Orchestrator
+from engine.reasoning.orchestrator import Orchestrator
 
 
 def _hr(title: str) -> None:

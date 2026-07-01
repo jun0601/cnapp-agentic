@@ -11,9 +11,9 @@ from engine.core import case as case_mod
 from engine.core.contracts import findings_by_id
 from engine.core.tools import MockToolExecutor, ToolExecutor
 from engine.evidence.evidence import EvidenceAgent
-from engine.hypothesis.hypothesis import HypothesisAgent
-from engine.reasoning.reasoning import ReasoningAgent
 from engine.evidence.triage import triage
+from engine.reasoning.hypothesis import HypothesisAgent
+from engine.reasoning.reasoning import ReasoningAgent
 
 # 골든 경로 조사 순서 — control_id 우선순위(데이터 노출 확인 → 도달 경로 확인)
 _INVESTIGATION_ORDER = [
