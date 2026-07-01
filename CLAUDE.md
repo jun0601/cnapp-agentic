@@ -18,6 +18,7 @@
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-07-01 / 준형 / infra/console·console 앱 소유 stale 정정 → 준형** — project-draft §4.6 terraform 소유표가 아직 "infra/console·console 앱 = 진우"로 남아 있던 것(앱 2개 준형 재배정 때 §5만 고치고 §4.6 누락). **준형으로 정정**(§4.6 표·코드블록·apps 행·apply 불릿 + CLAUDE §4 트리). 원칙: **앱 관련 인프라(shared·target·console)는 준형**(앱 2개·CI/CD·공유인프라 주도), 콘솔 SSO는 준형 Cognito ↔ **진우 Entra App Reg**(manual-infra §3) 연동 — 진우는 IdP(Entra)만. **`[PULL 필요]`**
 - **2026-07-01 / 준형 / 폴더 규칙 명문화(하위 최소화·소유자별 2개) + engine 재구성** — 누락됐던 규칙 복원: **하위 폴더는 소유자별 2개(a=준형·b=진우)로 최소화, 공유 코드만 예외 폴더**(사람 이름 폴더는 여전히 금지 — 이름은 컴포넌트로). project-draft §4.6·CLAUDE §4에 반영. engine을 `core`(공유)+`triage`+`evidence`(과다 분할)에서 **`core`(공유) + `evidence`(준형: triage.py·evidence.py)** 2폴더로 합침. ⚠️ 진우 몫(hypothesis·reasoning·orchestrator 3폴더)도 새 규칙상 **`reasoning/` 1폴더로 합쳐야 함 — 진우와 조율 예정**. run_demo 재실행 통과. **`[PULL 필요]`**
 - **2026-07-01 / 진우 / 엔진 Hypothesis·Reasoning·Orchestrator 구현 — 전체 루프 완성** — `HypothesisAgent`(control_id 기반 가설 자동 생성 + 크로스클라우드 체인 가설), `ReasoningAgent`(evidence → 한국어 내러티브·CRITICAL 위험수준·권고사항), `Orchestrator`(Triage→Hypothesis→Evidence→Reasoning 단일 루프), `case.set_reasoning()` 추가. `run_demo.py` Orchestrator 기반으로 단순화(GOLDEN_HYPOTHESES 하드코딩 제거). 실행: 20건→12 escalate, 툴 4회, confirmed, CRITICAL, stage=reasoning, 골든 정합 OK ✅. 실배포 스왑 = executor·LLM 플래너 교체만. **`[PULL 필요]`**
 - **2026-07-01 / 진우 / Azure/Entra ID 초기 설정 완료 — `cnappagentic.onmicrosoft.com` 테넌트·Teams 웹훅** — M365 Business 체험으로 `cnappagentic.onmicrosoft.com` 데모 전용 테넌트 생성. 관리자 계정(jw_kim·jh_lee Global Admin), 보안 그룹(cnapp-viewer·cnapp-approver), 데모 계정(viewer@·approver@) 생성 완료. Teams `cnapp-agentic` 워크스페이스·`cnapp-alerts` 채널·Workflows 웹훅 URL 발급. `manual-infra.md §3` 갱신. 미착수: App Registration(SSO·CIEM)·SP·Defender for Cloud. **`[PULL 필요]`**
@@ -119,7 +120,7 @@ cnapp-agentic/
 └── infra/                    # Terraform — 레이어드(4.6). apply는 여기서만
     ├── shared/               #   기반(준형 최초 apply): VPC·EKS·OIDC·RDS pgvector·Bedrock·ECR
     ├── target/               #   취약 워크로드+의도적 결함(준형, 휘발성·격리)
-    ├── console/              #   ALB·Cognito·console Lambda·SFn·CloudFront(진우)
+    ├── console/              #   ALB·Cognito·console Lambda·SFn·CloudFront(준형 — SSO는 진우 Entra 연동)
     └── {scanners,pipeline,engine,…}/  # 영역별 terraform(영역 주인이 apply)
 ```
 

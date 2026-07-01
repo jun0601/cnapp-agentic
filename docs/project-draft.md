@@ -299,7 +299,7 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 1) 기반 먼저:  infra/shared   (VPC·EKS·OIDC·RDS pgvector·Bedrock·ECR)  → 준형, 최초 apply, 모두가 의존
 2) 그 위 영역별 terraform (영역 주인이 apply, 의존성 순서대로):
      infra/target     준형   취약 워크로드+의도적 결함 (휘발성 — 토글하며 apply/destroy 잦음, 격리)
-     infra/console    진우   ALB·Cognito·console Lambda·SFn·CloudFront
+     infra/console    준형   ALB·Cognito·console Lambda·SFn·CloudFront (SSO는 진우 Entra App Reg 연동)
      infra/scanners   각 주인  스캔 IAM 역할·서비스 활성화(Config/SecurityHub/Inspector…)
      infra/pipeline   각 주인  EventBridge·SQS·정규화 Lambda
      infra/engine     각 주인  에이전트 Lambda·Bedrock IAM·Step Functions
@@ -310,18 +310,18 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 | `contracts/` | **안 쪼갬 — 공유** | ❌ | 모든 이음새 계약(4.4)의 단일 진실. 확정 후 거의 고정 |
 | `infra/shared` | 준형 | ✅ 기반 | 최초 apply, 전 영역 의존 |
 | `infra/target` | 준형 | ✅ | 휘발성·격리 |
-| `infra/console` | 진우 | ✅ | 진우 독립 apply |
+| `infra/console` | 준형 | ✅ | 준형 apply(콘솔 앱 소유). SSO는 진우 Entra App Reg(manual-infra §3) 연동 |
 | `infra/{scanners,pipeline,engine,rag,attackpath}` | 영역 주인 | ✅ 영역 단위 | 영역 안 반반은 같은 state 공유 |
 | `scanners/` | cspm 준형 / workload 진우 | ❌ 코드 | 병렬(둘 다 finding 뱉음) |
 | `pipeline/` | ingest 준형 / normalize 진우 | ❌ 코드 | 이음새=계약⑤ |
 | `engine/` | core 공유 / triage·evidence 준형 / hypothesis·reasoning 진우 | ❌ 코드 | 핸드오프=계약⑦ |
 | `rag/` | corpus 준형 / retrieval 진우 | ❌ 코드 | 이음새=계약⑥ |
 | `attackpath/` | model 준형 / correlation 진우 | ❌ 코드 | 상관규칙 4.4 |
-| `apps/` | target 준형 / console 진우 | ❌ 코드(인프라는 infra/) | |
+| `apps/` | **target·console 모두 준형** | ❌ 코드(인프라는 infra/) | 앱 2개 준형 전담(CLAUDE §5) |
 | `docs/` `CLAUDE.md` `troubleshooting.md` | **안 쪼갬 — 공유** | ❌ | `troubleshooting.md`=작업 로그(트러블슈팅+진행) 중앙 1개, `[영역]` 태그 한 줄씩(영역별 파일 금지) |
 
 - **같이 쓰는(공유 편집) 파일은 4개뿐:** `contracts/`, `engine/core/`, `docs/`, `CLAUDE.md`. 나머진 단일 소유라 각자 push해도 충돌 없음.
-- **apply 자동화(병목 방지):** main push → GitHub Actions가 해당 `infra/<영역>` terraform apply. 진우가 콘솔 인프라 필요 시 *사람(준형)*이 아니라 *파이프라인*을 기다림. console 인프라 *요구사항*은 진우가 명세, 구현·CI는 준형 틀.
+- **apply 자동화(병목 방지):** main push → GitHub Actions가 해당 `infra/<영역>` terraform apply. **앱 관련 인프라(shared·target·console)는 준형 소유**(앱 2개·CI/CD·공유인프라 주도). 콘솔 SSO는 준형 Cognito ↔ **진우 Entra App Reg**(manual-infra §3)의 연동 — 진우는 IdP 쪽(Entra)만 제공, AWS 콘솔 인프라는 준형.
 - **state 백엔드:** S3 state 버킷 1개 + `infra/<영역>` prefix로 분리(manual-infra.md 2번의 부트스트랩 — shared/target/console 외 scanners/pipeline/engine prefix도 같은 규칙). 영역별 state 격리라 한 명이 apply해도 남의 인프라 안 건드림.
 - **과한 선생성 금지:** 폴더 *지도*는 합의하되 실제 폴더·terraform은 그 단계 도달 시 생성(infra/shared부터).
 
