@@ -97,16 +97,56 @@
 
 > ⚠️ 웹훅 URL은 민감 정보 — 실제 운용 시 Secrets Manager로 이동 권장.
 
-### 3.6 App Registration / SP — 미착수
+### 3.6 App Registration / SP
 
 | 항목 | 내용 | 담당 | 상태 |
 |---|---|---|---|
 | **② App Registration — SSO 연동용** | Cognito SAML 2.0 IdP 연동. `custom:groups` 클레임 매핑(console-app-design §7). *`infra/console` 선행.* | 진우 | 미착수 |
-| **③ App Registration — 과도권한 결함용** | `Directory.ReadWrite.All` 등 CIEM finding 소스용. 골든 f8·f16. | 진우 | 미착수 |
-| **③ Service Principal — order 평문 시크릿용** | `Directory.Read.All` + `Application.Read.All` 스코프만. 만료일 = 데모 종료일 +1주. order 파드 env에 평문 노출(결함 f5). | 진우 | 미착수 |
-| **③ Service Principal — Prowler 스캔용** | `Security Reader` 역할 수준 read-only SP. Prowler Azure 모드가 이 SP로 Entra/Defender 스캔 → OCSF → S3. | 진우 | 미착수 |
-| **④ Federated Identity Credential (Prowler SP)** | Prowler 스캔 SP에 GitHub Federated Credential 등록. Subject: `repo:jun0601/cnapp-agentic:ref:refs/heads/main`. 키리스 인증(D4). | 진우 | 미착수 |
+| **③ App Registration — 과도권한 결함용** | `Directory.ReadWrite.All` Application 권한. 골든 f8·f16 소스. | 진우 | ✅ 완료 |
+| **③ Service Principal — order 평문 시크릿용** | `Directory.Read.All` + `Application.Read.All` 스코프만. 만료일 6개월. order 파드 env에 평문 노출(결함 f5). | 진우 | ✅ 완료 |
+| **③ Service Principal — Prowler 스캔용** | `Directory.Read.All` + `Policy.Read.All` + `AuditLog.Read.All`. Prowler Azure 모드가 이 SP로 Entra/Defender 스캔 → OCSF → S3. | 진우 | ✅ 완료 |
+| **④ Federated Identity Credential (Prowler SP)** | Prowler 스캔 SP에 GitHub Federated Credential 등록. Subject: `repo:jun0601/cnapp-agentic:ref:refs/heads/main`. 키리스 인증(D4). | 진우 | ✅ 완료 |
 | **⑤ Defender for Cloud** | 데모 기간만 활성, 이후 비활성(종량제 — project-draft 22번). | 진우 | 미착수 |
+
+#### 3.6.1 과도권한 App Registration 상세 ✅
+
+| 항목 | 값 |
+|---|---|
+| **앱 이름** | `cnapp-agentic-overpriv-app` |
+| **Application (client) ID** | `283ca885-134e-4a74-92d6-7dd1ed9cd46f` |
+| **Tenant ID** | `8e160cea-faa9-47de-a717-6eb01e4a262b` |
+| **API 권한** | `Directory.ReadWrite.All` (Application, 관리자 동의 완료) |
+| **클라이언트 시크릿 만료** | 2028-07-01 (24개월) |
+| **클라이언트 시크릿 값** | ⚠️ git 미기록 — 본인 로컬 보관. 실배포 시 Secrets Manager 이전 예정 |
+
+> 이 앱 등록 자체가 CIEM finding `INTERNAL-ENTRA-OVERPRIV-APP-001`(f8)의 소스.
+> 만료 없는(장기) 시크릿이 finding `INTERNAL-ENTRA-SP-CRED-001`(f16)의 소스.
+
+#### 3.6.2 order 평문 시크릿용 SP 상세 ✅
+
+| 항목 | 값 |
+|---|---|
+| **앱 이름** | `cnapp-agentic-order-sp` |
+| **Application (client) ID** | `541938e7-2d6d-4098-b211-1512f3026a30` |
+| **Tenant ID** | `8e160cea-faa9-47de-a717-6eb01e4a262b` |
+| **API 권한** | `Directory.Read.All` + `Application.Read.All` (Application, 관리자 동의 완료) |
+| **클라이언트 시크릿 만료** | 6개월 (~2027-01) |
+| **클라이언트 시크릿 값** | ⚠️ git 미기록 — 본인 로컬 보관. `apps/target/order` 파드 env에 평문 노출 예정(결함 f5) |
+
+> 이 SP 자격증명을 order 파드 매니페스트 env에 평문으로 박는 것 자체가 finding `INTERNAL-SECRET-PLAINTEXT-001`(f5) 소스.
+
+#### 3.6.3 Prowler 스캔용 SP 상세 ✅
+
+| 항목 | 값 |
+|---|---|
+| **앱 이름** | `cnapp-agentic-prowler-sp` |
+| **Application (client) ID** | `82fec3e9-4c20-4d78-bf4a-9e518a86b460` |
+| **Tenant ID** | `8e160cea-faa9-47de-a717-6eb01e4a262b` |
+| **API 권한** | `Directory.Read.All` + `Policy.Read.All` + `AuditLog.Read.All` (Application, 관리자 동의 완료) |
+| **인증 방식** | 클라이언트 시크릿 없음 — **GitHub Federated Identity Credential (키리스)** |
+| **Federated Credential** | 조직 `jun0601` / 리포 `cnapp-agentic` / 브랜치 `main` / 이름 `prowler-github-oidc` |
+
+> GitHub Actions에서 `azure/login` 액션으로 이 SP에 OIDC 인증 → 시크릿 없이 Prowler 스캔 가능.
 
 ---
 
