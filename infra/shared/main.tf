@@ -9,8 +9,8 @@
 
 # =============================================================================
 # [TF·BACKEND] terraform·provider 버전 + S3 원격 백엔드(네이티브 락)
-# ⚠️ apply 전: backend.bucket을 manual-infra 2번 실제 버킷명으로 교체
-#    (backend 블록은 변수 불가 → 하드코딩 또는 `terraform init -backend-config="bucket=..."`)
+# state 버킷 = cnapp-agentic-tfstate (manual-infra §2, 2026-07-01 부트스트랩 완료)
+#    (backend 블록은 변수 불가 → 하드코딩. init 시 `--profile cnapp` 사용)
 # =============================================================================
 terraform {
   required_version = ">= 1.10" # S3 네이티브 락(use_lockfile) 지원
@@ -22,7 +22,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket       = "TODO-cnapp-tfstate-CHANGEME" # manual-infra 2번 실제 버킷명
+    bucket       = "cnapp-agentic-tfstate" # manual-infra §2 (2026-07-01 부트스트랩 생성)
     key          = "infra/shared/terraform.tfstate"
     region       = "ap-northeast-2"
     encrypt      = true
