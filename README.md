@@ -2,7 +2,7 @@
 
 > 멀티클라우드(**AWS = 워크로드의 주인 / Azure = 신원의 주인(Entra ID)**) 환경의 설정부터 워크로드·IaC 코드까지 **code-to-cloud 보안 위험을 점검·통합·상관분석**하고, 그 위에 **에이전틱 AI(Bedrock 멀티에이전트 + RAG)**로 발견 항목을 설명·우선순위화·자동 개선하는 CNAPP형 보안 플랫폼.
 >
-> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 1차 완료(SSOT 정합) · 구현 진입 — 공통 계약 졸업 + 공유 인프라 스캐폴드 완료.
+> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 1차 완료(SSOT 정합) · 구현 진입 — 공통 계약 졸업 + 공유 인프라 스캐폴드 + 앱 2개 구현 청사진 완료. 다음 착수 = `apps/console` 스캐폴딩(목업 우선).
 
 ### 📂 이 레포는 무엇인가 / docs 안내
 
@@ -11,8 +11,8 @@
 | 문서 | 무엇인지 |
 |---|---|
 | [docs/project-draft.md](docs/project-draft.md) | **전체 설계서(SSOT)** — 방향·범위·핵심 결정(D1~D19)·아키텍처·로드맵·미확정 항목 총괄. 여기부터 읽는다. |
-| [docs/target-app-design.md](docs/target-app-design.md) | **타깃 앱 설계도** — 일부러 취약하게 만드는 고객사 워크로드(findings 소스). 의도적 결함 목록·골든 attack-path. |
-| [docs/console-app-design.md](docs/console-app-design.md) | **관제 앱 설계도** — 우리가 만드는 보안 관제 플랫폼(NOVA 대응). 화면·백엔드·RBAC·RAG↔UI 매핑. |
+| [docs/target-app-design.md](docs/target-app-design.md) | **타깃 앱 설계도** — 일부러 취약하게 만드는 고객사 워크로드(findings 소스). 기능 베이스(retail-store)·의도적 결함 목록·골든 attack-path + **§7 구현 청사진**(결함↔IaC 토글 매핑). |
+| [docs/console-app-design.md](docs/console-app-design.md) | **관제 앱 설계도** — 우리가 만드는 보안 관제 플랫폼(NOVA 대응). 화면·백엔드·RBAC·RAG↔UI 매핑 + **§15 구현 청사진**(스택·API 표면·화면↔mock). |
 | [docs/manual-infra.md](docs/manual-infra.md) | **수동 관리 리소스 현황** — 콘솔/CLI로 직접 설정한 리소스(계정 초기화·Terraform 부트스트랩·Azure SSO 등). Terraform 관리 대상 제외. |
 | [CLAUDE.md](CLAUDE.md) | **작업 기준·협업 규칙** — 위 설계서들의 요약 + 협업 규칙. |
 
@@ -76,7 +76,9 @@
 | **에이전틱 AI** | Amazon Bedrock(멀티에이전트), 수동 RAG, pgvector(RDS PostgreSQL t3.micro) |
 | **수집 / 오케스트레이션** | EventBridge, SQS, Lambda, Step Functions, OCSF 정규화 |
 | **인증** | Microsoft Entra ID(IdP) → Cognito → ALB(authenticate-oidc) |
-| **프론트 / 관측** | React, S3 + CloudFront, kube-prometheus-stack |
+| **관제 앱 (프론트)** | Vite + React + TypeScript, TanStack Query, Tailwind, React Flow(attack-path 그래프), Recharts(점수), MSW(mock 하네스) |
+| **관제 앱 (백엔드)** | TypeScript Lambda (findings 읽기 API) — *폴리글랏: console=TS / engine·pipeline=Python* |
+| **관측 / 호스팅** | S3 + CloudFront, kube-prometheus-stack |
 | **IaC** | Terraform |
 
 ---
@@ -113,7 +115,9 @@ cnapp-agentic/
 |---|---|
 | **공통 계약 (`contracts/`)** | ✅ **졸업** — 계약 7종 JSON Schema + INTERNAL control 카탈로그(13종) + 골든 시나리오 mock(findings·attack-path·case). `validate.py` 4-assert + GitHub Actions CI 게이트로 정합 보장 |
 | **공유 인프라 (`infra/shared`)** | ✅ **스캐폴드** — VPC·NAT Instance·EKS(spot·IRSA)·ECR·RDS pgvector·GitHub OIDC·Evidence/Bedrock IAM. `terraform validate` 통과. apply는 게이트(state 버킷·Bedrock 모델 액세스·Azure 테넌트) 후 |
-| 타깃 앱 · 스캐너 · 수집/정규화 · 엔진 · 관제 콘솔 | ⬜ **예정** — 타깃 앱 기능 베이스 = AWS retail-store-sample-app 확정 |
+| **앱 2개 구현 청사진** | ✅ **완료** — 관제 앱(console §15: 스택·API 표면·화면↔mock)·타깃 앱(target §7: 결함↔IaC 토글) 청사진 확정. **앱 2개 모두 준형 전담** |
+| 관제 콘솔(`apps/console`) | ▶️ **다음 착수** — Vite+React+TS 스캐폴딩, MSW로 `contracts/mock-*.json` 먹여 실데이터 없이 끝까지 개발 |
+| 타깃 앱 · 스캐너 · 수집/정규화 · 엔진 | ⬜ **예정** — 타깃 앱 기능 베이스 = AWS retail-store-sample-app 확정 |
 
 > **전략 = 계약·목업 우선.** 실제 스캐너/엔진을 기다리지 않고 `contracts/mock-*.json`으로 관제 콘솔·엔진을 끝까지 만든 뒤 실데이터로 교체 — 직렬 의존을 두 병렬 트랙으로 분리한다.
 
@@ -130,3 +134,5 @@ cnapp-agentic/
 *변경 요약(2): 폴더 구조를 실제 구조(`contracts`·`scanners`·`pipeline`·`rag`·`attackpath`·`troubleshooting.md`)로 갱신 — 컴포넌트 단위 분리·terraform 레이어드 반영(docs/project-draft 4.6과 정합).*
 
 *변경 요약(3): 구현 진입 반영 — 상단 상태 갱신 + **구현 현황(Status) 표 신설**(contracts 졸업·infra/shared 스캐폴드·CI 게이트), 폴더 트리에 `.github/workflows` 추가.*
+
+*변경 요약(4): 앱 개발 진입 반영 — 앱 2개 구현 청사진(console §15·target §7) 완료 + **앱 2개 모두 준형 전담** 확정, 다음 착수 = `apps/console` 스캐폴딩. 기술 스택 표에 확정된 관제 앱 프론트/백엔드 스택(Vite+React+TS·TanStack·React Flow·MSW)·폴리글랏(console=TS/engine·pipeline=Python) 반영, docs 안내에 각 앱 구현 청사진 절 표기.*
