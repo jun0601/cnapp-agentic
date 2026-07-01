@@ -180,9 +180,9 @@ cnapp-agentic/
 - ▶ 다음: attack-path 그래프 모델(R1~R5 상관은 진우) → console-backend(TS Lambda) → *(실검증)* 엔진 `RealToolExecutor`로 실 read-only API tool-use
 
 *진우*
-- ✅ 한 것: TF state 버킷 · Cognito SSO 설계(authenticate-cognito·그룹 클레임) · 2-pass 트리거 이벤트
-- 🔄 지금: Azure/Entra 데모 테넌트(M365) 생성
-- ▶ 다음: App Registration(SSO)+그룹 → 결함/스캔 SP (manual-infra §3 순서) · 워크로드 스캐너 · 정규화부 · 엔진 Reasoning
+- ✅ 한 것: TF state 버킷 · Cognito SSO 설계(authenticate-cognito·그룹 클레임) · 2-pass 트리거 이벤트 · Azure/Entra 테넌트 · **엔진 Hypothesis·Reasoning·Orchestrator**
+- ▶ 다음: App Registration(SSO)+그룹 → 결함/스캔 SP (manual-infra §3 순서) · 워크로드 스캐너 · 정규화부
+- ⚠️ **정리 필요(폴더 규칙 §4.6):** `engine/`의 진우 몫 **3폴더(`hypothesis`·`reasoning`·`orchestrator`) → `reasoning/` 1폴더로 합칠 것**. 폴더 최소화·소유자별 2개 규칙(§4.6). 준형 몫은 이미 `evidence/`(triage·evidence)로 합침. 합칠 때 `orchestrator.py`의 import는 `engine.evidence.triage`·`engine.reasoning.hypothesis`·`engine.reasoning.reasoning`로, `run_demo.py`는 `engine.reasoning.orchestrator`로 갱신. **@진우 Claude 확인**
 
 *공통 미완:* 스캐너 실행 · 수집/정규화 · RAG · infra apply(비용)
 
