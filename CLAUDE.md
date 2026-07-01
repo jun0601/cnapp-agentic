@@ -12,11 +12,13 @@
 3. **`[PULL 필요]` 태그:** 상대가 반드시 pull해야 할 중요 변경(설계 방향 전환, 핵심 결정, 구조 변경)은 변경 로그에 **`[PULL 필요]`** 태그를 붙여 명시한다.
 4. **작업 후:** `commit` + `push`로 공유한다(커밋 메시지 `타입: 내용`). 상세 협업 규칙은 [6번](#6-협업-규칙-) 참조.
 5. **작업 로그 기입:** 구현하며 겪은 문제·해결과 추가·작업한 것은 루트의 **[troubleshooting.md](troubleshooting.md)** 에 한 줄씩 남긴다(중앙 1개 파일, 영역별 파일 금지). 형식 `YYYY-MM-DD / 작성자 / [영역] / 내용`, 영역 태그 `[infra]` `[scanners]` `[pipeline]` `[engine]` `[rag]` `[attackpath]` `[apps-target]` `[apps-console]` `[contracts]` `[docs]` `[ci]`. *굵직한 설계 변경*은 여기 말고 위 변경 로그에(목적 분리: troubleshooting=작업 디테일, 변경 로그=pull 알림).
+6. **진척 갱신:** 굵직한 진척(영역 완료·다음 착수 변경)이 생기면 **[§7.1 현황+다음](#71-현황--다음-할-일-next-up--진행-관리-단일-지점-작업-후-여기부터-갱신)**을 갱신한다(진행 관리 단일 지점 — "지금 어디까지/다음 뭐"를 여기서 관리).
 
 ### 변경 로그 (최신이 위로)
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-07-01 / 준형 / 진행 관리 단일 지점 = §7.1 확정 + 하이브리드 진행 원칙 + README 역할분담 순서·진행상황** — §7.1을 낡은 "다음 착수 계획"에서 **"현황 + 다음 할 일"** 트래커로 갈아엎음("지금 어디까지/다음 뭐"를 여기서 관리, 큰 그림은 README). §0에 규칙 6(진척 시 §7.1 갱신) 추가. **진행 원칙 = 하이브리드**: 빌드 순서는 인프라 먼저지만 **목업 우선으로 논리 병렬** + **리스크 큰 실검증(엔진 실 tool-use·스캐너 1개→실 finding)은 실클라우드 조기 검증(apply→테스트→destroy 사이클)** (free credit 감안, 상시 방치 금지). README **역할 분담을 진행 순서(①앱&환경 → ⑦attack-path)로 재배치 + 진행상황 컬럼** 추가(①앱&환경: 준형 앱2개 / 진우 M365·Entra 테넌트). **`[PULL 필요]`**
 - **2026-07-01 / 진우 / Cognito SSO 설계 검증 3건 수정 반영** — ① `authenticate-oidc` → `authenticate-cognito` 전면 교체(project-draft §10·아키텍처 다이어그램, console-app-design §4·§7·§15 전 위치 — Cognito 전용 액션이 더 단순하고 클라이언트 시크릿 불필요). ② **Identity Pool 제거** — 프론트가 AWS를 직접 호출하지 않으므로 User Pool만으로 충분, infra/console에서 만들 필요 없음. ③ **console-app-design §7 그룹 클레임 매핑 경로 추가** — Entra SAML attribute→Cognito `custom:groups`→`x-amzn-oidc-data` JWT→Lambda viewer/approver 분기. **`[PULL 필요]`**
 - **2026-07-01 / 준형 / 타깃 앱(`apps/target`) + `infra/target` 결함 IaC 구현 + 콘솔 스텁 4화면 완성 — 독립 리뷰 2회 반영** — **타깃 앱:** member=**Python/FastAPI 확정**(§7 피드백 닫음, `apps/target/member` REST + **PII seeder**=faker 한국형 합성 rrn→S3, Macie 미끼) / product(f1 KEV 이미지·f2 privileged) / order(f5 평문 Azure SP=가짜값) k8s 매니페스트 + namespace `shop`. **`infra/target`:** 결함 IaC 토글(`enable_s3_public` f6·`enable_open_sg` f3·`enable_overpriv_irsa` f4, 기본 off), remote_state로 infra/shared OIDC 참조, **IRSA `:aud`+`:sub` 역할별 고정**. 리뷰 반영: infra/shared에 `eks_oidc_provider`(URL) 출력 추가(target 참조 정합), IRSA sub 조건, botocore ClientError. **콘솔 스텁:** Login(SSO 흐름·역할선택)·Audit(골든 타임라인 12건·필터·불변)·Compliance(ISMS-P↔control 매핑·충족률)·Remediation(실 finding 연동·approver 게이트). **모든 시크릿·PII는 가짜**(격리 데모 전제). py_compile·terraform fmt·tsc·vite build 전부 통과. **`[PULL 필요]`**
 - **2026-07-01 / 준형 / `apps/console` 스캐폴드 착수 — 관제 앱 골격(목업 우선, 빌드 통과)** — §15 청사진대로 **Vite+React+TS+Tailwind+TanStack+React Flow+Recharts+MSW** 스캐폴드. **contracts가 타입 SSOT**(types.ts 손번역 + `gen-types.mjs` 재생성), **MSW handlers가 `@contracts` alias로 `mock-*.json` 직접 서빙**(vite `fs.allow`=repoRoot) → **백엔드·AWS 0으로 전 화면 동작**. 화면 8종(핵심 4=Dashboard·Findings·**FindingDetail[Evidence 탭=능동조사 UC0]**·AttackPath[React Flow AWS/Azure 레인] + 스텁 4). API 표면(§15.2)·화면↔mock(§15.4) 배선. `npm i`(252pkg)·`msw init`·`tsc --noEmit`·`vite build`(499 모듈) 전부 통과. 실행: `apps/console`에서 `npm run dev`. 다음 = 실 화면 다듬기·나머지 화면·(엔진 나오면) MSW off 스왑. **`[PULL 필요]`**
@@ -163,16 +165,20 @@ cnapp-agentic/
 - 우선순위 컷라인(설계서 21번): **① 절대사수** = CSPM 본체 + RAG 설명 + 대시보드 + Azure 통합 + Shift-Left + KSPM, **② 보너스** = 공급망 서명·attack-path 정교화·ISMS-P 리포트, **③ 확장** = CWPP 런타임·SOC.
 - 미확정 항목(설계서 24번)은 결정될 때마다 docs에 반영하고 여기 요약을 갱신한다.
 
-### 7.1 다음 착수 계획 (Next Up — 2026-06-30 준형 합의, 완료 시 갱신)
+### 7.1 현황 + 다음 할 일 (Next Up — ★진행 관리 단일 지점. 작업 후 여기부터 갱신)
 
-> **`contracts/` 졸업 완료(2026-06-30).** 선행 결정 전부 확정(진우 검증 완료) — **2단계(병렬 토대) 착수 가능.**
+> **이 절만 보면 "지금 어디까지 / 다음 뭐"가 나온다.** 큰 그림 현황은 [README 구현 현황](../README.md) 표, 상세 작업 로그는 [troubleshooting.md](../troubleshooting.md).
 
-**합의된 방향:**
-- **착수 = 둘 동시(병렬).** 준형이 `infra/shared` 스캐폴드, 진우가 콘솔 골격을 병렬 진행.
-- **데모 컷 = 절대사수 풀세트.** CSPM 본체+RAG 설명+대시보드+Azure(Entra) 통합+Shift-Left+KSPM 전부 real 목표(설계서 21번 ①). ※시간 부족 시 컷 순서는 위 **시간 컷 우선순위**(엔진 능동조사 1경로 사수)가 안전망.
-- **Azure 격리 테넌트 = 진우 확보**(골든[4]·SSO 전제 → manual-infra 기록). 진우의 Azure/Defender·Entra CIEM 작업과 연결.
+**현황 (2026-07-01):**
+- ✅ 공통 계약(INTERNAL control 14종·골든 목업·CI 게이트) · `infra/shared`·`infra/target` 스캐폴드(apply 전) · TF state 버킷
+- ✅ 관제 앱(`apps/console`) **8화면 목업 동작**(대시보드·Findings·Evidence 탭·attack-path 등) · 타깃 앱(`apps/target`) **member 실행 + shop 포털**
+- 🔄 Azure/Entra 데모 테넌트(진우 진행 중) · ⬜ 스캐너 · 수집/정규화 · 엔진 · RAG · console-backend · infra apply
 
-**단계:**
-1. ~~**`contracts/` 졸업**~~ ✅ **완료(2026-06-30)** — 계약 7종 `*.json` + 4.4.1 정규화 규칙 3종 + mock 데이터(골든 R1~R5). §24 3건 확정 → 양쪽 병렬 unblock.
-2. **병렬 토대 ← 현재** — 준형: `infra/shared` 스캐폴드(VPC·EKS·OIDC·RDS pgvector·ECR·Bedrock IAM + state 버킷 부트스트랩, apply는 검증 후) / 진우: 목업 먹인 콘솔 골격 + findings 읽기 API.
-3. **절대사수 한 장면** — 엔진 능동조사 1경로(Evidence tool-use real) + 골든 attack-path 1경로 시각화 = 데모 심장.
+**다음 할 일:**
+- **준형:** ⑥ 엔진 능동조사(Evidence·Triage, `mock-cases.json` 기반 로직부터) — *데모 사수 1순위* / ⑦ attack-path 그래프 모델 / console-backend(TS Lambda)
+- **진우:** Azure 테넌트 → App Registration(SSO)+그룹 → 결함/스캔 SP (manual-infra §3 순서) / 워크로드 스캐너 · 정규화부 · 엔진 Reasoning
+
+**진행 원칙 (하이브리드 — free credit 감안, 2026-07-01 확정):**
+- **빌드 순서**는 인프라 먼저가 자연스러움(§5 의존성). 단 **목업 우선**으로 논리(엔진·콘솔·상관)를 인프라 없이 **병렬로 빠르게** 만든다.
+- **리스크 큰 실검증은 실클라우드로 조기에** — 특히 **엔진 실 read-only API tool-use**(목업으론 완전 검증 불가)와 **스캐너 1개→실 finding 1개** 경로. 단 `apply → 테스트 → destroy` **사이클**로(상시 켜두기 X — 취약 타깃 방치·크레딧 소모 방지).
+- **시간 부족 시 사수** = 엔진 능동조사 1경로(Evidence tool-use real) + 골든 attack-path 1경로 시각화(§5 시간 컷 우선순위).
