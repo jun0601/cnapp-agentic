@@ -85,23 +85,30 @@
 
 ## 🏗️ 폴더 구조
 
+> 마커: ✅ 내용 있음(구현/스캐폴드) · 📁 빈 폴더(자리 확보) · ⬜ 아직 미생성(계획).
+
 ```
 cnapp-agentic/
-├── CLAUDE.md            작업 기준 · 협업 규칙 · 변경 로그(읽기 우선)
-├── README.md
-├── troubleshooting.md   작업 로그 (트러블슈팅 + 진행, [영역] 태그)
-├── .github/workflows/   CI — contracts 정합 게이트(validate.py 4-assert)
-├── contracts/           ★공유 이음새 계약(7종 JSON Schema) + control-catalog + 골든 mock + validate.py
-├── docs/                설계 SSOT — project-draft · target-app-design · console-app-design · manual-infra
+├── CLAUDE.md                 ✅ 작업 기준 · 협업 규칙 · 변경 로그(읽기 우선)
+├── README.md                 ✅
+├── troubleshooting.md        ✅ 작업 로그 (트러블슈팅 + 진행, [영역] 태그)
+├── cnapp-architecture.svg    ✅ 아키텍처 다이어그램(강사 피드백용)
+├── .github/workflows/        ✅ CI — contracts 정합 게이트(contracts-validate.yml, validate.py 4-assert)
+├── contracts/                ✅ ★공유 이음새 계약(7종 JSON Schema) + control-catalog(13종) + 골든 mock 3종 + validate.py
+├── docs/                     ✅ 설계 SSOT — project-draft · target-app-design · console-app-design · manual-infra
 ├── apps/
-│   ├── target/          취약 타깃 앱 (product · order · member) — 코드만
-│   └── console/         관제 앱 (React 대시보드) — 코드만
-├── scanners/            cspm · workload 스캐너 연동 — 코드만
-├── pipeline/            ingest(EventBridge→SQS) · normalize(Lambda→OCSF) — 코드만
-├── engine/              공유 에이전틱 엔진 — core / triage·evidence / hypothesis·reasoning
-├── rag/                 corpus·임베딩 적재 · retrieval·검색 — 코드만
-├── attackpath/          상관 모델 · R1~R5 상관 로직 — 코드만
-└── infra/               Terraform (레이어드) — shared 먼저 → target · console · 영역별
+│   ├── target/               📁 취약 타깃 앱 (product · order · member) — 코드만
+│   └── console/              📁 관제 앱 (React 대시보드) — 코드만 · ▶️ 다음 착수
+├── engine/                   📁 공유 에이전틱 엔진 — core / triage·evidence / hypothesis·reasoning
+├── scanners/                 ⬜ cspm · workload 스캐너 연동 — 코드만
+├── pipeline/                 ⬜ ingest(EventBridge→SQS) · normalize(Lambda→OCSF) — 코드만
+├── rag/                      ⬜ corpus·임베딩 적재 · retrieval·검색 — 코드만
+├── attackpath/               ⬜ 상관 모델 · R1~R5 상관 로직 — 코드만
+└── infra/                    Terraform (레이어드) — shared 먼저 → target · console · 영역별
+    ├── shared/               ✅ VPC·NAT·EKS·ECR·RDS pgvector·OIDC·IAM (main.tf 스캐폴드, validate 통과)
+    ├── target/               📁 취약 워크로드 + 의도적 결함(f1~f9 토글)
+    ├── console/              📁 S3+CloudFront·ALB·Cognito·console-backend·SFn
+    └── {scanners,pipeline,…} ⬜ 영역별 terraform(영역 주인이 apply)
 
 # 컴포넌트 폴더(scanners·pipeline·engine·rag·attackpath)는 코드만 — 배포는 CI가 infra/에서 apply.
 # 폴더는 사람이 아니라 컴포넌트로 나눔(소유·이음새는 docs/project-draft 4.6).
@@ -135,4 +142,4 @@ cnapp-agentic/
 
 *변경 요약(3): 구현 진입 반영 — 상단 상태 갱신 + **구현 현황(Status) 표 신설**(contracts 졸업·infra/shared 스캐폴드·CI 게이트), 폴더 트리에 `.github/workflows` 추가.*
 
-*변경 요약(4): 앱 개발 진입 반영 — 앱 2개 구현 청사진(console §15·target §7) 완료 + **앱 2개 모두 준형 전담** 확정, 다음 착수 = `apps/console` 스캐폴딩. 기술 스택 표에 확정된 관제 앱 프론트/백엔드 스택(Vite+React+TS·TanStack·React Flow·MSW)·폴리글랏(console=TS/engine·pipeline=Python) 반영, docs 안내에 각 앱 구현 청사진 절 표기.*
+*변경 요약(4): 앱 개발 진입 반영 — 앱 2개 구현 청사진(console §15·target §7) 완료 + **앱 2개 모두 준형 전담** 확정, 다음 착수 = `apps/console` 스캐폴딩. 기술 스택 표에 확정된 관제 앱 프론트/백엔드 스택(Vite+React+TS·TanStack·React Flow·MSW)·폴리글랏(console=TS/engine·pipeline=Python) 반영, docs 안내에 각 앱 구현 청사진 절 표기. **폴더 구조 트리를 실제 디스크 상태로 갱신** — 상태 마커(✅ 내용 있음 / 📁 빈 폴더 / ⬜ 미생성) 도입, `infra/` 하위(shared·target·console) 전개, `cnapp-architecture.svg` 추가, 미생성 컴포넌트 폴더(scanners·pipeline·rag·attackpath) 구분 표기.*
