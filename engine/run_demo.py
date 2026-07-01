@@ -14,6 +14,14 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+
+# 윈도우 콘솔(cp949) 대응 — 한글·기호 출력 시 UnicodeEncodeError 방지.
+# stdout이 재설정 가능하면 UTF-8로 강제(리다이렉트/파이프여도 안전하게 무시).
+try:
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+except Exception:
+    pass
 
 from engine.core import case as case_mod
 from engine.core.contracts import load_attack_paths, load_findings
