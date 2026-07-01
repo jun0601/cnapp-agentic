@@ -2,7 +2,7 @@
 
 > 멀티클라우드(**AWS = 워크로드의 주인 / Azure = 신원의 주인(Entra ID)**) 환경의 설정부터 워크로드·IaC 코드까지 **code-to-cloud 보안 위험을 점검·통합·상관분석**하고, 그 위에 **에이전틱 AI(Bedrock 멀티에이전트 + RAG)**로 발견 항목을 설명·우선순위화·자동 개선하는 CNAPP형 보안 플랫폼.
 >
-> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 1차 완료(SSOT 정합) · 구현 진입 — 공통 계약 졸업 + 공유 인프라 스캐폴드 + 앱 2개 구현 청사진 완료. 다음 착수 = `apps/console` 스캐폴딩(목업 우선).
+> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 1차 완료(SSOT 정합) · 구현 진행 — 공통 계약 졸업 + 공유 인프라 스캐폴드 + TF state 부트스트랩 + **관제 앱(`apps/console`) 골격 스캐폴드**(목업 우선, 빌드 통과).
 
 ### 📂 이 레포는 무엇인가 / docs 안내
 
@@ -98,7 +98,7 @@ cnapp-agentic/
 ├── docs/                     ✅ 설계 SSOT — project-draft · target-app-design · console-app-design · manual-infra
 ├── apps/
 │   ├── target/               📁 취약 타깃 앱 (product · order · member) — 코드만
-│   └── console/              📁 관제 앱 (React 대시보드) — 코드만 · ▶️ 다음 착수
+│   └── console/              ✅ 관제 앱 (Vite+React+TS 골격 스캐폴드, MSW 목업) — 코드만
 ├── engine/                   📁 공유 에이전틱 엔진 — core / triage·evidence / hypothesis·reasoning
 ├── scanners/                 ⬜ cspm · workload 스캐너 연동 — 코드만
 ├── pipeline/                 ⬜ ingest(EventBridge→SQS) · normalize(Lambda→OCSF) — 코드만
@@ -142,8 +142,9 @@ cnapp-agentic/
 | **공통 계약 (`contracts/`)** | ✅ **졸업** — 계약 7종 JSON Schema + INTERNAL control 카탈로그(14종) + 골든 시나리오 mock(findings·attack-path·case). `validate.py` 4-assert + GitHub Actions CI 게이트로 정합 보장 |
 | **공유 인프라 (`infra/shared`)** | ✅ **스캐폴드** — VPC·NAT Instance·EKS(spot·IRSA)·ECR·RDS pgvector·GitHub OIDC·Evidence/Bedrock IAM. `terraform validate` 통과. apply는 게이트(state 버킷·Bedrock 모델 액세스·Azure 테넌트) 후 |
 | **앱 2개 구현 청사진** | ✅ **완료** — 관제 앱(console §15: 스택·API 표면·화면↔mock)·타깃 앱(target §7: 결함↔IaC 토글) 청사진 확정. **앱 2개 모두 준형 전담** |
-| 관제 콘솔(`apps/console`) | ▶️ **다음 착수** — Vite+React+TS 스캐폴딩, MSW로 `contracts/mock-*.json` 먹여 실데이터 없이 끝까지 개발 |
-| 타깃 앱 · 스캐너 · 수집/정규화 · 엔진 | ⬜ **예정** — 타깃 앱 기능 베이스 = AWS retail-store-sample-app 확정 |
+| **관제 콘솔 (`apps/console`)** | 🔨 **골격 스캐폴드** — Vite+React+TS+Tailwind+TanStack+React Flow+MSW. 화면 8종(핵심 4 + 스텁 4), MSW가 `contracts/mock-*.json` 서빙 → 백엔드·AWS 0으로 동작. `tsc`·`vite build` 통과. 다음 = 화면 다듬기·(엔진 나오면) 실데이터 스왑 |
+| TF state 부트스트랩 | ✅ `cnapp-agentic-tfstate` 버킷(manual-infra §2) |
+| 타깃 앱 · 스캐너 · 수집/정규화 · 엔진 · console-backend | ⬜ **예정** — 타깃 앱 기능 베이스 = AWS retail-store-sample-app 확정 |
 
 > **전략 = 계약·목업 우선.** 실제 스캐너/엔진을 기다리지 않고 `contracts/mock-*.json`으로 관제 콘솔·엔진을 끝까지 만든 뒤 실데이터로 교체 — 직렬 의존을 두 병렬 트랙으로 분리한다.
 
@@ -162,3 +163,5 @@ cnapp-agentic/
 *변경 요약(3): 구현 진입 반영 — 상단 상태 갱신 + **구현 현황(Status) 표 신설**(contracts 졸업·infra/shared 스캐폴드·CI 게이트), 폴더 트리에 `.github/workflows` 추가.*
 
 *변경 요약(4): 앱 개발 진입 반영 — 앱 2개 구현 청사진(console §15·target §7) 완료 + **앱 2개 모두 준형 전담** 확정, 다음 착수 = `apps/console` 스캐폴딩. 기술 스택 표에 확정된 관제 앱 프론트/백엔드 스택(Vite+React+TS·TanStack·React Flow·MSW)·폴리글랏(console=TS/engine·pipeline=Python) 반영, docs 안내에 각 앱 구현 청사진 절 표기. **폴더 구조 트리를 실제 디스크 상태로 갱신** — 상태 마커(✅ 내용 있음 / 📁 빈 폴더 / ⬜ 미생성) 도입, `infra/` 하위(shared·target·console) 전개, `cnapp-architecture.svg` 추가, 미생성 컴포넌트 폴더(scanners·pipeline·rag·attackpath) 구분 표기.*
+
+*변경 요약(5): 구현 진행 반영 — `apps/console` 골격 스캐폴드 완료(🔨, 빌드 통과)·TF state 부트스트랩(✅ `cnapp-agentic-tfstate`)를 상단 상태·Status 표·폴더 트리에 반영. 파비콘(cross-cloud attack-path 모티프 SVG) 추가.*
