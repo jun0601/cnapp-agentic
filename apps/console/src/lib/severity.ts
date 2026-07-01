@@ -17,6 +17,15 @@ export const SEVERITY_CLASS: Record<SeverityId, string> = {
   5: 'bg-sev-5 text-white',
 }
 
+// 리터럴 클래스 맵(Tailwind JIT가 동적 문자열은 못 잡으므로 리터럴로 고정).
+export const SEVERITY_DOT: Record<SeverityId, string> = {
+  1: 'bg-sev-1',
+  2: 'bg-sev-2',
+  3: 'bg-sev-3',
+  4: 'bg-sev-4',
+  5: 'bg-sev-5',
+}
+
 export const PILLAR_LABEL: Record<Pillar, string> = {
   cspm: 'CSPM',
   ciem: 'CIEM',

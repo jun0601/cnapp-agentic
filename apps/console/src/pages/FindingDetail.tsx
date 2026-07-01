@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useFinding } from '@/api/queries'
 import { SeverityBadge } from '@/components/SeverityBadge'
 import { EvidenceTab } from '@/components/EvidenceTab'
+import { Card, Skeleton, ErrorNote } from '@/components/ui'
 import { PILLAR_LABEL } from '@/lib/severity'
 import type { FindingExplanation } from '@/api/types'
 
@@ -39,10 +40,21 @@ function ExplanationCard({ ex }: { ex: FindingExplanation | null }) {
 
 export default function FindingDetail() {
   const { id } = useParams()
-  const { data, isLoading } = useFinding(id)
+  const { data, isLoading, isError, error } = useFinding(id)
   const [tab, setTab] = useState<Tab>('explanation')
 
-  if (isLoading) return <p className="text-sm text-slate-500">불러오는 중…</p>
+  if (isLoading)
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-4 w-20" />
+        <Card className="p-5">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="mt-3 h-6 w-3/4" />
+          <Skeleton className="mt-3 h-4 w-1/2" />
+        </Card>
+      </div>
+    )
+  if (isError) return <ErrorNote message={(error as Error)?.message} />
   if (!data) return <p className="text-sm text-slate-500">finding을 찾을 수 없습니다.</p>
 
   const { finding: f, explanation, case: evidenceCase } = data
