@@ -48,12 +48,12 @@
     },
     {
       "finding_id": "f0000000-0000-4000-8000-000000000005",
-      "cloud": "aws", "resource_id": "aws:eks_pod:shop/order", "resource_type": "secret_plaintext",
+      "cloud": "aws", "resource_id": "aws:secret_plaintext:shop/order/AZURE_SP_CRED", "resource_type": "secret_plaintext",
       "pillar": "cspm", "control_id": "INTERNAL-SECRET-PLAINTEXT-001",
       "title": "Plaintext Azure service principal credential in order pod env (Secrets Manager 미사용)",
       "severity_id": 1, "status": "open",
       "sources": ["prowler:eks_cluster_secret_in_env", "custom:manifest-scan"],
-      "dedup_key": "aws:eks_pod:shop/order|INTERNAL-SECRET-PLAINTEXT-001",
+      "dedup_key": "aws:secret_plaintext:shop/order/AZURE_SP_CRED|INTERNAL-SECRET-PLAINTEXT-001",
       "priority_score": 0.95, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
       "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
     },
@@ -182,11 +182,11 @@
     {
       "finding_id": "f0000000-0000-4000-8000-000000000017",
       "cloud": "azure", "resource_id": "azure:app_registration:c3d4e5f6-2222-3333-4444-555566667777", "resource_type": "app_registration",
-      "pillar": "cspm", "control_id": "INTERNAL-ENTRA-RISKY-CONSENT-001",
+      "pillar": "cspm", "control_id": "INTERNAL-ENTRA-INSECURE-CFG-001",
       "title": "Defender for Cloud secure score: insecure default on app registration",
       "severity_id": 4, "status": "open",
       "sources": ["prowler:entra_id_app_redirect_uri_insecure"],
-      "dedup_key": "azure:app_registration:c3d4e5f6-2222-3333-4444-555566667777|INTERNAL-ENTRA-RISKY-CONSENT-001",
+      "dedup_key": "azure:app_registration:c3d4e5f6-2222-3333-4444-555566667777|INTERNAL-ENTRA-INSECURE-CFG-001",
       "priority_score": null, "attack_path_id": null,
       "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
     },

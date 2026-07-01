@@ -93,6 +93,15 @@
       "remediable": true,
       "lifecycle": "runtime"
     },
+    "INTERNAL-ENTRA-INSECURE-CFG-001": {
+      "pillar": "cspm",
+      "title": "Entra App Registration insecure configuration (redirect URI etc., Defender secure-score)",
+      "severity_default": 4,
+      "sources": ["prowler:entra_id_app_redirect_uri_insecure", "prowler:entra_id_app_*_insecure"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "runtime"
+    },
     "INTERNAL-ECR-SCAN-DISABLED-001": {
       "pillar": "vuln",
       "title": "ECR repository scan-on-push disabled",
