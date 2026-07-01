@@ -78,7 +78,7 @@
 ## 3. 프론트엔드
 
 - **React SPA**, 빌드 결과물을 **S3 + CloudFront**로 정적 호스팅 (project-draft 13번).
-- 그래프 시각화: attack-path 노드/엣지는 D3 또는 Recharts 계열로 충분(별도 그래프 DB 없이 postgres 인접 리스트 렌더).
+- 그래프 시각화: attack-path 노드/엣지는 **React Flow(@xyflow/react)**로 렌더(§15.1 확정 — 별도 그래프 DB 없이 postgres 인접 리스트를 그림). 점수·차트는 Recharts.
 - 인증 토큰(Cognito 발급)을 가진 상태에서만 API 호출 — 정적 자산 자체는 공개, **API 호출만 인증 필요**.
 - 역할(아래 7번 RBAC)에 따라 "조치 승인" 버튼 노출 여부가 갈림.
 
@@ -143,7 +143,7 @@ pgvector 위에 둘 주요 테이블과 컬럼·용도를 정리한 표다.
 
 | 방식 | 평가 |
 |---|---|
-| **커스텀 postgres 인접 리스트 (채택)** | 코퍼스/노드 규모 작음, findings와 같은 DB에 동거(추가 인프라 0), D3/Recharts로 렌더 충분, 크로스클라우드 노드(AWS+Azure)를 한 스키마로 통합 표현 — 데모에 최적. |
+| **커스텀 postgres 인접 리스트 (채택)** | 코퍼스/노드 규모 작음, findings와 같은 DB에 동거(추가 인프라 0), React Flow로 렌더(§15.1), 크로스클라우드 노드(AWS+Azure)를 한 스키마로 통합 표현 — 데모에 최적. |
 | Security Hub exposure 병행 | AWS 내부 상관엔 강하나 Azure를 못 덮어 **크로스클라우드 경로를 단독으로 못 그림**, 콘솔이 또 변환해야 함. |
 
 > 단, **상류(upstream)에서 attack-path를 무엇으로 상관·계산할지**(엔진 커스텀 상관 vs Security Hub exposure를 입력으로 활용 vs 병행)는 콘솔 렌더링과 별개 문제이며 **project-draft 24번에 열린 항목**으로 남는다. 콘솔은 어느 쪽이 계산하든 `attack_paths` 테이블만 읽어 그린다(소스 독립).
@@ -334,7 +334,7 @@ Day 단위 콘솔 작업과 연계 절을 정리한 표다.
 | 라우팅 | React Router | 표준 SPA 라우팅 |
 | 데이터 패칭 | **TanStack Query** | 30~60초 폴링(§6.2)·캐싱·수동 새로고침(invalidate)이 선언적 |
 | 스타일/UI | Tailwind CSS (+ 최소 헤드리스 컴포넌트) | 보안 대시보드 빠른 구성, 무거운 디자인시스템 회피 |
-| **attack-path 그래프** | **React Flow (@xyflow/react)** ✅확정 | §3의 "D3/Recharts"를 구체화 — 노드·엣지·팬/줌·AWS/Azure 레인 배경(2.2)을 네이티브 지원. raw D3보다 빠름 |
+| **attack-path 그래프** | **React Flow (@xyflow/react)** ✅확정 | §3·§5.1의 그래프 렌더를 구체화 — 노드·엣지·팬/줌·AWS/Azure 레인 배경(2.2)을 네이티브 지원. raw D3보다 빠름 |
 | 점수/차트 | Recharts | secure score·6기둥 요약 카드(바/도넛) |
 | **목업 하니스** | **MSW (Mock Service Worker)** ✅확정 | API 호출을 가로채 `contracts/mock-*.json` 반환 → 백엔드 0으로 화면 완성. 실 API 나오면 MSW만 끔(스왑 포인트) |
 | 타입 | **contracts/\*.schema.json → TS 타입 생성** | `json-schema-to-typescript`로 finding/case/attack-path 타입 자동 생성 → 계약이 타입 SSOT, drift 0 |

@@ -226,13 +226,15 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 
 | 규칙 | 조건(입력 finding) | 생성 | 엣지 type |
 |---|---|---|---|
-| R1 침투 | 외부노출 워크로드 + 취약점(KEV) 同 resource | 진입 노드 | — |
+| R1 침투 | KEV 취약 워크로드 + **그 워크로드를 외부노출시키는 SG**(open-ingress) | 진입 노드 | — |
 | R2 측면이동 | 그 워크로드에 과도 IAM/IRSA 권한 | 엣지(진입→과도권한 resource) | `lateral_move` |
 | R3 자격증명 탈취 | resource에 평문 시크릿 finding이고 그게 Azure 자격증명 | 엣지(→Azure resource) | `credential_theft`, `cross_cloud:true` |
 | R4 데이터 탈취 | 그 권한이 닿는 S3에 public + PII(data) | 엣지(→데이터 노드) | `data_exfil` |
 | R5 신원 장악 | 탈취 Azure 자격증명 + Entra 과도권한 App Registration | 엣지(→Entra 노드) | `identity_takeover`, `cross_cloud:true` |
 
 > 상관 = 한 규칙의 *대상*이 다음 규칙의 *조건 resource*가 되면 엣지를 잇는다(체이닝). 체인 길이 ≥ 3이면 severity를 Critical로 격상(독성 조합). 출력은 계약③ JSON, 콘솔은 그걸 읽어 렌더(console 5.1).
+>
+> **R1 "同 resource"의 실제 매칭 기준(구현 명확화):** KEV finding과 SG finding은 `resource_id`가 다르다(예: `aws:eks_pod:shop/product` vs `aws:security_group:sg-0product1234`) — 문자열 동일이 아니라 **워크로드↔SG 토폴로지 인접**으로 엮는다. 매핑 출처 = 스캐너 리소스 메타데이터(**EKS 파드 → 노드/ENI → attached SG**); 상관 엔진은 각 워크로드 노드에 부착된 SG 집합을 인덱싱해 두고, 그 SG에 open-ingress finding이 있으면 R1을 발화시킨다. **MVP mock**은 이 토폴로지를 명시 선언한다 — 골든 경로의 `shop/product` 파드는 `sg-0product1234` 뒤에 있다고 간주(f1 KEV ↔ f3 open-ingress SG 연결). 실제 배포에선 Prowler/Config의 리소스 관계 필드로 해소.
 
 > **attack-path 상관 계산 트리거:** 정규화부 Lambda가 배치 완료 시 `cnapp.findings.batch.completed` 이벤트를 EventBridge에 발행 → attack-path 상관 Lambda 기동. Prowler Azure 스케줄 완료 후에도 동일 이벤트 발행. 결과는 계약③ JSON으로 DB에 upsert 후 **`cnapp.attackpath.correlation.completed` 이벤트 발행 → Triage Lambda 기동(2-pass 순서 보장 — `attack_path_id`가 DB에 쓰인 뒤 Triage가 시작해야 `attack_path_id!=null` 조건이 유효).**
 >
@@ -270,8 +272,12 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 | `INTERNAL-SG-OPEN-INGRESS-001` | cspm | `securityhub:EC2.19` · `prowler:ec2_securitygroup_allow_ingress_from_internet_*` |
 | `INTERNAL-ENTRA-OVERPRIV-APP-001` | ciem | `prowler:entra_id_app_*_overprivileged` |
 | `INTERNAL-ENTRA-RISKY-CONSENT-001` | ciem | `prowler:entra_id_*_consent_*` |
+| `INTERNAL-ENTRA-SP-CRED-001` | ciem | `prowler:entra_id_sp_credential_no_expiry` (f16 — SP 자격 무만료) |
+| `INTERNAL-ENTRA-INSECURE-CFG-001` | cspm | `prowler:entra_id_app_redirect_uri_insecure` (f17 — Defender secure-score) |
+| `INTERNAL-ECR-SCAN-DISABLED-001` | cspm | `securityhub:ECR.1` · `prowler:ecr_*_scan_*` (f12 — scan-on-push off) |
+| `INTERNAL-S3-LOGGING-DISABLED-001` | cspm | `config:s3-bucket-versioning-enabled` · `config:s3-bucket-logging-enabled` (f15) |
 
-> 위는 골든 경로(R1~R5)와 6기둥 발화에 필요한 최소 카탈로그. **전체는 `contracts/control-catalog.json`으로 졸업**(ID→{pillar, severity_default, sources[], isms_p, remediable}). 새 스캐너 체크가 추가되면 여기에 매핑 한 줄 추가.
+> 위는 골든 경로(R1~R5)와 6기둥 발화에 필요한 최소 카탈로그(**14종** — `contracts/control-catalog.json`과 동수). **전체는 `contracts/control-catalog.json`으로 졸업**(ID→{pillar, severity_default, sources[], isms_p, remediable}). 새 스캐너 체크가 추가되면 여기에 매핑 한 줄 추가.
 
 **(c) remediated 판정 스코프(스캐너별)** — 계약⑤ `scan_batch_id`는 **(source, 배치)** 쌍으로 본다. remediated 판정 = *"그 source가 커버하는 control 집합 안에서, 다음 동일 source 배치에 같은 `dedup_key`가 없으면 remediated"*. 예: Trivy 배치는 Config가 잡는 `INTERNAL-S3-*`를 건드리지 않으므로 S3 finding을 remediated로 만들지 않는다. **각 source의 control 커버리지 = (b) 매핑표의 역인덱스**(source → 그 source가 emit하는 INTERNAL control_id 집합). 드리프트(remediated→open 재발)도 같은 스코프로 판정.
 
@@ -609,7 +615,9 @@ CSPM(S3·SG·IAM·암호화) · CIEM(AWS 과도 권한 + **Azure Entra 과도권
 | Evidence | read-only 검증 | 관련 설정 확인 | 이미지·워크로드·권한 확인 | Haiku |
 | Reasoning | 종합·신뢰점수·리포트 | 컴플라이언스 리포트 | 공격경로 리포트·우선순위 | Sonnet |
 
-> 모델: Haiku = `claude-haiku-4-5`(고빈도 분류·파싱·라우팅), Sonnet = `claude-sonnet-4-6`(추론·내러티브 품질 중요). 데모 finding 100건 처리 기준 예상 비용 $1~3.
+> 모델: Haiku 계열(고빈도 분류·파싱·라우팅), Sonnet 계열(추론·내러티브 품질 중요). 데모 finding 100건 처리 기준 예상 비용 $1~3.
+>
+> ⚠️ **모델 ID 주의(구현 시 확정):** 위 `claude-haiku-4-5`·`claude-sonnet-4-6`는 **Anthropic API의 별칭일 뿐 Bedrock invoke ID가 아니다.** Bedrock 호출은 `anthropic.claude-haiku-4-5-YYYYMMDD-v1:0` 형식의 **모델 ID 또는 서울(ap-northeast-2) 리전 inference profile ARN**을 써야 한다(bare name·date suffix 없는 ID는 **404**). 정확한 ID는 구현 시 `aws bedrock list-foundation-models`로 리전 가용 모델을 조회해 확정한다.
 
 ---
 

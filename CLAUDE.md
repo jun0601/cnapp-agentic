@@ -17,6 +17,7 @@
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-07-01 / 준형 / 진우 문서 검증 6건 총괄 반영 — 전 md stale 스윕 + README 역할분담 신설(카탈로그 14종)** — ① **CLAUDE §5 앱 분담 stale**(진우 0b1d493 병합 때 옛 행으로 되돌아감) → "타깃+관제 2개 모두 준형 전담"으로 정정. ② **project-draft §4.4.1(b) 카탈로그 표** 누락분 4행 추가(ENTRA-SP-CRED·ENTRA-INSECURE-CFG·ECR-SCAN + 신규 S3-LOGGING) → **13→14종**, README·contracts/README 계수 일괄 갱신. ③ **console §3·§5.1** "D3/Recharts" → **React Flow**(§15.1 확정). ④ **f15 title↔control 모순**(NOENCRYPT인데 source는 버저닝) → 신규 `INTERNAL-S3-LOGGING-DISABLED-001`(cspm) 추가 후 재매핑. ⑤ **§15 모델 ID**: `claude-haiku-4-5`는 Anthropic 별칭·**Bedrock invoke ID 아님(404)** → Bedrock 형식/서울 inference profile 구현 시 확정 주석. ⑥ **R1 "同 resource" 모호**(KEV 파드 vs open SG는 resource_id 다름) → "워크로드↔부착 SG 토폴로지 인접"으로 완화 + 파드→ENI→SG 매핑·mock 선언 주석. **README에 "역할 분담(2인)" 섹션 신설**("관제 앱"=준형 / "운영 관제"=진우 구분 명시). validate 통과(14종). **`[PULL 필요]`**
 - **2026-07-01 / 준형 / contracts f16·f12 객관 기준 최종 확정(진우 합의) — 카탈로그 13종 복구** — ① **f16** → `OVERPRIV-APP-001`(의미 느슨: "과도권한 앱"인데 finding은 "SP 자격 무만료")을 `INTERNAL-ENTRA-SP-CRED-001`(ciem, title 정확 일치)로 재매핑 + **카탈로그에 SP-CRED-001 재추가**(11→13, 병합 중 유실분 복구). ② **f12/ECR** → pillar `vuln`→`cspm`(control도): "scan-on-push 비활성"은 CVE가 아니라 **미스컨피그**이고 소스가 전부 posture(`securityhub:ECR.1`·`config`·`prowler:ecr_*_scan_*`)라 cspm이 객관 — vuln 기둥은 실 CVE(Inspector/Trivy) 전용으로 유지. validate 통과. **원칙 = "기둥(pillar)은 finding을 만드는 소스의 성격으로 판정"**(처음부터 일관 적용). **`[PULL 필요]`**
 - **2026-07-01 / 준형 / 진우 커밋(0b1d493) contracts 리그레션 2건 수정 — main RED→GREEN** — pull 후 `validate.py` 2건 FAIL 발견: ① **f5** `resource_id`가 `aws:eks_pod:shop/order`로 리버트돼 `resource_type`(secret_plaintext)와 assert(b) 불일치 → 다시 `aws:secret_plaintext:shop/order/AZURE_SP_CRED`로 복원(c463054 교정본). ② **f17**이 `ENTRA-RISKY-CONSENT-001`(ciem)로 재매핑됐으나 pillar `cspm` 유지 → assert(a) 위반. **설계 충실**(Azure Defender secure-score=cspm 축) 방향으로 `INTERNAL-ENTRA-INSECURE-CFG-001`(cspm) 카탈로그 재추가 후 f17 재매핑. validate 통과. ※진우의 **f16→OVERPRIV-APP-001 재매핑**은 CI-green이나 SP-cred-no-expiry↔over-priv-app 의미가 느슨 — **진우 검토 요청**. **`[PULL 필요]`**
 - **2026-07-01 / 준형 / console 외부 리뷰 반영 — Evidence 탭 소스 이중성 해소 + 스택 확정** — UC0(Evidence·판정)=**case 단위**, UC1(설명)=**finding 단위**로 확정: `finding_explanations`에서 `evidence_json` 제거·`case_id` FK 추가, **`cases` 테이블 신설**, 상세는 `finding_id∈case.finding_ids` 조인(§5·§6·§15). `ai_status`≠done placeholder 규칙 명시(AI 죽어도 finding 표시). §15 스택 **확정**: attack-path=React Flow·목업=MSW·console-backend=TypeScript + **폴리글랏(console=TS / engine·pipeline=Python)**. → 이 커밋 후 apps/console 스캐폴딩 착수 OK. **`[PULL 필요]`**
@@ -124,7 +125,7 @@ cnapp-agentic/
 
 | 영역 | 준형 | 진우 | 상태 |
 |---|---|---|---|
-| 앱 | 타깃 앱(결함 심기) | 관제 앱(대시보드·시각화) | 확정 |
+| 앱 | **타깃 앱(결함 심기) + 관제 앱(대시보드·시각화)** | — (앱 2개 모두 준형 전담) | 확정 |
 | 토대 | CI/CD·Shift-Left·**공유인프라 주도** | 모니터링·관제·추적(Grafana·CloudTrail) | 확정 |
 | 스캐너-CSPM | CSPM(Config·Prowler·Security Hub·**Macie(AWS S3)**) | 워크로드(Inspector·Trivy·kube-bench·**Defender(Azure)**) | 확정 |
 | 스캐너-CIEM | IAM Access Analyzer(AWS) | Entra ID(Azure — **Prowler entra_id_\* 체크**) | 확정 |

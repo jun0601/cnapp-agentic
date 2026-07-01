@@ -57,6 +57,15 @@
       "remediable": true,
       "lifecycle": "runtime"
     },
+    "INTERNAL-S3-LOGGING-DISABLED-001": {
+      "pillar": "cspm",
+      "title": "S3 bucket access logging / versioning not enabled",
+      "severity_default": 4,
+      "sources": ["config:s3-bucket-versioning-enabled", "config:s3-bucket-logging-enabled"],
+      "isms_p": null,
+      "remediable": true,
+      "lifecycle": "runtime"
+    },
     "INTERNAL-DATA-PII-EXPOSED-001": {
       "pillar": "data",
       "title": "Sensitive PII detected in exposed S3 bucket",

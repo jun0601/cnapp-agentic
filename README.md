@@ -94,7 +94,7 @@ cnapp-agentic/
 ├── troubleshooting.md        ✅ 작업 로그 (트러블슈팅 + 진행, [영역] 태그)
 ├── cnapp-architecture.svg    ✅ 아키텍처 다이어그램(강사 피드백용)
 ├── .github/workflows/        ✅ CI — contracts 정합 게이트(contracts-validate.yml, validate.py 4-assert)
-├── contracts/                ✅ ★공유 이음새 계약(7종 JSON Schema) + control-catalog(13종) + 골든 mock 3종 + validate.py
+├── contracts/                ✅ ★공유 이음새 계약(7종 JSON Schema) + control-catalog(14종) + 골든 mock 3종 + validate.py
 ├── docs/                     ✅ 설계 SSOT — project-draft · target-app-design · console-app-design · manual-infra
 ├── apps/
 │   ├── target/               📁 취약 타깃 앱 (product · order · member) — 코드만
@@ -116,11 +116,30 @@ cnapp-agentic/
 
 ---
 
+## 👥 역할 분담 (2인)
+
+> 원칙 — 일을 나누되 **둘 다 상대 영역까지 이해**한다. 각 영역을 반반 갈라 양쪽이 핵심을 다 만진다. 상시 협의로 조정되는 살아있는 분담이며, **SSOT는 [CLAUDE.md §5](CLAUDE.md) · [project-draft §4.1](docs/project-draft.md)**.
+
+| 영역 | 준형 | 진우 |
+|---|---|---|
+| **앱** | **타깃 앱 + 관제 앱 (2개 모두 전담)** | — |
+| **토대** | CI/CD · Shift-Left · **공유 인프라 주도** | 모니터링 · 운영관제 · 추적 (Grafana · CloudTrail) |
+| **스캐너 — CSPM** | Config · Prowler · Security Hub · Macie(AWS S3) | 워크로드 — Inspector · Trivy · kube-bench · Defender(Azure) |
+| **스캐너 — CIEM** | IAM Access Analyzer (AWS) | Entra ID (Azure — Prowler `entra_id_*`) |
+| **수집 · 정규화** | 수집부 (EventBridge→SQS) | 정규화부 (Lambda→OCSF) |
+| **엔진 (Bedrock)** | Evidence(tool use) · Triage | Hypothesis · Reasoning · Orchestrator |
+| **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | 검색 · LLM 답변 생성 |
+| **attack-path** | 그래프 데이터 모델 | 상관 로직 · 내러티브 |
+
+> ⚠️ "관제"는 두 가지 — **관제 "앱"**(CNAPP 보안 대시보드 제품) = 준형 / **운영 "관제"**(Grafana·CloudTrail 플랫폼 관측) = 진우. 애플리케이션 2개는 모두 준형이 개발한다.
+
+---
+
 ## 🚧 구현 현황 (Status)
 
 | 영역 | 상태 |
 |---|---|
-| **공통 계약 (`contracts/`)** | ✅ **졸업** — 계약 7종 JSON Schema + INTERNAL control 카탈로그(13종) + 골든 시나리오 mock(findings·attack-path·case). `validate.py` 4-assert + GitHub Actions CI 게이트로 정합 보장 |
+| **공통 계약 (`contracts/`)** | ✅ **졸업** — 계약 7종 JSON Schema + INTERNAL control 카탈로그(14종) + 골든 시나리오 mock(findings·attack-path·case). `validate.py` 4-assert + GitHub Actions CI 게이트로 정합 보장 |
 | **공유 인프라 (`infra/shared`)** | ✅ **스캐폴드** — VPC·NAT Instance·EKS(spot·IRSA)·ECR·RDS pgvector·GitHub OIDC·Evidence/Bedrock IAM. `terraform validate` 통과. apply는 게이트(state 버킷·Bedrock 모델 액세스·Azure 테넌트) 후 |
 | **앱 2개 구현 청사진** | ✅ **완료** — 관제 앱(console §15: 스택·API 표면·화면↔mock)·타깃 앱(target §7: 결함↔IaC 토글) 청사진 확정. **앱 2개 모두 준형 전담** |
 | 관제 콘솔(`apps/console`) | ▶️ **다음 착수** — Vite+React+TS 스캐폴딩, MSW로 `contracts/mock-*.json` 먹여 실데이터 없이 끝까지 개발 |

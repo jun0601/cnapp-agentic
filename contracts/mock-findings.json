@@ -160,11 +160,11 @@
     {
       "finding_id": "f0000000-0000-4000-8000-000000000015",
       "cloud": "aws", "resource_id": "aws:s3_bucket:cnapp-access-logs", "resource_type": "s3_bucket",
-      "pillar": "cspm", "control_id": "INTERNAL-S3-NOENCRYPT-001",
+      "pillar": "cspm", "control_id": "INTERNAL-S3-LOGGING-DISABLED-001",
       "title": "access-logs bucket versioning/logging not enabled",
       "severity_id": 4, "status": "open",
       "sources": ["config:s3-bucket-versioning-enabled"],
-      "dedup_key": "aws:s3_bucket:cnapp-access-logs|INTERNAL-S3-NOENCRYPT-001",
+      "dedup_key": "aws:s3_bucket:cnapp-access-logs|INTERNAL-S3-LOGGING-DISABLED-001",
       "priority_score": null, "attack_path_id": null,
       "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
     },
