@@ -43,7 +43,7 @@
 | **로그인** | Entra ID SSO (ALB authenticate-oidc 리다이렉트) | 10번 |
 | **대시보드 홈** | **AWS secure score 카드(주·크게) + Azure Entra CIEM/Defender score 카드(보조·작게)** — 80/20 비중 반영. 6기둥 요약 카드(AWS 중심·Azure CIEM 보조), **클라우드 경계를 가로지르는 최근 크로스클라우드 attack-path 배너**(멀티클라우드 차별점을 첫 화면에서 강조) | — |
 | **Findings 목록** | 6기둥 필터(CSPM/CIEM/취약점/KSPM/데이터/attack-path), 클라우드 필터(AWS/Azure), 상태 필터(open/remediated/suppressed, 기본 open), AI 우선순위 정렬(기본값) | UC2 |
-| **Finding 상세** | AI 설명 카드(왜 위험한지+근거 CIS/KEV+조치법), Evidence 탭(능동 수집한 API 호출·결과), 신뢰점수, 상태 이력(open→remediated 타임라인) | UC0, UC1 |
+| **Finding 상세** | **AI 설명 카드(UC1 = finding당 `finding_explanations.ai_summary`+근거 CIS/KEV+조치법)** · **Evidence 탭(UC0 = 이 finding을 포함하는 `case`의 `evidence[]`·판정·신뢰점수)** · 상태 이력(open→remediated 타임라인). **`ai_status`≠done이면 AI 자리에 placeholder** — `pending`="AI 분석 대기/진행 중", `failed`="AI 분석 실패 — 스캐너 데이터는 정상". **finding 본문(설정·심각도)은 ai_status 무관하게 항상 표시**(AI 레이어 죽어도 대시보드 생존) | UC0, UC1 |
 | **Attack-path 그래프** | 노드(리소스)+엣지(관계) 시각화, **AWS 워크로드/Azure 신원 클라우드 경계를 시각적으로 구분(레인/박스)하고 경계를 넘는 크로스클라우드 엣지를 강조**, "공격자가 AWS 워크로드로 들어와 ~를 타고 **Azure Entra ID 신원까지 장악**" 내러티브 텍스트 | UC3 |
 | **조치(Remediation)** | 제안 Fix(Terraform/K8s diff), dry-run 결과, 승인/반려 버튼 → Step Functions 진행 상태. **MVP 범위: AWS findings만 자동 조치(Terraform/K8s diff + HITL 실행). Azure findings는 조치 가이드 텍스트 표시 + "수동 조치 필요" 안내(Azure 자동 remediation은 확장 보너스).** | UC4, 17번 HITL |
 | **컴플라이언스 리포트** | ISMS-P 미준수 매핑 + 권고, 내보내기(PDF) | UC5 (보너스) |
@@ -127,12 +127,15 @@ pgvector 위에 둘 주요 테이블과 컬럼·용도를 정리한 표다.
 | 테이블 | 주요 컬럼 | 용도 |
 |---|---|---|
 | `findings` | id, cloud(aws/azure), pillar(cspm/ciem/vuln/kspm/data/attack_path), severity, **resource_id**, control_id, dedup_key, status(open/remediated/suppressed), priority_score, attack_path_id, ai_status | 목록·필터·정렬 |
-| `finding_explanations` | finding_id, ai_summary, evidence_json, confidence_score, rag_refs[] | Finding 상세 카드(UC0·UC1) |
+| `finding_explanations` | finding_id, ai_summary, confidence_score, rag_refs[], **case_id (FK→cases, nullable)** | AI 설명 카드(UC1 — finding당 요약) |
+| `cases` | case_id, finding_ids[], stage, triage_json, evidence_json, reasoning_json(verdict·confidence·narrative·rag_refs), model_trace | Evidence 탭·AI 판정(UC0 — 계약⑦) |
 | `attack_paths` | id, narrative_text, nodes_json, edges_json, severity | attack-path 화면(UC3) |
 | `remediation_requests` | id, finding_id, proposed_fix_diff, status(pending/approved/rejected/applied), approver, step_function_arn | 조치 승인 플로우(UC4) |
 | `rag_chunks` (pgvector) | embedding, text, metadata{cloud, service, framework, control_id, severity, isms_p} | RAG 코퍼스(16번) |
 
 > **finding 스키마의 단일 진실 = project-draft 4.4 계약 ①(OCSF-lite)** — 위 표는 그 계약을 pgvector 테이블에 매핑한 것이며, 필드 정의가 어긋나면 4.4가 우선. `resource_id`(클라우드 불문 `{cloud}:{type}:{native_id}`, Azure Entra ARN 부재 대응)·`dedup_key`(중복 제거)·`ai_status`(엔진 실패해도 대시보드 생존)는 4.4에서 확정. 16번 RAG 코퍼스 청킹 규칙("컨트롤/룰 1개=1청크")을 `rag_chunks.metadata`에 그대로 사용.
+>
+> **증거·판정의 주인 = `cases`(계약⑦), 요약의 주인 = `finding_explanations`(finding당) — 확정.** 한 finding은 **활성 case 최대 1개**에 속한다. **Evidence 탭·신뢰점수·판정(UC0)**은 그 `finding_id`를 `finding_ids`에 포함하는 case를 조인해 `case.evidence[]`·`reasoning`을 렌더하고, **AI 설명 카드(UC1)**는 `finding_explanations.ai_summary`(finding당)를 쓴다. 그래서 `finding_explanations`에는 `evidence_json`을 두지 않고 `case_id`(nullable) FK만 둔다 — 단일 finding 화면(상세)과 여러 finding을 묶는 case의 조인 규칙을 명확히.
 
 ### 5.1 attack-path 그래프 렌더링 방식 — 확정
 
@@ -159,6 +162,8 @@ pgvector 위에 둘 주요 테이블과 컬럼·용도를 정리한 표다.
 | **조치 승인** | 승인 클릭 → Step Functions `StartExecution`(콘솔은 트리거만, 실행은 분리된 역할) | 조치 화면 |
 
 나머지(UC0 Evidence 능동 수집, UC1 자동 설명, UC2 우선순위, UC3 attack-path 내러티브)는 **표시만** 한다 — 콘솔이 다시 계산하지 않음.
+
+> **Finding 상세 ↔ case 조인(확정):** UC0 Evidence·판정의 주인은 **case 단위**(계약⑦, 여러 finding 묶음). 단일 finding 상세는 그 `finding_id`를 `finding_ids`에 포함하는 **활성 case(최대 1개)**를 조인해 `case.evidence[]`·`reasoning`을 표시한다. UC1 설명은 **finding 단위**(`finding_explanations`). 콘솔은 둘 다 *표시만* — 재계산 안 함. (§5 데이터 모델과 일관)
 
 ### 6.1 Finding 상태 동기화 루프 (수정 → 소멸) ★
 
@@ -299,7 +304,7 @@ Day 단위 콘솔 작업과 연계 절을 정리한 표다.
 | 3–4 | findings 읽기 API + 목록/상세 화면(초기엔 목업 데이터로 골격 먼저), **폴링/수동 새로고침(6.2)** |
 | 5 | UC1(자동 설명) 실제 연동 — Finding 상세 카드 살아남 |
 | 6 | UC2(우선순위 정렬) + 대시보드 v1(AWS secure score) |
-| **7–8** | **attack-path 그래프(UC3) 1차 + 크로스클라우드 시각화(2.2)** + Azure secure score 나란히(멀티클라우드 통합 뷰) |
+| **7–8** | **attack-path 그래프(UC3) 1차 + 크로스클라우드 시각화(2.2)** + Azure **보조 score 카드**(80/20 비중, §2·2.0) |
 | 9 | 조치 승인(HITL) UI + Step Functions 연동, RBAC 2역할 적용, **상태 동기화 루프(6.1) 시연** |
 | 10 | attack-path 내러티브·시각 정교화 + 감사로그 뷰어 + 데모 마감 |
 
@@ -329,25 +334,29 @@ Day 단위 콘솔 작업과 연계 절을 정리한 표다.
 | 라우팅 | React Router | 표준 SPA 라우팅 |
 | 데이터 패칭 | **TanStack Query** | 30~60초 폴링(§6.2)·캐싱·수동 새로고침(invalidate)이 선언적 |
 | 스타일/UI | Tailwind CSS (+ 최소 헤드리스 컴포넌트) | 보안 대시보드 빠른 구성, 무거운 디자인시스템 회피 |
-| **attack-path 그래프** | **React Flow (@xyflow/react)** | §3의 "D3/Recharts"를 구체화 — 노드·엣지·팬/줌·AWS/Azure 레인 배경(2.2)을 네이티브 지원. raw D3보다 빠름. ※검토 포인트 |
+| **attack-path 그래프** | **React Flow (@xyflow/react)** ✅확정 | §3의 "D3/Recharts"를 구체화 — 노드·엣지·팬/줌·AWS/Azure 레인 배경(2.2)을 네이티브 지원. raw D3보다 빠름 |
 | 점수/차트 | Recharts | secure score·6기둥 요약 카드(바/도넛) |
-| **목업 하니스** | **MSW (Mock Service Worker)** | API 호출을 가로채 `contracts/mock-*.json` 반환 → 백엔드 0으로 화면 완성. 실 API 나오면 MSW만 끔(스왑 포인트). ※검토 포인트 |
+| **목업 하니스** | **MSW (Mock Service Worker)** ✅확정 | API 호출을 가로채 `contracts/mock-*.json` 반환 → 백엔드 0으로 화면 완성. 실 API 나오면 MSW만 끔(스왑 포인트) |
 | 타입 | **contracts/\*.schema.json → TS 타입 생성** | `json-schema-to-typescript`로 finding/case/attack-path 타입 자동 생성 → 계약이 타입 SSOT, drift 0 |
 
 ### 15.2 console-backend (Lambda) API 표면
 
-> ALB(authenticate-oidc) → Lambda(§4·§12). 전부 **read-only**(쓰기는 Step Functions로만). 응답 스키마 = contracts. **백엔드 언어 = TypeScript(Node) 제안** — 프론트와 단일 언어·계약 타입 공유. (대안: Python. ※검토 포인트)
+> ALB(authenticate-oidc) → Lambda(§4·§12). 전부 **read-only**(쓰기는 Step Functions로만). 응답 스키마 = contracts. **백엔드 언어 = TypeScript(Node) ✅확정** — 프론트와 단일 언어·계약 타입 공유.
+> ⚠️ **폴리글랏 의도(확정):** **console(프론트 + console-backend) = TypeScript / engine·pipeline = Python**(Bedrock·데이터 처리상 가능성 높음). 레포 전체가 한 언어라는 가정 금지 — 이음새는 contracts(언어 무관 JSON)로만 연결.
 
 | 메서드·경로 | 화면(UC) | 응답 = 계약 | 목업 파일 |
 |---|---|---|---|
 | `GET /findings?cloud&pillar&status&sort` | Findings 목록(UC2) | `finding[]` | mock-findings.json |
-| `GET /findings/:id` | Finding 상세(UC0·UC1) | finding + explanation + case | mock-findings + mock-cases |
+| `GET /findings/:id` | Finding 상세(UC0·UC1) | **finding + explanation(finding당) + case(finding_id를 포함하는 case 조인, 없으면 null)** | mock-findings + mock-cases |
 | `GET /attack-paths` | 대시보드 배너 | `attack_path[]`(요약) | mock-attack-paths.json |
 | `GET /attack-paths/:id` | attack-path 화면(UC3) | attack_path(nodes·edges·narrative) | mock-attack-paths.json |
 | `GET /scores` | 대시보드 홈 | `{aws, azure}` secure score | (목업 상수) |
 | `POST /remediations/:id/{approve,reject}` | 조치(UC4) | → Step Functions `StartExecution`만 | (목업 200) |
+| `POST /findings/:id/reanalyze` (선택) | 재분석 요청(§6) | → Orchestrator 재트리거(콘솔은 트리거만) | (목업 202) |
 | `GET /audit` | 감사로그 뷰어 | `audit[]` | (목업) |
 | `POST /chat` | 자연어 질의(보조) | Bedrock RAG 응답 | (목업 에코) |
+
+> **`GET /scores` 실데이터 출처:** MVP는 목업 상수. 실데이터 = AWS **Security Hub** secure score + Azure **Defender/Entra** score를 배치로 pgvector(`scores` 테이블)에 적재 → 조회. **`POST /findings/:id/reanalyze`는 선택 기능**(§6 재분석) — 데모 필수 아님.
 
 ### 15.3 apps/console 폴더 구조
 
@@ -369,9 +378,12 @@ apps/console/
 | 화면 | 먹는 mock | 비고 |
 |---|---|---|
 | Findings 목록·상세 | `contracts/mock-findings.json` | 20건, open/remediated/suppressed 필터 시연 |
-| Finding 상세 — **Evidence 탭** | `contracts/mock-cases.json` | 계약⑦ case — "AI가 read-only API 4회 호출" 능동조사 장면을 엔진 없이 렌더 |
+| Finding 상세 — **Evidence 탭** | `contracts/mock-cases.json` | 계약⑦ case — **이 finding_id를 `finding_ids`에 포함하는 case를 조인**. "AI가 read-only API 4회 호출" 능동조사 장면(엔진 없이 렌더) |
+| Finding 상세 — AI 설명 카드 | `contracts/mock-findings.json`(+ `finding_explanations` 목업) | UC1 = finding당 요약. `ai_status`≠done이면 placeholder |
 | Attack-path 그래프 | `contracts/mock-attack-paths.json` | 골든 1경로, `cross_cloud:true` 엣지 강조(2.2) |
 | 대시보드 점수 | 목업 상수 | AWS 크게 / Azure CIEM 보조(2.0 비중) |
+
+> **`ai_status` 렌더 규칙:** `finding.ai_status`가 `done`이 아니면 AI 설명 카드·Evidence 탭 자리에 placeholder(`pending`="AI 분석 대기/진행 중", `failed`="AI 분석 실패 — 스캐너 데이터는 정상"). **finding 본문은 항상 표시** — AI 레이어가 죽어도 대시보드는 산다.
 
 ### 15.5 개발·빌드·배포
 
@@ -383,13 +395,15 @@ apps/console/
 
 대시보드(AWS/Azure 점수) → Findings(AI 우선순위 정렬) → Finding 상세(AI 설명 카드 + **Evidence 탭의 능동조사**) → Attack-path 그래프(**AWS→Azure 크로스클라우드 횡단**) → 조치 승인(RBAC: viewer→approver). ※ "AI가 스스로 증거 모아 공격경로 판단" 한 장면을 Evidence 탭에서 사수.
 
-> **피드백 요청 3건(굵게 표시):** ① attack-path 그래프 = React Flow(vs raw D3) ② 목업 하니스 = MSW(vs 로컬 목업 서버) ③ console-backend 언어 = TS(vs Python). 나머지(Vite·TanStack·Tailwind·Recharts)는 표준 선택이라 이견 적을 것으로 봄.
+> **스택 확정(외부 리뷰 반영):** ① attack-path = **React Flow** ② 목업 = **MSW** ③ console-backend = **TypeScript** — 3건 다 채택. **폴리글랏 의도**: console=TS / engine·pipeline=Python(가능성 높음), 이음새는 contracts로만. 나머지(Vite·TanStack·Tailwind·Recharts) 표준 채택.
 
 ---
 
 *관제 앱 설계도 — 메인 설계서(project-draft v5)의 8.2·9·10·12~17번을 구현용으로 상세화.*
 
 *v2 변경 요약: Finding 상태 동기화 루프(6.1)·갱신 주기(6.2 폴링) 추가, 백엔드를 타깃 EKS와 분리해 Lambda로 확정(4·11·12번), attack-path 콘솔 렌더링 커스텀 postgres 확정(5.1)·구현 순서 Day 7~8로 상향(13번), 빈 상태(2.1)·크로스클라우드 attack-path 시각화(2.2)·RBAC 데모 시연(7번) 보강, 14번 미확정을 project-draft 24번과 동기화.*
+
+*v3.1 변경 요약(외부 리뷰 반영): **Evidence 탭 데이터 소스 이중성 해소** — UC0(Evidence·판정)=case 단위, UC1(설명)=finding 단위로 확정. `finding_explanations`에서 `evidence_json` 제거·`case_id`(FK,nullable) 추가, `cases` 테이블 신설(§5), Finding 상세는 finding_id를 포함하는 case 조인(§6·§15.2·§15.4). **ai_status 렌더 규칙 명시**(pending/failed placeholder, finding 본문은 항상 표시). 정합 3건(§13 Azure 보조 카드, /scores 실데이터 출처, /reanalyze 선택 엔드포인트). §15 스택 3건 확정(React Flow·MSW·TS) + 폴리글랏(console=TS/engine·pipeline=Python) 명시.*
 
 *v3 변경 요약: **§15 구현 계획(Implementation Plan) 신설** — 관제 앱을 "어떻게" 만들지 청사진. 기술 스택 제안(Vite+React+TS·TanStack·Tailwind·**React Flow**(attack-path)·**MSW**(목업)·contracts→TS 타입), console-backend API 표면(엔드포인트↔계약↔mock), apps/console 폴더 구조, 화면↔mock 1:1, 빌드·배포, 데모 동선. 피드백 후 코딩 착수 — 검토 포인트 3건(React Flow·MSW·백엔드 언어).*
 

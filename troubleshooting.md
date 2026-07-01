@@ -15,6 +15,7 @@
 
 > 예시(실제 발생 시 이 형식으로 교체·추가):
 
+- `2026-07-01 / 준형 / [apps-console] 외부 리뷰: Evidence 탭 데이터 소스 이중(§5 finding_explanations.evidence_json ↔ §15.4 mock-cases) 발견 → UC0=case단위/UC1=finding단위로 확정, finding_explanations에 case_id FK + cases 테이블 신설, 상세는 finding_id∈case.finding_ids 조인. ai_status placeholder·정합 3건·스택 확정(RF/MSW/TS)+폴리글랏 반영`
 - `2026-07-01 / 준형 / [contracts] §2.1 계약 정합 4건 수정 중 attack-path 노드 n4(azure SP)에 대응 finding 부재 발견(assert c 위반) → f16을 골든 경로 편입(control도 ENTRA-SP-CRED-001 신규). validate.py로 4-assert 자동화, CI 게이트(.github/workflows) 추가. validate 통과`
 - `2026-07-01 / 준형 / [infra] infra/shared terraform init provider 버전 충돌(fck-nat 모듈 aws>=6.0 vs vpc/eks 5.x <6.0) → fck-nat 모듈을 raw NAT instance(fck-nat 공개 AMI + source_dest_check=false + private route)로 교체해 충돌·모듈 변수 불확실성 동시 제거. fmt·validate 통과`
 - `2026-06-30 / 준형 / [contracts] contracts/ 졸업 — 계약 7종 JSON Schema + control-catalog + mock 3종 생성. python json.load 10/10 통과, 교차참조(control_id 카탈로그·dedup_key·골든 경로 id·case finding_ids·evidence allowlist) 정합 검증 통과. 콘솔 출력 cp949 em대시 깨짐은 PYTHONIOENCODING=utf-8로 우회`
