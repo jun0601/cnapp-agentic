@@ -32,6 +32,17 @@ def set_hypotheses(case: dict, hypotheses: List[str]) -> dict:
     return case
 
 
+def set_reasoning(case: dict, narrative: str, risk_level: str, recommended_actions: List[str]) -> dict:
+    case["reasoning"] = {
+        "narrative": narrative,
+        "risk_level": risk_level,
+        "recommended_actions": list(recommended_actions),
+    }
+    case["stage"] = "reasoning"
+    _trace(case, "reasoning", "sonnet")  # Reasoning은 Sonnet (실배포 시)
+    return case
+
+
 def set_evidence(case: dict, evidence: List[dict], tool_calls: int, confidence: float, verdict: str) -> dict:
     case["evidence"] = evidence
     case["evidence_meta"] = {
