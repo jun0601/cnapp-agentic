@@ -22,7 +22,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket       = "TODO-cnapp-tfstate-CHANGEME" # manual-infra 2번 실제 버킷명
+    bucket       = "cnapp-agentic-tfstate"
     key          = "infra/shared/terraform.tfstate"
     region       = "ap-northeast-2"
     encrypt      = true
