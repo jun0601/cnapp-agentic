@@ -24,8 +24,11 @@ engine/                        # 하위 폴더 = 소유자별(공유는 core 예
 ├── evidence/                  (준형: Triage·Evidence)
 │   ├── triage.py      트리아지 게이트(escalate = severity<=2 OR attack_path)
 │   └── evidence.py    Evidence 에이전트(계획→툴 호출→증거→판정)
-├── reasoning/                 (진우: Hypothesis·Reasoning·Orchestrator — 예정)
-└── run_demo.py        오케스트레이션 데모 + 검증
+├── reasoning/                 (진우: Hypothesis·Reasoning·Orchestrator)
+│   ├── hypothesis.py  가설 에이전트(control_id→가설 템플릿, cross_cloud 체인 감지)
+│   ├── reasoning.py   추론 에이전트(evidence→한국어 내러티브·risk_level·권고사항)
+│   └── orchestrator.py ★단일 진입점 — Triage→Hypothesis→Evidence→Reasoning 루프
+└── run_demo.py        전체 루프 데모 + 골든 정합 검증
 ```
 
 ## 실행
