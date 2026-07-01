@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import random
+from typing import List
 
 import boto3
 from botocore.exceptions import ClientError
@@ -35,8 +36,8 @@ def _synthetic_rrn() -> str:
     return f"{yy:02d}{mm:02d}{dd:02d}-{gender}{tail:06d}"
 
 
-def generate_members(n: int) -> list[Member]:
-    members: list[Member] = []
+def generate_members(n: int) -> List[Member]:
+    members: List[Member] = []
     for i in range(1, n + 1):
         members.append(
             Member(
@@ -51,7 +52,7 @@ def generate_members(n: int) -> list[Member]:
     return members
 
 
-def _to_csv(members: list[Member]) -> str:
+def _to_csv(members: List[Member]) -> str:
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=["id", "name", "email", "phone", "rrn", "address"])
     writer.writeheader()

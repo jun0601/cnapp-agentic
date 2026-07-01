@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
+from typing import Dict, List
 
 from fastapi import FastAPI, HTTPException
 
@@ -19,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("member")
 
 # 인메모리 회원 저장소(데모용). 실제 PII 원본은 S3(seeder)에 있다.
-_MEMBERS: list[Member] = []
+_MEMBERS: List[Member] = []
 
 
 @asynccontextmanager
@@ -39,12 +40,12 @@ app = FastAPI(title="member", version="0.1.0", lifespan=lifespan)
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+def health() -> Dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/members", response_model=list[Member])
-def list_members(limit: int = 50) -> list[Member]:
+@app.get("/members", response_model=List[Member])
+def list_members(limit: int = 50) -> List[Member]:
     return _MEMBERS[:limit]
 
 
