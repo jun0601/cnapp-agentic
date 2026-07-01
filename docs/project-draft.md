@@ -5,7 +5,7 @@
 > **관련 문서:** 타깃 앱 상세 → [target-app-design.md](target-app-design.md) · 관제 앱 상세 → [console-app-design.md](console-app-design.md) · 수동 관리 리소스 현황 → [manual-infra.md](manual-infra.md) · 협업 규칙 → [CLAUDE.md](../CLAUDE.md)
 > **읽는 순서:** 처음 합류한 사람은 이 문서를 먼저 통독한 뒤 타깃/관제 상세로 내려간다. 강사·리뷰어는 1·5·6·11번만 봐도 방향이 잡힌다.
 >
-> 상태: 방향·범위·분담·앱·멀티클라우드 확정 / 구현 진입 직전
+> 상태: 설계 확정 / **구현 진행 중** — 공통 계약(14 control·목업·CI)·infra/shared·infra/target 스캐폴드, 관제 앱 8화면 목업 동작, 타깃 앱 member 실행 + shop 포털. 다음 = 실데이터 파이프라인(스캐너·수집·엔진, Phase 3~)
 > 성격: 2인 협업 개인 프로젝트(작업 분담, 각자 전체 이해) · 클라우드 보안 엔지니어 포트폴리오
 > 한 줄: **AWS는 워크로드의 주인, Azure는 신원의 주인(Entra ID)** — 분산된 멀티클라우드 환경을 하나의 에이전틱 CNAPP으로 점검·통합·자동 개선.
 
