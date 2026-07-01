@@ -40,7 +40,7 @@
 
 | 화면 | 내용 | 연관 유스케이스 |
 |---|---|---|
-| **로그인** | Entra ID SSO (ALB authenticate-oidc 리다이렉트) | 10번 |
+| **로그인** | Entra ID SSO (ALB authenticate-cognito 리다이렉트) | 10번 |
 | **대시보드 홈** | **AWS secure score 카드(주·크게) + Azure Entra CIEM/Defender score 카드(보조·작게)** — 80/20 비중 반영. 6기둥 요약 카드(AWS 중심·Azure CIEM 보조), **클라우드 경계를 가로지르는 최근 크로스클라우드 attack-path 배너**(멀티클라우드 차별점을 첫 화면에서 강조) | — |
 | **Findings 목록** | 6기둥 필터(CSPM/CIEM/취약점/KSPM/데이터/attack-path), 클라우드 필터(AWS/Azure), 상태 필터(open/remediated/suppressed, 기본 open), AI 우선순위 정렬(기본값) | UC2 |
 | **Finding 상세** | **AI 설명 카드(UC1 = finding당 `finding_explanations.ai_summary`+근거 CIS/KEV+조치법)** · **Evidence 탭(UC0 = 이 finding을 포함하는 `case`의 `evidence[]`·판정·신뢰점수)** · 상태 이력(open→remediated 타임라인). **`ai_status`≠done이면 AI 자리에 placeholder** — `pending`="AI 분석 대기/진행 중", `failed`="AI 분석 실패 — 스캐너 데이터는 정상". **finding 본문(설정·심각도)은 ai_status 무관하게 항상 표시**(AI 레이어 죽어도 대시보드 생존) | UC0, UC1 |
@@ -88,7 +88,7 @@
 
 > project-draft에는 백엔드 컴퓨트가 명시돼 있지 않음. v1에서는 "타깃 앱과 같은 EKS 클러스터의 `console` 네임스페이스"를 제안했으나, **보안상 모순**으로 v2에서 분리 결정.
 
-**확정: 관제 앱 백엔드는 타깃 앱과 같은 클러스터/계정 경계에 두지 않고 분리한다. 구현은 `ALB(authenticate-oidc) → Lambda` (서버리스 API)로 한다.**
+**확정: 관제 앱 백엔드는 타깃 앱과 같은 클러스터/계정 경계에 두지 않고 분리한다. 구현은 `ALB(authenticate-cognito) → Lambda` (서버리스 API)로 한다.**
 
 ### 왜 분리하는가 (v1 제안 폐기 이유)
 - 타깃 앱은 **의도적으로 취약**하다 — privileged 파드·과도 IRSA·열린 SG. 관제 백엔드를 같은 EKS 클러스터에 두면 (a) 취약 워크로드와 fault domain(노드·네트워크·RBAC)을 공유해 **공격 경로가 관제까지 닿는다는 모순**이 생기고, (b) "점검하는 자"와 "점검당하는 취약 환경"이 한 클러스터에 섞여 시나리오 설득력이 깨진다.
@@ -98,11 +98,11 @@
 - **보안 분리:** 타깃 EKS와 완전히 다른 실행 환경·IAM 경계. 공유 fault domain 없음.
 - **비용:** 두 번째 EKS 컨트롤플레인($0.10/h)·노드 없이 scale-to-zero → project-draft 22번 "데모만 켜고 destroy" 가드레일과 정합.
 - **워크로드 성격:** console-backend는 **주로 읽기**(pgvector 조회) + 가끔 Bedrock/Step Functions 호출 → 서버리스에 잘 맞음.
-- **SSO 보존:** ALB는 Lambda 타깃 + `authenticate-oidc` 액션을 함께 지원 → project-draft 10번 SSO 플로우(Entra→Cognito→ALB)를 그대로 유지.
+- **SSO 보존:** ALB는 Lambda 타깃 + `authenticate-cognito` 액션을 함께 지원 → project-draft 10번 SSO 플로우(Entra→Cognito→ALB)를 그대로 유지.
 
 ```
 [React 빌드] → S3 + CloudFront (정적 자산)
-[사용자 API 요청] → ALB(authenticate-oidc, Cognito) → Lambda(console-backend)   ← 타깃 EKS와 별개 환경
+[사용자 API 요청] → ALB(authenticate-cognito, Cognito User Pool) → Lambda(console-backend)   ← 타깃 EKS와 별개 환경
                                                               │ (read-only IAM 역할)
                                             ┌─────────────────┼─────────────────┐
                                             ▼                 ▼                 ▼
@@ -206,7 +206,7 @@ pgvector 위에 둘 주요 테이블과 컬럼·용도를 정리한 표다.
 ## 7. SSO 통합 + 역할(RBAC) — 콘솔 관점 🔒
 
 ```
-사용자 → 관제 앱 접속 → ALB(authenticate-oidc) 미인증 시 Cognito로 리다이렉트
+사용자 → 관제 앱 접속 → ALB(authenticate-cognito) 미인증 시 Cognito로 리다이렉트
        → Cognito가 Entra ID로 페더레이션(SAML, Entra=IdP)
        → 로그인 성공 → Cognito 토큰(그룹 클레임 포함) 발급 → 관제 앱 진입
 ```
@@ -216,6 +216,15 @@ pgvector 위에 둘 주요 테이블과 컬럼·용도를 정리한 표다.
   - **보안관리자(approver):** 조치 승인/반려 가능 — 17번 "변경은 분리된 승인 경로로만"을 역할 분리로 구현.
 - 무료 가능 근거·구현 방식은 project-draft 10번을 그대로 따름(Week 1 우선 검증 대상).
 - **데모 시연:** Entra ID에 그룹 2개(`cnapp-viewer`, `cnapp-approver`)와 테스트 계정 2개를 만들고 각 그룹에 배정 → 그룹 클레임이 Cognito 토큰에 실려 콘솔에서 분석가/보안관리자로 갈림. 시연은 viewer로 로그인(승인 버튼 비활성) → approver로 재로그인(승인 버튼 활성·조치 승인)으로 역할 분리를 보여줌.
+- **그룹 클레임 매핑 구현 경로:**
+  ```
+  Entra SAML assertion
+    └─ attribute: http://schemas.microsoft.com/ws/2008/06/identity/claims/groups
+         ↓ Cognito SAML attribute mapping (infra/console Terraform)
+    Cognito User Pool custom attribute: custom:groups
+         ↓ ALB가 Lambda로 전달
+    x-amzn-oidc-data 헤더(JWT) → Lambda에서 custom:groups 추출 → viewer/approver 분기
+  ```
 
 ---
 
@@ -269,8 +278,8 @@ API가 있는 곳은 ① 스캐너↔클라우드 API(읽기) ② console-backen
 | 영역 | 선택 | 비고 |
 |---|---|---|
 | 프론트엔드 | React, S3+CloudFront | 정적 호스팅 |
-| 인증 | Cognito(SP/허브) ← Entra ID(IdP, SAML) ← ALB authenticate-oidc | 10번 |
-| 백엔드 | **Lambda(서버리스) ← ALB(authenticate-oidc)** — 타깃 EKS와 분리 | 4번(v2 확정) |
+| 인증 | Cognito(SP/허브) ← Entra ID(IdP, SAML) ← ALB authenticate-cognito | 10번 |
+| 백엔드 | **Lambda(서버리스) ← ALB(authenticate-cognito)** — 타깃 EKS와 분리 | 4번(v2 확정) |
 | 데이터/RAG | **RDS PostgreSQL t3.micro** + pgvector | D9, 16번. free tier·이후 $13/월. Lambda VPC 배치로 접근(RDS Proxy 미사용) |
 | AI | Bedrock(에이전틱 엔진 + 자연어 질의 보조) | 9번(project-draft) |
 | 조치 실행 | Step Functions + S3 Object Lock(감사) | 17번 |
@@ -282,9 +291,9 @@ API가 있는 곳은 ① 스캐너↔클라우드 API(읽기) ② console-backen
 
 > v2: 백엔드를 타깃 EKS와 분리(4번 확정)함에 따라 EKS 네임스페이스/Ingress 대신 **Lambda + ALB** 골격으로 갱신.
 
-- Cognito User Pool + Identity Pool(SAML IdP = Entra ID 등록 포함)
+- Cognito User Pool(SAML IdP = Entra ID 등록 포함, Identity Pool 불필요 — 프론트가 AWS 직접 호출 없음)
 - S3(정적 자산) + CloudFront 배포
-- **ALB + 리스너 규칙(`authenticate-oidc` 액션) → Lambda 타깃 그룹**(타깃 EKS와 별개 환경)
+- **ALB + 리스너 규칙(`authenticate-cognito` 액션) → Lambda 타깃 그룹**(타깃 EKS와 별개 환경)
 - **console-backend Lambda 함수**(read-only 실행 역할) + 로그 그룹
 - **RDS PostgreSQL t3.micro**(pgvector extension 활성화) — `engine/`과 공유, 관제 전용 경계(타깃 워크로드 비접근). Lambda와 동일 VPC private subnet 배치(VPC Lambda 방식)
 - Step Functions 상태 머신(조치 카탈로그 1차 범위는 project-draft 24번 미확정 항목, 결정 시 본 문서 갱신)
@@ -341,7 +350,7 @@ Day 단위 콘솔 작업과 연계 절을 정리한 표다.
 
 ### 15.2 console-backend (Lambda) API 표면
 
-> ALB(authenticate-oidc) → Lambda(§4·§12). 전부 **read-only**(쓰기는 Step Functions로만). 응답 스키마 = contracts. **백엔드 언어 = TypeScript(Node) ✅확정** — 프론트와 단일 언어·계약 타입 공유.
+> ALB(authenticate-cognito) → Lambda(§4·§12). 전부 **read-only**(쓰기는 Step Functions로만). 응답 스키마 = contracts. **백엔드 언어 = TypeScript(Node) ✅확정** — 프론트와 단일 언어·계약 타입 공유.
 > ⚠️ **폴리글랏 의도(확정):** **console(프론트 + console-backend) = TypeScript / engine·pipeline = Python**(Bedrock·데이터 처리상 가능성 높음). 레포 전체가 한 언어라는 가정 금지 — 이음새는 contracts(언어 무관 JSON)로만 연결.
 
 | 메서드·경로 | 화면(UC) | 응답 = 계약 | 목업 파일 |

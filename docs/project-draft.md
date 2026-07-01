@@ -472,16 +472,15 @@ CSPM(S3·SG·IAM·암호화) · CIEM(AWS 과도 권한 + **Azure Entra 과도권
 
 ```
 사용자 → 관제 앱 접속
-  → ALB(authenticate-oidc)가 미인증이면 Cognito로 리다이렉트
+  → ALB(authenticate-cognito)가 미인증이면 Cognito로 리다이렉트
   → Cognito가 Entra ID로 페더레이션 (Entra = IdP)
   → Entra 로그인 성공 → Cognito 토큰 발급 → 관제 앱 진입
-  → (앱 → AWS 리소스) Cognito Identity Pool → 임시 AWS 자격증명
 ```
 
 - **역할:** Entra ID = IdP(신원), Cognito = SP/허브(AWS), 관제 앱 = Cognito 신뢰.
 - **무료 가능 근거:** 기본 SAML SSO는 Entra 전 티어 무료(커스텀 앱 포함, 앱 1개 = 무료 10개 한도 내). 조건부 액세스·그룹 프로비저닝 등 P1/P2 기능 미사용. SP-initiated 흐름이라 보안 권장 방식과도 일치.
 - **검증:** Week 1에 실제 테넌트로 SSO 우선 검증(이론상 무료지만 테넌트 상태 직접 확인).
-- **구현:** ALB `authenticate-oidc`로 앱 코드에 인증 로직 최소화.
+- **구현:** ALB `authenticate-cognito` 액션(Cognito 전용, 클라이언트 시크릿 불필요)으로 앱 코드에 인증 로직 최소화.
 
 ---
 
@@ -549,7 +548,7 @@ CSPM(S3·SG·IAM·암호화) · CIEM(AWS 과도 권한 + **Azure Entra 과도권
 [관제 앱]  posture 점수(AWS+Azure) + findings + attack-path + AI 설명/조치 (React, S3+CloudFront)
 [타깃 앱]  AWS 커머스(EKS, 회원 PII는 S3) + Azure Entra ID(신원·과도권한 앱) ← findings 소스
 [CI 게이트] GitHub Actions(OIDC) → Checkov/Trivy → (cosign*) → ECR → ArgoCD → EKS
-[인증]     Entra ID ─SAML─▶ Cognito ─OIDC─▶ ALB(authenticate-oidc) → 관제 앱
+[인증]     Entra ID ─SAML─▶ Cognito ─OIDC─▶ ALB(authenticate-cognito) → 관제 앱
 [관측]     kube-prometheus-stack + 로그 파이프라인
 ```
 

@@ -27,7 +27,6 @@
 - `2026-07-01 / 준형 / [docs] 진우 문서 검증 6건 총괄 반영 — ①CLAUDE §5 앱분담 stale행(0b1d493 병합 때 되돌아감) → 준형 2개 전담으로 정정 ②project-draft §4.4.1(b) 카탈로그표 누락 control 4행 추가(13→14) ③console §3·§5.1 "D3/Recharts"→React Flow(§15.1 확정) ④f15 title↔control 모순(NOENCRYPT인데 source는 버저닝) → 신규 INTERNAL-S3-LOGGING-DISABLED-001(cspm) 추가 후 재매핑 ⑤§15 모델ID: bare name은 Bedrock invoke ID 아님(404) → Bedrock 형식/inference profile 구현시 확정 주석 ⑥R1 "同 resource" 모호 → "워크로드↔부착 SG 토폴로지" 완화 + 파드→ENI→SG 매핑 주석. 전 md stale 스윕(13종→14종 일괄) + README 역할분담 섹션 추가. validate 통과(14종)`
 - `2026-07-01 / 준형 / [contracts] 진우 합의 반영 — f16·f12 객관 기준으로 c463054 값 최종 복원. f16: OVERPRIV-APP-001(의미 느슨)→SP-CRED-001(ciem, title 정확 일치)로 재매핑 + 카탈로그에 INTERNAL-ENTRA-SP-CRED-001 재추가(13종). f12/ECR: pillar vuln→cspm(control도) — "스캔 비활성"은 CVE가 아니라 미스컨피그, 소스가 전부 posture(securityhub ECR.1·config·prowler ecr_scan)라 cspm이 객관. validate OK. 교훈: 기둥=소스 성격 기준을 처음부터 일관 적용할 것`
 - `2026-07-01 / 준형 / [contracts] 진우 커밋 0b1d493 pull 후 validate.py 2건 FAIL(main RED) 발견 → f5 resource_id가 aws:eks_pod:shop/order로 리버트돼 type(secret_plaintext)와 assert(b) 불일치 → aws:secret_plaintext:shop/order/AZURE_SP_CRED로 재복원. f17이 ENTRA-RISKY-CONSENT-001(ciem)로 재매핑됐으나 pillar cspm 유지해 assert(a) 위반 → 설계 충실(Azure Defender secure-score=cspm)로 INTERNAL-ENTRA-INSECURE-CFG-001(cspm) 카탈로그 재추가 후 f17 재매핑. validate 통과. ※f16→OVERPRIV-APP-001 재매핑은 CI-green이나 의미 느슨 — 진우 검토 요청`
-- `2026-07-01 / 진우 / [infra] S3 Terraform state 버킷(cnapp-agentic-tfstate, ap-northeast-2) 생성 — 버저닝·SSE-S3·퍼블릭차단 설정. infra/shared main.tf backend bucket 교체, manual-infra.md §2 ✅ 갱신`
 - `2026-07-01 / 준형 / [apps-console] apps/console 스캐폴드(§15) — Vite+React+TS+Tailwind+TanStack+React Flow+Recharts+MSW. contracts/*.schema.json→타입(손번역 types.ts + gen-types.mjs), MSW handlers가 @contracts alias로 mock-*.json 직접 서빙(vite fs.allow=repoRoot). 화면 8종(핵심 4: Dashboard·Findings·FindingDetail[Evidence탭]·AttackPath + 스텁 4). 트러블: ①tsconfig -b project-ref 제거→tsc --noEmit ②FindingsFilter가 Record 인덱스시그니처 없어 apiGet 타입에러→[key:string] 추가 ③Findings.tsx 손오타(깨진 유니코드) 제거. npm i(252pkg)·msw init·tsc·vite build(499 모듈) 전부 통과`
 <!-- 여기부터 실제 항목을 위에 추가 -->
 
@@ -37,5 +36,7 @@
 
 > 무엇을 만들었/추가했는지 한 줄씩. (git 커밋이 1차 기록이지만, 사람이 빠르게 훑는 용도)
 
+- `2026-07-01 / 진우 / [apps-console] Cognito SSO 설계 검증 3건 반영 — authenticate-oidc→authenticate-cognito 전면 교체(project-draft·console-app-design 전 위치), Identity Pool 제거(프론트가 AWS 직접 호출 없음), §7 그룹 클레임 매핑 경로(Entra SAML attr→custom:groups→x-amzn-oidc-data→Lambda 분기) 추가`
+- `2026-07-01 / 진우 / [infra] S3 Terraform state 버킷(cnapp-agentic-tfstate, ap-northeast-2) 생성 완료 — 버저닝·SSE-S3·퍼블릭차단 설정. infra/shared main.tf backend bucket 교체, manual-infra.md §2 ✅ 갱신`
 - `2026-06-30 / 준형 / [docs] 공통 계약 7종(4.4) + terraform 레이어링·폴더소유(4.6) 확정`
 <!-- 여기부터 실제 항목을 위에 추가 -->
