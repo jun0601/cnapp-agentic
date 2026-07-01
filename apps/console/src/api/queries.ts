@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiGet } from './client'
 import type { Finding, FindingDetail, AttackPath, Scores } from './types'
+import type { AuditEvent, ComplianceReport } from './view-types'
 
 export interface FindingsFilter {
   cloud?: string
@@ -50,5 +51,19 @@ export function useScores() {
     queryKey: ['scores'],
     queryFn: () => apiGet<Scores>('/scores'),
     refetchInterval: POLL_MS,
+  })
+}
+
+export function useAudit() {
+  return useQuery({
+    queryKey: ['audit'],
+    queryFn: () => apiGet<AuditEvent[]>('/audit'),
+  })
+}
+
+export function useCompliance() {
+  return useQuery({
+    queryKey: ['compliance'],
+    queryFn: () => apiGet<ComplianceReport>('/compliance'),
   })
 }

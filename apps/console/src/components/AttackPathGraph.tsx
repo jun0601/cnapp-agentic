@@ -19,13 +19,11 @@ const EDGE_LABEL: Record<string, string> = {
 export function AttackPathGraph({ path }: { path: AttackPath }) {
   const { nodes, edges } = useMemo(() => {
     // 클라우드별 레인 배치 — 등장 순서대로 y 증가
-    const seq: Record<string, number> = {}
     let awsI = 0
     let azI = 0
     const rfNodes: Node[] = path.nodes.map((n) => {
       const isAws = n.cloud === 'aws'
       const y = (isAws ? awsI++ : azI++) * Y_STEP + 20
-      seq[n.id] = y
       return {
         id: n.id,
         position: { x: isAws ? AWS_X : AZURE_X, y },

@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light dark;
+  /* 라이트 전용 UI — 다크 테마 없음. OS 다크모드에서 네이티브 컨트롤이 뒤집히지 않게 고정 */
+  color-scheme: light;
 }
 
 body {

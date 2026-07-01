@@ -5,6 +5,7 @@ import findingsMock from '@contracts/mock-findings.json'
 import pathsMock from '@contracts/mock-attack-paths.json'
 import casesMock from '@contracts/mock-cases.json'
 import type { Finding, AttackPath, Case, FindingDetail, FindingExplanation } from '@/api/types'
+import { AUDIT_EVENTS, COMPLIANCE_REPORT } from './view-fixtures'
 
 const BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
@@ -93,7 +94,10 @@ export const handlers = [
   http.post(`${BASE}/findings/:id/reanalyze`, () => new HttpResponse(null, { status: 202 })),
 
   // GET /audit — 감사로그 뷰어(목업)
-  http.get(`${BASE}/audit`, () => HttpResponse.json([])),
+  http.get(`${BASE}/audit`, () => HttpResponse.json(AUDIT_EVENTS)),
+
+  // GET /compliance — 컴플라이언스 리포트(UC5 목업)
+  http.get(`${BASE}/compliance`, () => HttpResponse.json(COMPLIANCE_REPORT)),
 
   // POST /chat — 자연어 질의(목업 에코)
   http.post(`${BASE}/chat`, async ({ request }) => {
