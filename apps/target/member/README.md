@@ -44,12 +44,23 @@ uvicorn app.main:app --port 8080
 | `MEMBER_INMEM_COUNT` | 20 | 인메모리 회원 목록 건수(REST용) |
 | `AWS_REGION` | ap-northeast-2 | |
 
-## API
+## 라우트
+
+**UI (shop 데모 포털 — `app/web.py`):** 로컬에서 실제 도는 유일 서비스라 member가 포털도 서빙.
+
+| 경로 | 설명 |
+|---|---|
+| `GET /` | **포털** — 시스템 설명 + 3서비스 카드 + 골든 공격경로 |
+| `GET /product` · `GET /order` | 상품·주문 서비스 소개(결함 표). 실구동은 EKS |
+| `GET /members` | **회원 관리 UI**(목록 + 가입 폼, 취약점 배너) — 실제 동작 |
+| `GET /favicon.svg` | 쇼핑백 파비콘 |
+
+**API (JSON):**
 
 | 메서드·경로 | 설명 |
 |---|---|
-| `GET /` | **최소 UI** — 회원 목록 + 가입 폼(HTML, 취약점 배너). 브라우저로 확인 |
 | `GET /health` | 헬스체크 |
-| `GET /members?limit=` | 회원 목록(합성) |
-| `GET /members/{id}` | 단건 |
-| `POST /members` | 회원 생성(합성 rrn 부여) |
+| `GET /api/members?limit=` | 회원 목록(합성) |
+| `GET /api/members/{id}` | 단건 |
+| `POST /api/members` | 회원 생성(합성 rrn 부여) |
+| `GET /docs` | FastAPI Swagger |

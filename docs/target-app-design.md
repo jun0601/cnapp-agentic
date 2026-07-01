@@ -210,7 +210,7 @@ LLM이 이 신호들(취약점+KSPM+CIEM+CSPM+데이터, **AWS 워크로드→Az
 | `order` | retail-store `orders` fork → product·member 참조만. env에 평문 Azure SP(f5) | 소 |
 | `member` | **신규 작성(최소)** — 회원 가입/조회 REST + 기동 시 가짜 PII를 S3 업로드. 스택 = **Python/FastAPI 확정**(경량 REST + faker 한국형 PII + boto3, engine·pipeline Python과 일관). `apps/target/member/` 구현 완료 | 중 |
 
-> `ui` 전용 서비스는 생략(retail-store `ui`는 안 씀). 단 **member에 최소 스킨 추가**(§7 "필요 시 최소 스킨") — `app/web.py`가 `GET /`에서 회원 목록+가입 폼 HTML을 서빙(취약점 배너 포함), 클릭으로 앱을 확인 가능. 데이터는 전부 가짜. 가짜 PII = faker로 이름+주민번호 *패턴*(실데이터 아님) 생성 → Macie가 잡도록 한국형 패턴 포함.
+> `ui` 전용 서비스는 생략(retail-store `ui`는 안 씀). 단 **member가 "shop 데모 포털"로서 최소 UI 서빙**(§7 "필요 시 최소 스킨", `app/web.py`) — `/`(포털: 시스템 설명+3서비스 카드+골든 공격경로) · `/product`·`/order`(서비스 소개+결함 표) · `/members`(회원 관리 UI, 실동작). 로컬에서 클릭으로 앱 확인 가능(실배포 땐 각 서비스 EKS 분리). 데이터는 전부 가짜. 가짜 PII = faker로 이름+주민번호 *패턴*(실데이터 아님) 생성 → Macie가 잡도록 한국형 패턴 포함.
 
 ### 7.2 product 취약 이미지 (f1)
 

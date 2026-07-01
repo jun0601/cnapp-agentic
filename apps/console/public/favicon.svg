@@ -1,10 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <!-- CNAPP 관제 — 방패(보안) 안에 크로스클라우드 attack-path. 작은 크기에서도 읽히게 크고 굵게. -->
-  <path d="M16 1 L29.5 5.6 V15 C29.5 23.8 23.6 28.9 16 31.5 C8.4 28.9 2.5 23.8 2.5 15 V5.6 Z"
-        fill="#0f172a"/>
-  <!-- 크로스클라우드 엣지(붉은 굵은 선) : AWS → Azure 경계 횡단 -->
-  <line x1="11.5" y1="11.5" x2="20.5" y2="20.5" stroke="#ef4444" stroke-width="3.4" stroke-linecap="round"/>
-  <!-- 노드 : AWS(주황) · Azure(파랑) — 흰 링으로 선과 분리 -->
-  <circle cx="11.5" cy="11.5" r="4.4" fill="#ff9900" stroke="#0f172a" stroke-width="1.4"/>
-  <circle cx="20.5" cy="20.5" r="4.4" fill="#0ea5e9" stroke="#0f172a" stroke-width="1.4"/>
+  <!-- CNAPP 관제 — 밝은 방패(보안) + 크로스클라우드 attack-path 노드(특이성). -->
+  <defs>
+    <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <path d="M16 1.2 L29.2 5.6 V15 C29.2 23.6 23.4 28.7 16 31.3 C8.6 28.7 2.8 23.6 2.8 15 V5.6 Z" fill="url(#sg)"/>
+  <!-- 상단 하이라이트(방패 광택 느낌) -->
+  <path d="M16 1.2 L29.2 5.6 V9 C24 6.6 8 6.6 2.8 9 V5.6 Z" fill="#ffffff" opacity="0.18"/>
+  <!-- 크로스클라우드 엣지 + 노드: AWS(주황) → Azure(흰색) -->
+  <line x1="11.6" y1="12" x2="20.4" y2="20.5" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+  <circle cx="11.6" cy="12" r="4" fill="#ff9900" stroke="#ffffff" stroke-width="1.4"/>
+  <circle cx="20.4" cy="20.5" r="4" fill="#ffffff"/>
 </svg>
