@@ -121,15 +121,15 @@ cnapp-agentic/
 > 원칙 — 일을 나누되 **둘 다 상대 영역까지 이해**한다. 각 영역을 반반 갈라 양쪽이 핵심을 다 만진다. 상시 협의로 조정되는 살아있는 분담이며, 상세 SSOT는 [CLAUDE.md §5](CLAUDE.md) · [project-draft §4.1](docs/project-draft.md).
 > **영역 순서 = 대략의 진행 순서**(앱·환경 → 인프라 → 스캐너 → 수집·정규화 → RAG → 엔진 → attack-path). 정확한 순서는 아니고 "이 느낌으로 쌓아간다". 진행상황은 대강(✅ 됨 / 🔨 스캐폴드 / 🔄 진행중 / ⬜ 예정).
 
-| 순서 | 영역 | 준형 | 진우 | 진행 |
+| 영역 | 준형 | 준형 진행 | 진우 | 진우 진행 |
 |---|---|---|---|---|
-| ① | **앱 & 환경 세팅** | 타깃 앱 · 관제 앱 **2개 개발** | **AWS/Azure 환경**(M365·Entra 데모 테넌트·계정 초기) | 앱 ✅ 목업 동작 · 환경 🔄(AWS 계정 ✅ / Azure 테넌트 진우 진행중) |
-| ② | **공유 인프라 · 토대** | `infra/shared`·`infra/target` 주도 · CI/CD · Shift-Left | 모니터링·운영관제(Grafana·CloudTrail) | 🔨 스캐폴드(apply 전) |
-| ③ | **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM | ⬜ 예정 |
-| ④ | **수집 · 정규화** | 수집부 (EventBridge→SQS) | 정규화부 (Lambda→OCSF) | ⬜ 예정 |
-| ⑤ | **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | 검색 · LLM 답변 생성 | ⬜ 예정 |
-| ⑥ | **엔진 (Bedrock)** | Evidence(tool use) · Triage | Hypothesis · Reasoning · Orchestrator | ⬜ 다음 착수 후보 |
-| ⑦ | **attack-path** | 그래프 데이터 모델 | 상관 로직(R1~R5) · 내러티브 | ⬜ 예정 |
+| **앱 & 환경 세팅** | 타깃 앱 · 관제 앱 **2개 개발** | ✅ 목업 동작(콘솔 8화면 · 타깃 member+포털) | **AWS/Azure 환경**(M365·Entra 데모 테넌트·계정 초기) | 🔄 AWS 계정 ✅ / Azure 테넌트 진행중 |
+| **공유 인프라 · 토대** | `infra/shared`·`infra/target` 주도 · CI/CD · Shift-Left | 🔨 스캐폴드(apply 전) | 모니터링·운영관제(Grafana·CloudTrail) | ⬜ 예정 |
+| **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ⬜ 예정 | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM | ⬜ 예정 |
+| **수집 · 정규화** | 수집부 (EventBridge→SQS) | ⬜ 예정 | 정규화부 (Lambda→OCSF) | ⬜ 예정 |
+| **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ⬜ 예정 | 검색 · LLM 답변 생성 | ⬜ 예정 |
+| **엔진 (Bedrock)** | Evidence(tool use) · Triage | ⬜ 다음 착수 후보 | Hypothesis · Reasoning · Orchestrator | ⬜ 예정 |
+| **attack-path** | 그래프 데이터 모델 | ⬜ 예정 | 상관 로직(R1~R5) · 내러티브 | ⬜ 예정 |
 
 > ⚠️ "관제"는 두 가지 — **관제 "앱"**(CNAPP 보안 대시보드 제품) = 준형 / **운영 "관제"**(Grafana·CloudTrail 플랫폼 관측) = 진우. 애플리케이션 2개는 모두 준형이 개발한다.
 

@@ -169,14 +169,18 @@ cnapp-agentic/
 
 > **이 절만 보면 "지금 어디까지 / 다음 뭐"가 나온다.** 큰 그림 현황은 [README 구현 현황](../README.md) 표, 상세 작업 로그는 [troubleshooting.md](../troubleshooting.md).
 
-**현황 (2026-07-01):**
-- ✅ 공통 계약(INTERNAL control 14종·골든 목업·CI 게이트) · `infra/shared`·`infra/target` 스캐폴드(apply 전) · TF state 버킷
-- ✅ 관제 앱(`apps/console`) **8화면 목업 동작**(대시보드·Findings·Evidence 탭·attack-path 등) · 타깃 앱(`apps/target`) **member 실행 + shop 포털**
-- 🔄 Azure/Entra 데모 테넌트(진우 진행 중) · ⬜ 스캐너 · 수집/정규화 · 엔진 · RAG · console-backend · infra apply
+**현황 + 다음 (사람별 · 2026-07-01):**
 
-**다음 할 일:**
-- **준형:** ⑥ 엔진 능동조사(Evidence·Triage, `mock-cases.json` 기반 로직부터) — *데모 사수 1순위* / ⑦ attack-path 그래프 모델 / console-backend(TS Lambda)
-- **진우:** Azure 테넌트 → App Registration(SSO)+그룹 → 결함/스캔 SP (manual-infra §3 순서) / 워크로드 스캐너 · 정규화부 · 엔진 Reasoning
+*준형*
+- ✅ 한 것: 관제 앱 **8화면 목업 동작** · 타깃 앱 **member 실행 + shop 포털** · 공통 계약(14 control·목업·CI) · `infra/shared`·`infra/target` 스캐폴드(apply 전)
+- ▶ 다음: **엔진 Evidence·Triage**(`mock-cases.json` 기반 로직부터) — *데모 사수 1순위* → attack-path 그래프 모델 → console-backend(TS Lambda)
+
+*진우*
+- ✅ 한 것: TF state 버킷 · Cognito SSO 설계(authenticate-cognito·그룹 클레임) · 2-pass 트리거 이벤트
+- 🔄 지금: Azure/Entra 데모 테넌트(M365) 생성
+- ▶ 다음: App Registration(SSO)+그룹 → 결함/스캔 SP (manual-infra §3 순서) · 워크로드 스캐너 · 정규화부 · 엔진 Reasoning
+
+*공통 미완:* 스캐너 실행 · 수집/정규화 · RAG · infra apply(비용)
 
 **진행 원칙 (하이브리드 — free credit 감안, 2026-07-01 확정):**
 - **빌드 순서**는 인프라 먼저가 자연스러움(§5 의존성). 단 **목업 우선**으로 논리(엔진·콘솔·상관)를 인프라 없이 **병렬로 빠르게** 만든다.
