@@ -44,6 +44,7 @@
 
 > 무엇을 만들었/추가했는지 한 줄씩. (git 커밋이 1차 기록이지만, 사람이 빠르게 훑는 용도)
 
+- `2026-07-01 / 진우 / [infra] Azure/Entra ID 초기 설정 완료 — cnappagentic.onmicrosoft.com 테넌트(M365 체험), jw_kim Global Admin·jh_lee Global Admin, cnapp-viewer·cnapp-approver 보안 그룹, viewer@·approver@ 데모 계정, Teams cnapp-agentic 워크스페이스·cnapp-alerts 채널·Workflows 웹훅 생성. manual-infra.md §3 갱신`
 - `2026-07-01 / 진우 / [apps-console] Cognito SSO 설계 검증 3건 반영 — authenticate-oidc→authenticate-cognito 전면 교체(project-draft·console-app-design 전 위치), Identity Pool 제거(프론트가 AWS 직접 호출 없음), §7 그룹 클레임 매핑 경로(Entra SAML attr→custom:groups→x-amzn-oidc-data→Lambda 분기) 추가`
 - `2026-07-01 / 진우 / [infra] S3 Terraform state 버킷(cnapp-agentic-tfstate, ap-northeast-2) 생성 완료 — 버저닝·SSE-S3·퍼블릭차단 설정. infra/shared main.tf backend bucket 교체, manual-infra.md §2 ✅ 갱신`
 - `2026-06-30 / 준형 / [docs] 공통 계약 7종(4.4) + terraform 레이어링·폴더소유(4.6) 확정`

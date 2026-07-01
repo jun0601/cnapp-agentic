@@ -53,18 +53,59 @@
 ## 3. Azure / Entra ID 초기 설정 — 🔄 진우 진행 중
 
 > **담당 = 진우 전담**(Azure=신원의 주인, Entra CIEM 영역). Azure 포털에서 수동 설정, Terraform 미관리(project-draft 14번).
-> **격리 환경 필수:** 데모용 Entra 테넌트(별도) 또는 sandbox 구독 분리 후 진행 — 실제 조직 테넌트에 결함을 심으면 안 됨(target-app-design 6번 SP 스코프 주의).
+> **격리 환경:** M365 Business 체험 가입으로 `cnappagentic.onmicrosoft.com` 데모 전용 테넌트 생성 완료(2026-07-01). 실제 조직 테넌트에 결함을 심으면 안 됨(target-app-design 6번 SP 스코프 주의).
 >
-> **진행 순서(의존성):** ① 격리 테넌트(M365/Entra) 생성 → ② App Registration(SSO) + 그룹 → ③ 결함용 App Reg·SP(order 평문 시크릿·Prowler 스캔) → ④ Federated Credential → ⑤ Defender(데모 때만). **①이 나머지 전부의 선행**이고, ②(SSO)는 `infra/console` apply(Cognito 연동)의 선행이다.
+> **진행 순서(의존성):** ① 격리 테넌트 생성 → ② 그룹·계정·Teams 설정 → ③ App Registration(SSO) → ④ 결함용 App Reg·SP → ⑤ Federated Credential → ⑥ Defender(데모 때만). **③(SSO)은 `infra/console` apply(Cognito 연동)의 선행.**
+
+### 3.1 테넌트 기본 정보 ✅
+
+| 항목 | 값 |
+|---|---|
+| **테넌트 이름** | cnapp |
+| **주 도메인** | `cnappagentic.onmicrosoft.com` |
+| **테넌트 ID** | `8e160cea-faa9-47de-a717-6eb01e4a262b` |
+| **라이선스** | Microsoft Entra ID Free |
+
+### 3.2 관리자 계정 ✅
+
+| 계정 | 역할 | 상태 |
+|---|---|---|
+| `jw_kim@cnappagentic.onmicrosoft.com` | Global Administrator (소유자, 진우) | ✅ |
+| `jh_lee@cnappagentic.onmicrosoft.com` | Global Administrator (준형) | ✅ |
+
+### 3.3 그룹 (보안 그룹) ✅
+
+| 그룹 이름 | 용도 | 상태 |
+|---|---|---|
+| `cnapp-viewer` | 관제 앱 viewer 권한 → SAML 그룹 클레임 매핑 | ✅ |
+| `cnapp-approver` | 관제 앱 approver 권한 → SAML 그룹 클레임 매핑 | ✅ |
+
+### 3.4 데모 테스트 계정 ✅
+
+| 계정 | 그룹 | 용도 | 상태 |
+|---|---|---|---|
+| `viewer@cnappagentic.onmicrosoft.com` | cnapp-viewer | SSO 데모 — viewer 권한 시연 | ✅ |
+| `approver@cnappagentic.onmicrosoft.com` | cnapp-approver | SSO 데모 — approver 권한 시연 | ✅ |
+
+### 3.5 Teams / Workflows 웹훅 ✅
+
+| 항목 | 값 | 상태 |
+|---|---|---|
+| **Teams 워크스페이스** | `cnapp-agentic` | ✅ |
+| **알림 채널** | `cnapp-alerts` | ✅ |
+| **웹훅 URL** | `https://default8e160ceafaa947dea7176eb01e4a26.2b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/39dbf83248914297a12849f68c1190fc/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=q2QR1HTgjZa_mo2GBEXqLJX-EGLC5a3FHBYS3E3e_Sg` | ✅ |
+
+> ⚠️ 웹훅 URL은 민감 정보 — 실제 운용 시 Secrets Manager로 이동 권장.
+
+### 3.6 App Registration / SP — 미착수
 
 | 항목 | 내용 | 담당 | 상태 |
 |---|---|---|---|
-| **① 데모 격리 환경** | 데모 전용 **M365/Entra 테넌트** 또는 sandbox 구독 분리. | 진우 | 🔄 **진행 중** |
-| **② App Registration — SSO 연동용** | Cognito SAML 2.0 IdP 연동. `cnapp-viewer`·`cnapp-approver` 그룹 생성 → Cognito 토큰 `custom:groups` 클레임 매핑(console-app-design §7). *`infra/console` 선행.* | 진우 | 미착수 |
-| **③ App Registration — 과도권한 결함용** | `Directory.ReadWrite.All` 등 CIEM finding 소스용(격리 테넌트에만). 골든 f8·f16. | 진우 | 미착수 |
+| **② App Registration — SSO 연동용** | Cognito SAML 2.0 IdP 연동. `custom:groups` 클레임 매핑(console-app-design §7). *`infra/console` 선행.* | 진우 | 미착수 |
+| **③ App Registration — 과도권한 결함용** | `Directory.ReadWrite.All` 등 CIEM finding 소스용. 골든 f8·f16. | 진우 | 미착수 |
 | **③ Service Principal — order 평문 시크릿용** | `Directory.Read.All` + `Application.Read.All` 스코프만. 만료일 = 데모 종료일 +1주. order 파드 env에 평문 노출(결함 f5). | 진우 | 미착수 |
-| **③ Service Principal — Prowler 스캔용** | `Security Reader` 역할 수준 read-only SP. Prowler Azure 모드가 이 SP로 Entra/Defender 스캔 → OCSF → S3 파이프라인. | 진우 | 미착수 |
-| **④ Federated Identity Credential (Prowler SP)** | Prowler 스캔 SP에 GitHub 저장소를 Federated Credential로 등록. Subject: `repo:jun0601/cnapp-agentic:ref:refs/heads/main`. GitHub Actions가 client-secret 없이 Azure 인증(D4 키리스). | 진우 | 미착수 |
+| **③ Service Principal — Prowler 스캔용** | `Security Reader` 역할 수준 read-only SP. Prowler Azure 모드가 이 SP로 Entra/Defender 스캔 → OCSF → S3. | 진우 | 미착수 |
+| **④ Federated Identity Credential (Prowler SP)** | Prowler 스캔 SP에 GitHub Federated Credential 등록. Subject: `repo:jun0601/cnapp-agentic:ref:refs/heads/main`. 키리스 인증(D4). | 진우 | 미착수 |
 | **⑤ Defender for Cloud** | 데모 기간만 활성, 이후 비활성(종량제 — project-draft 22번). | 진우 | 미착수 |
 
 ---
