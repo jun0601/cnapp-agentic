@@ -32,7 +32,7 @@
 
 | 리소스 | 내용 | 상태 |
 |---|---|---|
-| **S3 state 버킷** | 이름 = **`cnapp-agentic-tfstate`** (서울). Terraform state + 네이티브 락. 버저닝 ON·SSE-S3(AES256)·public access 4종 차단 **검증 완료(2026-07-01)**. `infra/{shared,target,console}` key prefix로 분리. `infra/shared/main.tf` backend에 하드코딩됨. | ✅ 완료 |
+| **S3 state 버킷** | 이름 = **`cnapp-agentic-tfstate`** (서울, ap-northeast-2). Terraform state + 네이티브 락. 버저닝 ON·SSE-S3(AES256)·public access 4종 차단 **검증 완료(2026-07-01)**. `infra/{shared,target,console}` key prefix로 분리. `infra/shared/main.tf` backend에 하드코딩됨. | ✅ 완료 |
 
 > **DynamoDB 락 테이블 미사용 — S3 네이티브 락 채택 (Terraform 1.10+).**
 > 백엔드 설정에 `use_lockfile = true` 추가 시 S3 버킷 자체에 잠금 파일(`.tflock`)을 저장해 동시 apply를 방지한다. 별도 DynamoDB 테이블 없이 버킷 하나로 state + 락을 모두 처리 — 부트스트랩 리소스 최소화.
