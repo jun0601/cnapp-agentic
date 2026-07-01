@@ -47,6 +47,7 @@
 
 > 무엇을 만들었/추가했는지 한 줄씩. (git 커밋이 1차 기록이지만, 사람이 빠르게 훑는 용도)
 
+- `2026-07-01 / 진우 / [attackpath] attackpath/correlation 구현 완료 — CorrelationEngine R1~R5 규칙(KEV+SG->과도IRSA->평문Azure cred+SP->공개S3+PII->Entra App). 체인 >=3 Critical 격상, 2-pass backfill. python -m attackpath.run_demo: 5노드 AWS3+Azure2, 4엣지, cross_cloud credential_theft, backfill 8건 골든 정합 OK`
 - `2026-07-01 / 진우 / [engine] engine 폴더 재구성 완료 — hypothesis/+orchestrator/ → reasoning/ 1폴더로 합침(준형 폴더 규칙 반영). import 경로 갱신, 빈 캐시 폴더(triage/ 포함) 전부 삭제. python -m engine.run_demo 재실행 exit=0. engine/ = core/(공유)+evidence/(준형)+reasoning/(진우) 3폴더 확정`
 - `2026-07-01 / 진우 / [engine] Hypothesis·Reasoning·Orchestrator 구현 완료 — HypothesisAgent(control→가설 템플릿, cross_cloud edge 감지), ReasoningAgent(verdict→한국어 내러티브·risk_level·권고사항), Orchestrator(전체 루프 단일 클래스), case.set_reasoning() 추가. run_demo.py Orchestrator 기반 리팩토링. python -m engine.run_demo: 20→12 escalate, 툴 4회, confirmed, CRITICAL, stage=reasoning, 골든 정합 OK`
 - `2026-07-01 / 진우 / [infra] Azure/Entra ID 초기 설정 완료 — cnappagentic.onmicrosoft.com 테넌트(M365 체험), jw_kim Global Admin·jh_lee Global Admin, cnapp-viewer·cnapp-approver 보안 그룹, viewer@·approver@ 데모 계정, Teams cnapp-agentic 워크스페이스·cnapp-alerts 채널·Workflows 웹훅 생성. manual-infra.md §3 갱신`
