@@ -31,6 +31,7 @@
 - `2026-07-01 / 준형 / [apps-console] 진우 Cognito SSO 3건(a2b2a2f) 검증 — 전부 정확(authenticate-cognito 전용액션·Identity Pool 제거·그룹 클레임 경로). infra/console은 빈 폴더라 충돌 없음. 단 내 스캐폴드(de1f02f)가 진우 커밋 직전이라 옛 용어 3곳 잔존 → 정합: auth.ts 주석(authenticate-oidc→cognito, cognito:groups→custom:groups + "역할은 백엔드 Lambda가 x-amzn-oidc-data로 판정, 프론트는 표시만")·Login.tsx(authenticate-cognito). 코드 로직 변화 없음(주석/스텁만). @진우: 반영 완료, 추가 조치 없음`
 - `2026-07-01 / 준형 / [apps-console] README 현행화(apps/console 골격 🔨·TF state 부트스트랩 ✅ 반영, 상단·Status·트리·변경요약5) + 파비콘 추가(public/favicon.svg — 방패 안 크로스클라우드 attack-path 모티프: AWS 주황→Azure 파랑, 붉은 횡단 엣지). index.html link 추가, vite build가 dist로 복사 확인`
 - `2026-07-01 / 준형 / [apps-console] 진우 앱 피드백 반영 + 디자인 고도화 — 🔴 getRole() 하드코딩 해소: role 스토어(useSyncExternalStore) localStorage>VITE_MOCK_ROLE>viewer, 헤더 역할 스위처(목업 전용, approver 전환 시 Remediation 버튼 활성). 🟡 ErrorBoundary 최상위(main.tsx) 추가. 디자인: 공용 ui(Card/Skeleton/SectionTitle/ErrorNote)·StatCard, 대시보드 KPI 4카드+점수 바+기둥분포, Findings 좌측 심각도 컬러바+집계+스켈레톤, 전 화면 로딩 스켈레톤·isError 처리, 헤더 로고+목업배지. 파비콘 재디자인(크게·굵게, 방패+AWS 주황●─붉은선─●Azure 파랑). tsc·build(501 모듈) 통과. 주의: 동적 bg-sev-${s}는 Tailwind JIT 못 잡아 SEVERITY_DOT 리터럴 맵으로 교체`
+- `2026-07-01 / 준형 / [apps-console] tsconfig baseUrl deprecation 경고(TS7.0에서 제거 예정) → baseUrl 제거. TS 5.x는 paths를 baseUrl 없이 tsconfig 위치 기준 상대경로로 해석 → @/*·@contracts/* 그대로 동작(Vite는 자체 alias라 무관). build 501 모듈 통과`
 <!-- 여기부터 실제 항목을 위에 추가 -->
 
 ---
