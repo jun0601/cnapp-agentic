@@ -48,6 +48,7 @@ uvicorn app.main:app --port 8080
 
 | 메서드·경로 | 설명 |
 |---|---|
+| `GET /` | **최소 UI** — 회원 목록 + 가입 폼(HTML, 취약점 배너). 브라우저로 확인 |
 | `GET /health` | 헬스체크 |
 | `GET /members?limit=` | 회원 목록(합성) |
 | `GET /members/{id}` | 단건 |

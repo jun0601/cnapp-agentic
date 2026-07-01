@@ -12,9 +12,11 @@ from contextlib import asynccontextmanager
 from typing import Dict, List
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 
 from .models import Member, MemberCreate
 from .seeder import generate_members, seed_to_s3
+from .web import INDEX_HTML
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("member")
@@ -37,6 +39,12 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="member", version="0.1.0", lifespan=lifespan)
+
+
+@app.get("/", response_class=HTMLResponse)
+def index() -> str:
+    # §7 '최소 스킨' — 회원 목록 + 가입 폼(취약점 배너 포함). 데이터는 가짜.
+    return INDEX_HTML
 
 
 @app.get("/health")
