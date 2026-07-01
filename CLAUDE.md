@@ -18,6 +18,7 @@
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-07-01 / 준형 / 폴더 규칙 명문화(하위 최소화·소유자별 2개) + engine 재구성** — 누락됐던 규칙 복원: **하위 폴더는 소유자별 2개(a=준형·b=진우)로 최소화, 공유 코드만 예외 폴더**(사람 이름 폴더는 여전히 금지 — 이름은 컴포넌트로). project-draft §4.6·CLAUDE §4에 반영. engine을 `core`(공유)+`triage`+`evidence`(과다 분할)에서 **`core`(공유) + `evidence`(준형: triage.py·evidence.py)** 2폴더로 합침(진우 몫 `reasoning/`는 예정). run_demo 재실행 통과. **`[PULL 필요]`**
 - **2026-07-01 / 진우 / Azure/Entra ID 초기 설정 완료 — `cnappagentic.onmicrosoft.com` 테넌트·Teams 웹훅** — M365 Business 체험으로 `cnappagentic.onmicrosoft.com` 데모 전용 테넌트 생성. 관리자 계정(jw_kim·jh_lee Global Admin), 보안 그룹(cnapp-viewer·cnapp-approver), 데모 계정(viewer@·approver@) 생성 완료. Teams `cnapp-agentic` 워크스페이스·`cnapp-alerts` 채널·Workflows 웹훅 URL 발급. `manual-infra.md §3` 갱신. 미착수: App Registration(SSO·CIEM)·SP·Defender for Cloud. **`[PULL 필요]`**
 - **2026-07-01 / 준형 / 엔진 Evidence·Triage 목업 능동조사 구현(`engine/`) — 데모 심장 1차** — `python -m engine.run_demo`로 **트리아지 게이트(20→12 승급, 비용통제) → Evidence가 계약④ allowlist 강제하며 read-only 툴 4회 자가 호출(챗봇 탈출) → confirmed 판정 → case(계약⑦) 검증**까지 재현. **MockToolExecutor·규칙 플래너**라 `RealToolExecutor`(boto3)·Bedrock LLM으로 갈아끼우면 실AWS 전환(Evidence/Triage 로직 무변 — 계약이 SSOT라 스왑 매끄러움). 담당: 준형=Triage·Evidence / 진우=Hypothesis·Reasoning. 독립 리뷰 반영(타임스탬프 timedelta·검증 강화·가드). **`[PULL 필요]`**
 - **2026-07-01 / 준형 / 진행 관리 단일 지점 = §7.1 확정 + 하이브리드 진행 원칙 + README 역할분담 순서·진행상황** — §7.1을 낡은 "다음 착수 계획"에서 **"현황 + 다음 할 일"** 트래커로 갈아엎음("지금 어디까지/다음 뭐"를 여기서 관리, 큰 그림은 README). §0에 규칙 6(진척 시 §7.1 갱신) 추가. **진행 원칙 = 하이브리드**: 빌드 순서는 인프라 먼저지만 **목업 우선으로 논리 병렬** + **리스크 큰 실검증(엔진 실 tool-use·스캐너 1개→실 finding)은 실클라우드 조기 검증(apply→테스트→destroy 사이클)** (free credit 감안, 상시 방치 금지). README **역할 분담을 진행 순서(①앱&환경 → ⑦attack-path)로 재배치 + 진행상황 컬럼** 추가(①앱&환경: 준형 앱2개 / 진우 M365·Entra 테넌트). **`[PULL 필요]`**
@@ -111,7 +112,7 @@ cnapp-agentic/
 │   └── console/              # 관제 앱 (React). 코드만
 ├── scanners/                 # cspm(준형) / workload(진우). 코드만
 ├── pipeline/                 # ingest(준형) / normalize(진우). 코드만
-├── engine/                   # core(공유) / triage·evidence(준형) / hypothesis·reasoning(진우)
+├── engine/                   # core(공유·예외) / evidence(준형: triage·evidence) / reasoning(진우: hypothesis·reasoning)
 ├── rag/                      # corpus(준형) / retrieval(진우). 코드만
 ├── attackpath/               # model(준형) / correlation(진우). 코드만
 └── infra/                    # Terraform — 레이어드(4.6). apply는 여기서만
@@ -121,7 +122,7 @@ cnapp-agentic/
     └── {scanners,pipeline,engine,…}/  # 영역별 terraform(영역 주인이 apply)
 ```
 
-> **레포 = 모노레포 확정**(설계서 24번). 배포는 폴더별 분리(target=EKS, console=S3+Lambda). **terraform = 레이어드(project-draft 4.6)**: `infra/shared`(기반, 준형 최초 apply) → `infra/<영역>`(영역 주인이 apply, 쪼개기 영역 단위까지). 컴포넌트 폴더(scanners·pipeline·engine·rag·attackpath)는 코드만. **폴더는 컴포넌트로 나눔(사람폴더 금지)**, 소유표·이음새는 4.6. 공유편집 4파일=`contracts/`·`engine/core/`·`docs/`·`CLAUDE.md`. 코딩 시 공통 계약은 `contracts/*.json`(4.4 초안 졸업). 구조를 바꿀 땐 docs에 먼저 반영.
+> **레포 = 모노레포 확정**(설계서 24번). 배포는 폴더별 분리(target=EKS, console=S3+Lambda). **terraform = 레이어드(project-draft 4.6)**: `infra/shared`(기반, 준형 최초 apply) → `infra/<영역>`(영역 주인이 apply, 쪼개기 영역 단위까지). 컴포넌트 폴더(scanners·pipeline·engine·rag·attackpath)는 코드만. **폴더는 컴포넌트로 나눔(사람 이름 폴더 금지)** — 단 하위는 **소유자별 2개**(a=준형·b=진우), **개수 최소화**(공유 코드만 예외 폴더). 세부는 파일로 구분. 소유표·이음새는 4.6. 공유편집 4파일=`contracts/`·`engine/core/`·`docs/`·`CLAUDE.md`. 코딩 시 공통 계약은 `contracts/*.json`(4.4 초안 졸업). 구조를 바꿀 땐 docs에 먼저 반영.
 
 ---
 

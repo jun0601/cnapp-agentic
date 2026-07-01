@@ -16,7 +16,7 @@ from engine.core import case as case_mod
 from engine.core.contracts import load_attack_paths, load_findings
 from engine.core.tools import MockToolExecutor
 from engine.evidence.evidence import EvidenceAgent
-from engine.triage.triage import triage
+from engine.evidence.triage import triage
 
 GOLDEN_CASE_ID = "c0000000-0000-4000-8000-000000000001"
 # Evidence가 조사할 control 순서(데모 서사: 데이터 노출 확인 → 도달 경로 확인)

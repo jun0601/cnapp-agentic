@@ -16,13 +16,15 @@ findings → ① Triage 게이트(승급 소수만, 비용통제)
 ## 폴더
 
 ```
-engine/
-├── core/
+engine/                        # 하위 폴더 = 소유자별(공유는 core 예외) — project-draft §4.6
+├── core/                      (공유·예외)
 │   ├── contracts.py   계약 로딩(findings·attack-path·allowlist·control 카탈로그)
 │   ├── tools.py       ★read-only 툴 실행기 — allowlist 강제 + 목업 canned 응답
 │   └── case.py        계약⑦ case 객체 빌더 + 스키마 정합 체크
-├── triage/triage.py   트리아지 게이트(escalate = severity<=2 OR attack_path)
-├── evidence/evidence.py  Evidence 에이전트(계획→툴 호출→증거→판정)
+├── evidence/                  (준형: Triage·Evidence)
+│   ├── triage.py      트리아지 게이트(escalate = severity<=2 OR attack_path)
+│   └── evidence.py    Evidence 에이전트(계획→툴 호출→증거→판정)
+├── reasoning/                 (진우: Hypothesis·Reasoning·Orchestrator — 예정)
 └── run_demo.py        오케스트레이션 데모 + 검증
 ```
 

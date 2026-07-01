@@ -291,7 +291,7 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 
 ### 4.6 폴더 구조 & terraform 레이어링 (소유 = 사람 아닌 컴포넌트)
 
-> **원칙:** 폴더는 *사람*이 아니라 *컴포넌트*로 나눈다(`junhyeong/` 같은 폴더 금지 — 소유 바뀌면 깨짐). 소유는 폴더 이름이 아니라 *속성*으로 아래 표에 기록. 각 영역 = 폴더 1개, 영역 안의 반반은 하위 폴더로 쪼개 같은 폴더 내 충돌 방지. 이음새 계약은 전부 `contracts/`에 모음.
+> **원칙:** 폴더 이름은 *사람*이 아니라 *컴포넌트*로(`junhyeong/` 같은 사람 이름 폴더 금지 — 소유 바뀌면 깨짐). **단 하위 폴더는 소유자별로 2개**(a=준형·b=진우)로 나눠 서로 안 겹치게 — 이름은 컴포넌트로 적절히 짓고 세부는 **파일로 구분**. **개수 최소화**(영역 많음 → 잘게 쪼개면 구별 어려움). 예) `engine/evidence`(준형: triage.py·evidence.py) + `engine/reasoning`(진우: hypothesis.py·reasoning.py). **진짜 공유 코드만 별도 폴더**(`engine/core` — `infra/shared`처럼 부득이한 예외). 소유는 아래 표에도 기록. 이음새 계약은 전부 `contracts/`에.
 
 **terraform = 레이어드.** `infra/`에서만 apply하고, 컴포넌트 폴더(scanners·pipeline·engine·rag·attackpath·apps)는 **코드만**(CI가 배포). 쪼개기 단위는 **영역까지만**(영역 안 반반까지 또 terraform 만들지 않음 — 한 영역 = state 1개, 두 사람이 그 파일만 공유).
 
