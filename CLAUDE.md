@@ -18,6 +18,7 @@
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-07-01 / 준형 / 엔진 Evidence·Triage 목업 능동조사 구현(`engine/`) — 데모 심장 1차** — `python -m engine.run_demo`로 **트리아지 게이트(20→12 승급, 비용통제) → Evidence가 계약④ allowlist 강제하며 read-only 툴 4회 자가 호출(챗봇 탈출) → confirmed 판정 → case(계약⑦) 검증**까지 재현. **MockToolExecutor·규칙 플래너**라 `RealToolExecutor`(boto3)·Bedrock LLM으로 갈아끼우면 실AWS 전환(Evidence/Triage 로직 무변 — 계약이 SSOT라 스왑 매끄러움). 담당: 준형=Triage·Evidence / 진우=Hypothesis·Reasoning. 독립 리뷰 반영(타임스탬프 timedelta·검증 강화·가드). **`[PULL 필요]`**
 - **2026-07-01 / 준형 / 진행 관리 단일 지점 = §7.1 확정 + 하이브리드 진행 원칙 + README 역할분담 순서·진행상황** — §7.1을 낡은 "다음 착수 계획"에서 **"현황 + 다음 할 일"** 트래커로 갈아엎음("지금 어디까지/다음 뭐"를 여기서 관리, 큰 그림은 README). §0에 규칙 6(진척 시 §7.1 갱신) 추가. **진행 원칙 = 하이브리드**: 빌드 순서는 인프라 먼저지만 **목업 우선으로 논리 병렬** + **리스크 큰 실검증(엔진 실 tool-use·스캐너 1개→실 finding)은 실클라우드 조기 검증(apply→테스트→destroy 사이클)** (free credit 감안, 상시 방치 금지). README **역할 분담을 진행 순서(①앱&환경 → ⑦attack-path)로 재배치 + 진행상황 컬럼** 추가(①앱&환경: 준형 앱2개 / 진우 M365·Entra 테넌트). **`[PULL 필요]`**
 - **2026-07-01 / 진우 / Cognito SSO 설계 검증 3건 수정 반영** — ① `authenticate-oidc` → `authenticate-cognito` 전면 교체(project-draft §10·아키텍처 다이어그램, console-app-design §4·§7·§15 전 위치 — Cognito 전용 액션이 더 단순하고 클라이언트 시크릿 불필요). ② **Identity Pool 제거** — 프론트가 AWS를 직접 호출하지 않으므로 User Pool만으로 충분, infra/console에서 만들 필요 없음. ③ **console-app-design §7 그룹 클레임 매핑 경로 추가** — Entra SAML attribute→Cognito `custom:groups`→`x-amzn-oidc-data` JWT→Lambda viewer/approver 분기. **`[PULL 필요]`**
 - **2026-07-01 / 준형 / 타깃 앱(`apps/target`) + `infra/target` 결함 IaC 구현 + 콘솔 스텁 4화면 완성 — 독립 리뷰 2회 반영** — **타깃 앱:** member=**Python/FastAPI 확정**(§7 피드백 닫음, `apps/target/member` REST + **PII seeder**=faker 한국형 합성 rrn→S3, Macie 미끼) / product(f1 KEV 이미지·f2 privileged) / order(f5 평문 Azure SP=가짜값) k8s 매니페스트 + namespace `shop`. **`infra/target`:** 결함 IaC 토글(`enable_s3_public` f6·`enable_open_sg` f3·`enable_overpriv_irsa` f4, 기본 off), remote_state로 infra/shared OIDC 참조, **IRSA `:aud`+`:sub` 역할별 고정**. 리뷰 반영: infra/shared에 `eks_oidc_provider`(URL) 출력 추가(target 참조 정합), IRSA sub 조건, botocore ClientError. **콘솔 스텁:** Login(SSO 흐름·역할선택)·Audit(골든 타임라인 12건·필터·불변)·Compliance(ISMS-P↔control 매핑·충족률)·Remediation(실 finding 연동·approver 게이트). **모든 시크릿·PII는 가짜**(격리 데모 전제). py_compile·terraform fmt·tsc·vite build 전부 통과. **`[PULL 필요]`**
@@ -172,8 +173,8 @@ cnapp-agentic/
 **현황 + 다음 (사람별 · 2026-07-01):**
 
 *준형*
-- ✅ 한 것: 관제 앱 **8화면 목업 동작** · 타깃 앱 **member 실행 + shop 포털** · 공통 계약(14 control·목업·CI) · `infra/shared`·`infra/target` 스캐폴드(apply 전)
-- ▶ 다음: **엔진 Evidence·Triage**(`mock-cases.json` 기반 로직부터) — *데모 사수 1순위* → attack-path 그래프 모델 → console-backend(TS Lambda)
+- ✅ 한 것: 관제 앱 **8화면 목업 동작** · 타깃 앱 **member 실행 + shop 포털** · **엔진 Evidence·Triage 능동조사(목업, `python -m engine.run_demo`)** · 공통 계약(14 control·목업·CI) · `infra/shared`·`infra/target` 스캐폴드(apply 전)
+- ▶ 다음: attack-path 그래프 모델(R1~R5 상관은 진우) → console-backend(TS Lambda) → *(실검증)* 엔진 `RealToolExecutor`로 실 read-only API tool-use
 
 *진우*
 - ✅ 한 것: TF state 버킷 · Cognito SSO 설계(authenticate-cognito·그룹 클레임) · 2-pass 트리거 이벤트

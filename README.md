@@ -128,7 +128,7 @@ cnapp-agentic/
 | **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ⬜ 예정 | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM | ⬜ 예정 |
 | **수집 · 정규화** | 수집부 (EventBridge→SQS) | ⬜ 예정 | 정규화부 (Lambda→OCSF) | ⬜ 예정 |
 | **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ⬜ 예정 | 검색 · LLM 답변 생성 | ⬜ 예정 |
-| **엔진 (Bedrock)** | Evidence(tool use) · Triage | ⬜ 다음 착수 후보 | Hypothesis · Reasoning · Orchestrator | ⬜ 예정 |
+| **엔진 (Bedrock)** | Evidence(tool use) · Triage | ✅ 목업 능동조사(`engine/`) | Hypothesis · Reasoning · Orchestrator | ⬜ 예정 |
 | **attack-path** | 그래프 데이터 모델 | ⬜ 예정 | 상관 로직(R1~R5) · 내러티브 | ⬜ 예정 |
 
 > ⚠️ "관제"는 두 가지 — **관제 "앱"**(CNAPP 보안 대시보드 제품) = 준형 / **운영 "관제"**(Grafana·CloudTrail 플랫폼 관측) = 진우. 애플리케이션 2개는 모두 준형이 개발한다.
