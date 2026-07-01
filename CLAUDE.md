@@ -24,6 +24,7 @@
 - **2026-07-01 / 준형 / contracts 계약 정합 4건 수정(target-app-design §2.1 닫음) + validate.py CI 게이트** — ① f5 `resource_id`를 캐논 위반(`aws:eks_pod:…`+type secret_plaintext) → `aws:secret_plaintext:shop/order/AZURE_SP_CRED`로 교정(4.4.1a 예시도 갱신). ② 의미 안 맞는 id 재사용 해소 — 신규 control 3종(`INTERNAL-ECR-SCAN-DISABLED-001`·`INTERNAL-ENTRA-SP-CRED-001`·`INTERNAL-ENTRA-INSECURE-CFG-001`)을 카탈로그에 추가하고 f12/f16/f17 재배정. ③ **f16(Azure SP)을 골든 경로에 편입** — attack-path 노드 n4에 대응 finding이 없던 빈틈을 메움(assert c 충족). ④ `contracts/validate.py`(4-assert: pillar·resource_id↔type·node-finding·dedup_key) + `.github/workflows/contracts-validate.yml` CI 게이트 신설. 검증 통과. **`[PULL 필요]`**
 - **2026-07-01 / 준형 / 타깃 앱 기능 베이스 확정(retail-store-sample-app) + 정답지 contracts 매핑** — target-app-design §1.1 신설: 기능 껍데기 = **AWS retail-store-sample-app**(catalog·orders 2서비스 + 커스텀 member), AWSGoat 미사용·goat류는 패턴 참고만. §2.0 **정답지=contracts 매핑표**(골든 9건↔리소스·control_id), §2.1 **계약 정합 체크리스트 4건**(f5 resource_id↔type 불일치, control 3종 신규 추가, 검증기 4-assert CI 게이트화) — *이건 contracts 구현 전 고칠 후속*. **`[PULL 필요]`**
 - **2026-07-01 / 준형 / `infra/shared` 스캐폴드 착수(레이어드 0번)** — VPC(NAT Gateway 끔 + S3·DynamoDB Gateway Endpoint)·**raw NAT Instance**(t4g.nano, fck-nat AMI)·EKS(spot t3.small·scale 0~2·IRSA·access entry)·ECR 4종·**RDS PostgreSQL t3.micro+pgvector**(private·Secrets Manager)·**GitHub OIDC**(키 없음)·**Evidence read-only 정책**(contracts/evidence-allowlist.json과 1:1)·Bedrock invoke 정책. `terraform fmt`·`validate` 통과. **apply는 게이트 후**(state 버킷 부트스트랩·Bedrock 모델 액세스·TODO 마커·fck-nat AMI 계정 검증). **`[PULL 필요]`**
+- **2026-07-01 / 진우 / project-draft §4.4 2-pass 트리거 이벤트 연쇄 확정** — attack-path Lambda 완료→Triage Lambda 기동 사이 누락 이벤트 발견·보완: `cnapp.attackpath.correlation.completed` 이벤트 명시(DB upsert 완료 후 발행 → Triage 구독, `attack_path_id!=null` 조건 유효성 보장). **`[PULL 필요]`**
 - **2026-06-30 / 준형 / `contracts/` 졸업 — 계약 7종 *.json + control-catalog + mock 데이터 생성** — 산문(4.4/4.4.1) → 실제 JSON Schema(draft 2020-12) 졸업: `finding`·`case`·`attack-path`·`evidence-allowlist`·`ingest-envelope`·`rag-chunk` 스키마 + `control-catalog.json`(INTERNAL control 10종). 목업: `mock-findings.json`(20건, 골든 9건 체이닝, open/remediated/suppressed 혼합)·`mock-attack-paths.json`(골든 1경로, 4 엣지 type·cross_cloud)·`mock-cases.json`(엔진 능동조사 한 장면, Evidence 4회). JSON 유효성·교차참조 정합 검증 통과. **이제 양쪽 병렬 가능** — 진우는 이 목업으로 콘솔, 준형은 infra/shared. **`[PULL 필요]`**
 - **2026-06-30 / 준형 / 검증 후속 전부 확정 + README 폴더구조 갱신** — 진우 "피드백 없음" → 대기 항목 확정: **4.4.1 정규화 규칙 3종**(`resource_id` 캐논 표·INTERNAL `control_id` 카탈로그·remediated source별 스코프) 신설하고 §24 3건 닫음, attack-path **2-pass**·**핵심 영역 분담** 전부 `확정`으로 전환(§5/4.1). README를 실제 폴더구조(contracts·scanners·pipeline·rag·attackpath·troubleshooting)로 갱신 + docs 안내 dead-link(infra-status→manual-infra) 수정. **`[PULL 필요]`**
 - **2026-06-30 / 준형 / CLAUDE.md §6·§7 복구(머지 유실) + §5 손상 수정 + §7.1 Next Up 계획 추가** — `HEAD~4` 머지에서 §6 협업규칙·§7 작업기준이 날아가고 §5 "시간 컷" 불릿이 깨진 채 잘렸던 것 복원(§0의 §6 dead-link 해소). §7.1에 합의된 다음 착수 계획 신설: **착수=둘 동시(contracts+infra 병렬), 데모 컷=절대사수 풀세트, Azure 격리 테넌트=진우 확보.** **`[PULL 필요]`**
@@ -31,16 +32,16 @@
 - **2026-06-30 / 진우 / 설계 미확정 9개 항목 전부 닫음** — ① D4 Azure 키리스 인증(Entra Workload Identity Federation) 확정 ② 트리아지 게이트 임계값(`severity_id≤2` OR `attack_path_id!=null`) ③ 자동 조치 카탈로그 MVP 3종(S3 block·SG 제거·IAM diff) ④ 임베딩 모델 Titan v2 서울 확인·fallback(Cohere Embed Multilingual v3) ⑤ RDS 자동재시작 방지(EventBridge Scheduler+Lambda) ⑥ Prowler Azure cron(`0 17 * * *`) ⑦ attack-path 트리거(배치 완료 EventBridge 이벤트) ⑧ §24 타깃앱 세부·자동조치 체크박스 ⑨ console §14 동기화. project-draft·console-app-design·manual-infra 동기화. **`[PULL 필요]`**
 - **2026-06-30 / 준형 / project-draft 17~24번 섹션 복구(유실 사고 수정)** — `cb2c55a`(이음새 계약 커밋)에서 거버넌스(17)·Shift-Left(18)·테스트(19)·KPI(20)·로드맵(21)·비용 가드레일(22)·확장(23)·미확정(24)이 실수로 삭제됐던 것을 `53f8bd6`(v5.4)에서 추출해 복원. console 설계서가 참조하던 17/19/21/24 dead-link 해소. **`[PULL 필요]`**
 - **2026-06-30 / 준형 / 작업 로그(troubleshooting.md) 신설 + 레포 구조 트리 갱신** — 루트에 **`troubleshooting.md`** 생성: 트러블슈팅 + 진행 로그를 **중앙 1개 파일**에 `[영역]` 태그로 한 줄씩(영역별 파일 금지 — 스프롤·교차패턴 손실 방지). 작업규칙 5번에 기입 형식 명시. CLAUDE 4번 폴더트리를 실제 구조(contracts·scanners·pipeline·rag·attackpath·manual-infra 포함)로 갱신, project-draft 4.6과 정합. **`[PULL 필요]`**
-- **2026-06-30 / 준형 / 이음새 계약 3종 추가 + terraform 레이어링·폴더소유 확정(4.6)** — 반반 분담으로 드러난 이음새를 계약으로 박음: **⑤ 수집 봉투**(수집부↔정규화부, EventBridge·Prowler-S3 두 입구 흡수, `scan_batch_id`) **⑥ 임베딩 모델+rag_chunk**(적재↔검색, `amazon.titan-embed-text-v2:0`/1024 고정) **⑦ 엔진 case 핸드오프**(단일 객체 패싱, `triage.escalate` **트리아지 게이트**=비용통제) + **attack-path 상관규칙 R1~R5**(골든 1경로, 계약③을 채우는 알고리즘). **4.6 신설**: terraform=레이어드(`infra/shared` 기반 먼저→`infra/<영역>` 영역주인 apply, 쪼개기 영역단위까지), 폴더=컴포넌트로(사람폴더 금지)+소유표, 공유편집 4파일(`contracts/`·`engine/core/`·`docs/`·`CLAUDE.md`), CI apply 자동화. **`[PULL 필요]`**
-- **2026-06-30 / 진우 / 비용 최적화 + 설계 잔여 갭 해소** — Aurora→RDS PostgreSQL t3.micro 확정, NAT Instance+Gateway Endpoint 전략, Prowler Azure 파이프라인 진입 확정, 에이전트별 Bedrock 모델 배정(Haiku/Sonnet), CIEM 분담 독립 행, Entra CIEM RAG 룰북, D11·13번 갱신. project-draft v5.4·console-app-design·CLAUDE.md·target-app-design·infra-status.md 동기화. **`[PULL 필요]`**
-- **2026-06-30 / 준형 / 공통 계약 4종 초안 확정 + 미확정 2건 닫음** — project-draft **4.4를 "합의 계약"으로 확장**해 ①OCSF-lite finding 스키마(식별자 `resource_id`로 일반화—Azure ARN 부재 대응, `dedup_key` 중복제거, `ai_status` AI레이어 분리) ②엔진 입출력(Evidence→Reasoning) ③attack-path 그래프 JSON ④Evidence 툴 allowlist(read-only) 초안을 박음. 코딩 시 `contracts/*.json`으로 졸업(별도 schema.md 안 만듦). **계약우선/목업우선 전략**(목업 finding 먼저 커밋→직렬 의존 끊기) 명시. 24번 미확정에서 **레포=모노레포 확정**, **attack-path 계산=커스텀 엔진 확정**. console 5·6.1을 4.4 참조 + `resource_id`로 동기화. ※핵심영역 분담·demo-real 범위는 여전히 진우 협의 대기. **`[PULL 필요]`**
-- **2026-06-30 / 준형 / 작업 분담 표 통합 + 실명(준형/진우) 반영** — 앱·토대(확정)와 핵심 영역(협의중)을 한 표의 상태 열로 통합, 담당을 트랙1·트랙2 → 준형·진우로 교체. 분담은 상시 협의로 조정되는 살아있는 문서임을 명시. 두 파일 동기화.
-- **2026-06-30 / 준형 / 작업 분담 균형안 도입** — 각 영역(스캐너·수집·엔진·RAG·attack-path)을 반반으로, 의존성 순서·합의 인터페이스 2개(OCSF 스키마·엔진 입출력)·시간 컷 우선순위(엔진 능동조사 사수) 명시. 설계서 4·21번 + CLAUDE.md 5번 동기화. *핵심 영역 분담은 진우 협의 후 최종 확정.* **`[PULL 필요]`**
-- **2026-06-30 / 준형 / Azure 역할을 데이터→신원(Entra ID) 중심으로 전면 전환** — 데이터(회원 PII)는 AWS S3 전용·Macie도 AWS 전용, Azure 점검은 Entra CIEM + Defender secure score, 골든 시나리오를 크로스클라우드 신원 탈취 경로로 교체. 설계서 3종·README·CLAUDE.md 모두 동기화. **`[PULL 필요]`**
-
 ### 변경 로그 아카이브
 
-> (아직 없음 — 변경 로그가 15개를 넘으면 오래된 항목을 여기로 이동.)
+> 15개 초과 항목을 아래로 이동.
+
+- **2026-06-30 / 준형 / 이음새 계약 3종 추가 + terraform 레이어링·폴더소유 확정(4.6)** — 반반 분담으로 드러난 이음새를 계약으로 박음: **⑤ 수집 봉투** **⑥ 임베딩 모델+rag_chunk** **⑦ 엔진 case 핸드오프**(트리아지 게이트) + **attack-path 상관규칙 R1~R5**. **4.6 신설**: terraform=레이어드, 폴더=컴포넌트, 공유편집 4파일, CI apply 자동화.
+- **2026-06-30 / 진우 / 비용 최적화 + 설계 잔여 갭 해소** — Aurora→RDS t3.micro, NAT Instance+Gateway Endpoint, Prowler Azure 진입, Bedrock 모델 배정(Haiku/Sonnet), CIEM 분담 독립 행, Entra CIEM RAG 룰북.
+- **2026-06-30 / 준형 / 공통 계약 4종 초안 확정 + 미확정 2건 닫음** — 4.4 합의 계약(OCSF-lite·엔진 입출력·attack-path·Evidence allowlist), 레포=모노레포 확정, attack-path=커스텀 엔진 확정.
+- **2026-06-30 / 준형 / 작업 분담 표 통합 + 실명 반영** — 트랙1·2 → 준형·진우, 상시 협의 문서화.
+- **2026-06-30 / 준형 / 작업 분담 균형안 도입** — 영역 반반, 의존성 순서, 합의 인터페이스 2개, 시간 컷 우선순위 명시.
+- **2026-06-30 / 준형 / Azure 역할을 데이터→신원(Entra ID) 중심으로 전면 전환** — 골든 시나리오 크로스클라우드 신원 탈취 경로로 교체, 설계서 3종·README 동기화.
 
 ---
 
@@ -121,7 +122,7 @@ cnapp-agentic/
 
 | 영역 | 준형 | 진우 | 상태 |
 |---|---|---|---|
-| 앱 | **타깃 앱 + 관제 앱(둘 다)** | — (앱 2개 모두 준형 전담) | 확정 |
+| 앱 | 타깃 앱(결함 심기) | 관제 앱(대시보드·시각화) | 확정 |
 | 토대 | CI/CD·Shift-Left·**공유인프라 주도** | 모니터링·관제·추적(Grafana·CloudTrail) | 확정 |
 | 스캐너-CSPM | CSPM(Config·Prowler·Security Hub·**Macie(AWS S3)**) | 워크로드(Inspector·Trivy·kube-bench·**Defender(Azure)**) | 확정 |
 | 스캐너-CIEM | IAM Access Analyzer(AWS) | Entra ID(Azure — **Prowler entra_id_\* 체크**) | 확정 |
@@ -158,14 +159,14 @@ cnapp-agentic/
 
 ### 7.1 다음 착수 계획 (Next Up — 2026-06-30 준형 합의, 완료 시 갱신)
 
-> 전략 = **목업우선**(`contracts/mock-findings.json` 먼저 → 직렬 의존 끊고 병렬). **선행 결정 전부 확정(진우 검증 완료):** attack-path **2-pass 순서**(§9·4.4), **정규화 규칙 3종**(4.4.1 — `resource_id` 캐논·INTERNAL `control_id` 카탈로그·remediated 스코프), **핵심 영역 분담**(§5 전 영역 확정). → 막힘 없이 `contracts/` 졸업 착수 가능.
+> **`contracts/` 졸업 완료(2026-06-30).** 선행 결정 전부 확정(진우 검증 완료) — **2단계(병렬 토대) 착수 가능.**
 
 **합의된 방향:**
-- **착수 = 둘 동시(병렬).** 준형이 `contracts/` 졸업과 `infra/shared` 스캐폴드를 같은 구간에 진행.
+- **착수 = 둘 동시(병렬).** 준형이 `infra/shared` 스캐폴드, 진우가 콘솔 골격을 병렬 진행.
 - **데모 컷 = 절대사수 풀세트.** CSPM 본체+RAG 설명+대시보드+Azure(Entra) 통합+Shift-Left+KSPM 전부 real 목표(설계서 21번 ①). ※시간 부족 시 컷 순서는 위 **시간 컷 우선순위**(엔진 능동조사 1경로 사수)가 안전망.
 - **Azure 격리 테넌트 = 진우 확보**(골든[4]·SSO 전제 → manual-infra 기록). 진우의 Azure/Defender·Entra CIEM 작업과 연결.
 
 **단계:**
-1. **`contracts/` 졸업**(준형 주도·진우 검증) — 계약 7종 `*.json` + `mock-findings.json`(R1~R5 체이닝 골든 시나리오). 이때 §24 3건 같이 확정 → 양쪽 병렬 unblock.
-2. **병렬 토대** — 준형: `infra/shared` 스캐폴드(VPC·EKS·OIDC·RDS pgvector·ECR·Bedrock IAM + state 버킷 부트스트랩, apply는 검증 후) / 진우: 목업 먹인 콘솔 골격 + findings 읽기 API.
+1. ~~**`contracts/` 졸업**~~ ✅ **완료(2026-06-30)** — 계약 7종 `*.json` + 4.4.1 정규화 규칙 3종 + mock 데이터(골든 R1~R5). §24 3건 확정 → 양쪽 병렬 unblock.
+2. **병렬 토대 ← 현재** — 준형: `infra/shared` 스캐폴드(VPC·EKS·OIDC·RDS pgvector·ECR·Bedrock IAM + state 버킷 부트스트랩, apply는 검증 후) / 진우: 목업 먹인 콘솔 골격 + findings 읽기 API.
 3. **절대사수 한 장면** — 엔진 능동조사 1경로(Evidence tool-use real) + 골든 attack-path 1경로 시각화 = 데모 심장.

@@ -234,7 +234,7 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 
 > 상관 = 한 규칙의 *대상*이 다음 규칙의 *조건 resource*가 되면 엣지를 잇는다(체이닝). 체인 길이 ≥ 3이면 severity를 Critical로 격상(독성 조합). 출력은 계약③ JSON, 콘솔은 그걸 읽어 렌더(console 5.1).
 
-> **attack-path 상관 계산 트리거:** 정규화부 Lambda가 배치 완료 시 `cnapp.findings.batch.completed` 이벤트를 EventBridge에 발행 → attack-path 상관 Lambda 기동. Prowler Azure 스케줄 완료 후에도 동일 이벤트 발행. 결과는 계약③ JSON으로 DB에 upsert.
+> **attack-path 상관 계산 트리거:** 정규화부 Lambda가 배치 완료 시 `cnapp.findings.batch.completed` 이벤트를 EventBridge에 발행 → attack-path 상관 Lambda 기동. Prowler Azure 스케줄 완료 후에도 동일 이벤트 발행. 결과는 계약③ JSON으로 DB에 upsert 후 **`cnapp.attackpath.correlation.completed` 이벤트 발행 → Triage Lambda 기동(2-pass 순서 보장 — `attack_path_id`가 DB에 쓰인 뒤 Triage가 시작해야 `attack_path_id!=null` 조건이 유효).**
 >
 > **실행 순서(2-pass 확정) — §9 UC0와 통일:** ① 정규화 직후 **1차 상관**(R1~R5를 finding 속성만으로 돌려 후보 경로 생성·`attack_path_id` 부여) → ② **트리아지 게이트**가 `severity_id≤2 OR attack_path_id!=null`로 escalate 판정 → ③ escalate된 finding만 **Evidence**가 read-only로 경로 증거 수집 → ④ **2차 상관/Reasoning**이 그 증거로 경로 확정·체인 격상·내러티브 작성. *1차는 규칙(싸고 빠름)으로 후보를 넓게, 2차는 escalate된 소수만 깊게* → 트리아지 게이트(비용 통제)와 정합. (Evidence는 상관의 입력이 아니라 후보 경로의 증거 보강 — 닭/달걀 해소.)
 
