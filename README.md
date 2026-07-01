@@ -113,9 +113,9 @@ cnapp-agentic/
 ├── rag/                      ⬜ RAG — 가제
 │   ├── corpus/               (준형) 코퍼스·임베딩 적재
 │   └── retrieval/            (진우) 검색·LLM 답변
-├── attackpath/               ⬜ attack-path — 가제
-│   ├── model/                (준형) 그래프 데이터 모델
-│   └── correlation/          (진우) R1~R5 상관·내러티브
+├── attackpath/               ✅ finding→그래프 상관 동작 (골든 정합 OK)
+│   ├── model/                (준형) 그래프 데이터 모델·불변식 검증 ✅
+│   └── correlation/          (진우) R1~R5 상관·2-pass backfill ✅
 └── infra/                    Terraform (레이어드) — shared 먼저 → target · console · 영역별
     ├── shared/               ✅ VPC·NAT·EKS·ECR·RDS pgvector·OIDC·IAM (main.tf 스캐폴드, validate 통과)
     ├── target/               ✅ 취약 워크로드 + 의도적 결함 IaC(f3·f4·f6 var.enable_* 토글)
@@ -140,8 +140,8 @@ cnapp-agentic/
 | **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ⬜ 예정 | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM | ⬜ 예정 |
 | **수집 · 정규화** | 수집부 (EventBridge→SQS) | ⬜ 예정 | 정규화부 (Lambda→OCSF) | ⬜ 예정 |
 | **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ⬜ 예정 | 검색 · LLM 답변 생성 | ⬜ 예정 |
-| **엔진 (Bedrock)** | Evidence(tool use) · Triage | ✅ 목업 능동조사(`engine/`) | Hypothesis · Reasoning · Orchestrator | ⬜ 예정 |
-| **attack-path** | 그래프 데이터 모델 | ⬜ 예정 | 상관 로직(R1~R5) · 내러티브 | ⬜ 예정 |
+| **엔진 (Bedrock)** | Evidence(tool use) · Triage | ✅ 목업 능동조사(`engine/`) | Hypothesis · Reasoning · Orchestrator | ✅ 목업 동작(전체 루프) |
+| **attack-path** | 그래프 데이터 모델 | ✅ 모델·불변식 검증(`attackpath/model`) | 상관 로직(R1~R5) · 내러티브 | ✅ R1~R5 상관·2-pass backfill |
 
 > ⚠️ "관제"는 두 가지 — **관제 "앱"**(CNAPP 보안 대시보드 제품) = 준형 / **운영 "관제"**(Grafana·CloudTrail 플랫폼 관측) = 진우. 애플리케이션 2개는 모두 준형이 개발한다.
 

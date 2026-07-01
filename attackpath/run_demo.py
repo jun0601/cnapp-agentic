@@ -13,6 +13,13 @@ from __future__ import annotations
 import copy
 import json
 import os
+import sys
+
+# 윈도우 콘솔(cp949) 대응 — 한글·기호(✅ 등) 출력 시 UnicodeEncodeError 방지.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+except Exception:
+    pass
 
 from attackpath.correlation.correlation import CorrelationEngine
 

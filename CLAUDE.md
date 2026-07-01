@@ -18,6 +18,7 @@
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-07-01 / 준형 / `attackpath/model` 그래프 데이터 모델 구현 + correlation 리팩터(진우 파일 변경)** — 진우가 비워둔 `attackpath/model/`(제 몫)에 **계약③ SSOT 그래프 모델** 구현: `Node`·`Edge`·`AttackPathGraph`(add_node/add_edge/apply_chain_severity/to_dict) + `validate_graph`(cloud·pillar·edge type enum, 엣지가 실존 노드 참조, **cross_cloud 플래그↔실제 경계횡단 일치** 불변식). **correlation.py 리팩터**: 인라인 `_node`/`_edge`/`_CRITICAL_CHAIN_LEN` 제거 → 모델 사용, `correlate()`가 `validate_graph` 통과 후 `to_dict()` 반환(진우 R1~R5 로직 무변). **⚠️ 진우 correlation 출력 변경**: 계약③ `additionalProperties:false` 위반이던 `finding_ids` 키를 출력 dict에서 제거(모델이 backfill용 provenance로 보유·직렬화 제외) → 출력이 계약③에 깨끗하게 정합. `attackpath/run_demo.py` 윈도우 UTF-8 수정(엔진과 동일 버그). 골든 정합 5노드/4엣지/backfill 8건 OK ✅ 유지. **`[PULL 필요]`**
 - **2026-07-01 / 진우 / `attackpath/correlation` 구현 — R1~R5 상관 규칙 완성** — `CorrelationEngine.correlate(findings)`: R1(KEV+open SG) → R2(과도 IRSA) → R3(평문 Azure cred+SP) → R4(공개 S3+PII 동일 버킷) → R5(Entra 과도권한 App) 체인 발화 시 attack-path 그래프(계약③) 생성. 체인 길이 ≥3 → severity Critical 격상. 2-pass backfill(attack_path_id 역주입). 골든 정합(5노드 AWS3+Azure2 / 4엣지 / cross_cloud credential_theft / backfill 8건) OK ✅. 실배포 스왑 = findings 파라미터를 RDS 쿼리로 교체만. **`[PULL 필요]`**
 - **2026-07-01 / 준형 / infra/console·console 앱 소유 stale 정정 → 준형** — project-draft §4.6 terraform 소유표가 아직 "infra/console·console 앱 = 진우"로 남아 있던 것(앱 2개 준형 재배정 때 §5만 고치고 §4.6 누락). **준형으로 정정**(§4.6 표·코드블록·apps 행·apply 불릿 + CLAUDE §4 트리). 원칙: **앱 관련 인프라(shared·target·console)는 준형**(앱 2개·CI/CD·공유인프라 주도), 콘솔 SSO는 준형 Cognito ↔ **진우 Entra App Reg**(manual-infra §3) 연동 — 진우는 IdP(Entra)만. **`[PULL 필요]`**
 - **2026-07-01 / 진우 / engine 재구성 완료 — hypothesis/+orchestrator/ → reasoning/ 1폴더로 합침** — 준형 폴더 규칙(소유자별 2개 최소화) 반영: `hypothesis/hypothesis.py` + `orchestrator/orchestrator.py`를 `reasoning/`으로 이동, import 경로 갱신(`engine.reasoning.hypothesis`, `engine.reasoning.orchestrator`), run_demo.py import 갱신(`engine.reasoning.orchestrator`). 빈 캐시 폴더(triage/ 포함) 전부 삭제. 재실행 exit=0 확인. `engine/` = `core/`(공유) + `evidence/`(준형) + `reasoning/`(진우) 3폴더 확정. **`[PULL 필요]`**
@@ -179,8 +180,8 @@ cnapp-agentic/
 **현황 + 다음 (사람별 · 2026-07-01):**
 
 *준형*
-- ✅ 한 것: 관제 앱 **8화면 목업 동작** · 타깃 앱 **member 실행 + shop 포털** · **엔진 Evidence·Triage 능동조사(목업, `python -m engine.run_demo`)** · 공통 계약(14 control·목업·CI) · `infra/shared`·`infra/target` 스캐폴드(apply 전)
-- ▶ 다음: attack-path 그래프 모델(R1~R5 상관은 진우) → console-backend(TS Lambda) → *(실검증)* 엔진 `RealToolExecutor`로 실 read-only API tool-use
+- ✅ 한 것: 관제 앱 **8화면 목업 동작** · 타깃 앱 **member 실행 + shop 포털** · **엔진 Evidence·Triage 능동조사(목업, `python -m engine.run_demo`)** · **attack-path 그래프 데이터 모델(`attackpath/model`, correlation이 이 모델로 조립)** · 공통 계약(14 control·목업·CI) · `infra/shared`·`infra/target` 스캐폴드(apply 전)
+- ▶ 다음: console-backend(TS Lambda) → *(실검증)* 엔진 `RealToolExecutor`로 실 read-only API tool-use
 
 *진우*
 - ✅ 한 것: TF state 버킷 · Cognito SSO 설계(authenticate-cognito·그룹 클레임) · 2-pass 트리거 이벤트 · Azure/Entra 테넌트 · **엔진 Hypothesis·Reasoning·Orchestrator**
