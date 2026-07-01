@@ -1,0 +1,45 @@
+# order Deployment = retail-store orders fork. 골든 시나리오의 '측면이동 + 자격증명 탈취' 지점.
+#
+# 의도적 결함:
+#   f5 (INTERNAL-SECRET-PLAINTEXT-001): Azure SP 자격증명을 파드 env에 '평문'으로 노출.
+#       → Prowler(eks_*_secret_*)·매니페스트 스캔이 탐지. Secrets Manager 미사용.
+#   f4 (INTERNAL-IAM-OVERPRIV-001): 과도 IRSA(s3:*)는 infra/target IAM 역할에 있음(여기선 SA 참조만).
+#
+# ⚠️ 아래 시크릿 값은 전부 '가짜 placeholder'다 — 실제 자격증명 아님. 데모 결함 시연 전용.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: order
+  namespace: shop
+  annotations:
+    # f4: 과도권한 IRSA(infra/target에서 s3:* 등 부여) — 측면이동 발판
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/cnapp-target-order-irsa" # TODO infra/target
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order
+  namespace: shop
+  labels: { app: order }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: order }
+  template:
+    metadata:
+      labels: { app: order }
+    spec:
+      serviceAccountName: order
+      containers:
+        - name: order
+          image: "ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com/cnapp-agentic/order:latest"
+          ports: [{ containerPort: 8080 }]
+          env:
+            # ── f5 결함: Azure SP 자격증명 평문 노출 (Secrets Manager 미사용) ──
+            # ❌ 전부 FAKE — 실제 자격증명 아님. 데모 결함 시연 전용.
+            - name: AZURE_TENANT_ID
+              value: "00000000-0000-0000-0000-DEMOTENANT00" # FAKE
+            - name: AZURE_SP_CLIENT_ID
+              value: "11111111-1111-1111-1111-DEMOCLIENT11" # FAKE
+            - name: AZURE_SP_CLIENT_SECRET
+              value: "FAKE-DEMO-SP-SECRET~DO-NOT-USE~not-a-real-credential" # ❌ f5 평문 시크릿(가짜)

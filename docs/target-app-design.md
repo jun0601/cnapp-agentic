@@ -208,7 +208,7 @@ LLM이 이 신호들(취약점+KSPM+CIEM+CSPM+데이터, **AWS 워크로드→Az
 |---|---|---|
 | `product` | retail-store `catalog` fork → cart/checkout 의존 제거 슬림화. **이미지만 KEV 취약 베이스로 재빌드**(7.2) | 소 |
 | `order` | retail-store `orders` fork → product·member 참조만. env에 평문 Azure SP(f5) | 소 |
-| `member` | **신규 작성(최소)** — 회원 가입/조회 REST + 기동 시 가짜 PII를 S3 업로드. 스택 = Node/Express 또는 Python/FastAPI(택1, 가벼운 쪽) | 중 |
+| `member` | **신규 작성(최소)** — 회원 가입/조회 REST + 기동 시 가짜 PII를 S3 업로드. 스택 = **Python/FastAPI 확정**(경량 REST + faker 한국형 PII + boto3, engine·pipeline Python과 일관). `apps/target/member/` 구현 완료 | 중 |
 
 > `ui`는 생략(필요 시 최소 스킨). 가짜 PII = faker로 이름+주민번호 *패턴*(실데이터 아님) 생성 → Macie가 잡도록 한국형 패턴 포함.
 
@@ -228,7 +228,7 @@ LLM이 이 신호들(취약점+KSPM+CIEM+CSPM+데이터, **AWS 워크로드→Az
 | f3 SG 0.0.0.0/0 | `infra/target` SG 리소스 | `var.enable_open_sg` |
 | f4 과도 IRSA | `infra/target` IAM role/policy(`s3:*`) | `var.enable_overpriv_irsa` |
 | f5 평문 Azure SP | `order` k8s env(평문) | `var.enable_plaintext_secret` |
-| f6 공개 S3 | `infra/target` S3 public access block off | `var.enable_public_bucket` |
+| f6 공개 S3 | `infra/target` S3 public access block off | `var.enable_s3_public` |
 | f7 PII | member 기동 시 업로드 + `infra/target` 버킷 | (member 동작) |
 | f8·f9 Entra 과도권한·consent | **수동(manual-infra 3)** — IaC 아님, 격리 테넌트 App Reg | 수동 |
 
@@ -249,7 +249,7 @@ infra/target/  Terraform(레이어드, infra/shared 출력 참조) — S3·SG·I
 - **골든 회귀:** 심은 결함 = `contracts/mock-findings.json`의 기대 findings. 스캐너 실제 결과 vs 기대를 CI에서 대조(contracts/validate.py 확장 또는 별도 스크립트) → "전부 탐지됐나"(§6).
 - **Azure:** f8·f9 + order SP는 **수동 셋업**(manual-infra 3, 진우 테넌트). IaC로 관리하지 않음.
 
-> **피드백 요청 2건:** ① member 서비스 스택(Node vs Python) ② 결함 토글 입도 — 개별 `var.enable_*`(세밀, 조합 테스트 쉬움) vs 프로파일 1개(`var.defects_on`, 단순). 권장 = 개별 토글.
+> **피드백 2건 확정(구현 반영):** ① member 서비스 스택 = **Python/FastAPI** ② 결함 토글 입도 = **개별 `var.enable_*`**(f3 `enable_open_sg`·f4 `enable_overpriv_irsa`·f6 `enable_s3_public`, 기본 off) — 조합 회귀 테스트 용이. `infra/target` 구현 완료(remote_state로 infra/shared OIDC 참조, IRSA는 `:aud`+`:sub` 고정). f2·f5는 k8s 매니페스트(product/order) 결함으로 표현.
 
 ---
 

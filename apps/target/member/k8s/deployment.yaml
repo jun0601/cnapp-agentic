@@ -1,0 +1,49 @@
+# member Deployment — 워크로드 자체는 최소권한/비루트로 '깨끗'하게 구성.
+# PII는 S3 seeder로 적재되고, 공개 노출 결함은 infra/target(버킷 정책)에 있다.
+# S3 접근은 IRSA(키리스) — 역할 ARN은 infra/target 출력으로 주입(placeholder).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: member
+  namespace: shop
+  annotations:
+    # infra/target의 member IRSA 역할(최소권한: 이 버킷 PutObject/HeadObject만)
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/cnapp-target-member-irsa" # TODO infra/target 출력
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: member
+  namespace: shop
+  labels: { app: member }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: member }
+  template:
+    metadata:
+      labels: { app: member }
+    spec:
+      serviceAccountName: member
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: member
+          image: "ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com/cnapp-agentic/member:latest" # TODO ECR
+          ports: [{ containerPort: 8080 }]
+          env:
+            - name: MEMBER_PII_BUCKET
+              value: "member-pii-prod" # 공개 결함은 버킷 정책(infra/target)에 있음
+            - name: MEMBER_PII_COUNT
+              value: "200"
+            - name: AWS_REGION
+              value: "ap-northeast-2"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: "50m", memory: "128Mi" }
+            limits: { cpu: "250m", memory: "256Mi" }

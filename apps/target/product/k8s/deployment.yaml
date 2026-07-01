@@ -1,0 +1,33 @@
+# product Deployment — 골든 시나리오 '진입점'.
+# 의도적 결함 f2 (INTERNAL-KSPM-PRIVILEGED-001): privileged + hostPath.
+#   kube-bench / trivy-k8s(KSPM)가 이 파드를 탐지.
+#   ⚠️ 데모 전용 결함. 실서비스 금지. 토글 = 이 매니페스트 적용 여부.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product
+  namespace: shop
+  labels: { app: product }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: product }
+  template:
+    metadata:
+      labels: { app: product }
+    spec:
+      containers:
+        - name: product
+          # f1: KEV 취약 이미지(위 Dockerfile로 빌드한 이미지)
+          image: "ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com/cnapp-agentic/product:latest"
+          ports: [{ containerPort: 8080 }]
+          # ── f2 결함: 과도 권한 파드(privileged) ──
+          securityContext:
+            privileged: true # ❌ 의도적 결함(KSPM) — 컨테이너 탈출 발판
+          volumeMounts:
+            - name: host-root
+              mountPath: /host # ❌ hostPath 마운트(KSPM)
+      volumes:
+        - name: host-root
+          hostPath:
+            path: / # ❌ 노드 루트 파일시스템 노출

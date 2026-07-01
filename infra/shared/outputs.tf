@@ -26,6 +26,11 @@ output "eks_oidc_provider_arn" {
   value       = module.eks.oidc_provider_arn
 }
 
+output "eks_oidc_provider" {
+  description = "IRSA용 OIDC provider URL(스킴 제외) — infra/target 등이 assume-role 조건에 사용"
+  value       = module.eks.oidc_provider
+}
+
 output "ecr_repository_urls" {
   value = { for k, r in aws_ecr_repository.this : k => r.repository_url }
 }

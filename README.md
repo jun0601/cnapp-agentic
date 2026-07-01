@@ -97,7 +97,7 @@ cnapp-agentic/
 ├── contracts/                ✅ ★공유 이음새 계약(7종 JSON Schema) + control-catalog(14종) + 골든 mock 3종 + validate.py
 ├── docs/                     ✅ 설계 SSOT — project-draft · target-app-design · console-app-design · manual-infra
 ├── apps/
-│   ├── target/               📁 취약 타깃 앱 (product · order · member) — 코드만
+│   ├── target/               ✅ 취약 타깃 앱 (product · order · member[Python] + PII seeder) — 코드만
 │   └── console/              ✅ 관제 앱 (Vite+React+TS 골격 스캐폴드, MSW 목업) — 코드만
 ├── engine/                   📁 공유 에이전틱 엔진 — core / triage·evidence / hypothesis·reasoning
 ├── scanners/                 ⬜ cspm · workload 스캐너 연동 — 코드만
@@ -106,7 +106,7 @@ cnapp-agentic/
 ├── attackpath/               ⬜ 상관 모델 · R1~R5 상관 로직 — 코드만
 └── infra/                    Terraform (레이어드) — shared 먼저 → target · console · 영역별
     ├── shared/               ✅ VPC·NAT·EKS·ECR·RDS pgvector·OIDC·IAM (main.tf 스캐폴드, validate 통과)
-    ├── target/               📁 취약 워크로드 + 의도적 결함(f1~f9 토글)
+    ├── target/               ✅ 취약 워크로드 + 의도적 결함 IaC(f3·f4·f6 var.enable_* 토글)
     ├── console/              📁 S3+CloudFront·ALB·Cognito·console-backend·SFn
     └── {scanners,pipeline,…} ⬜ 영역별 terraform(영역 주인이 apply)
 
