@@ -230,9 +230,11 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 | R2 측면이동 | 그 워크로드에 과도 IAM/IRSA 권한 | 엣지(진입→과도권한 resource) | `lateral_move` |
 | R3 자격증명 탈취 | resource에 평문 시크릿 finding이고 그게 Azure 자격증명 | 엣지(→Azure resource) | `credential_theft`, `cross_cloud:true` |
 | R4 데이터 탈취 | 그 권한이 닿는 S3에 public + PII(data) | 엣지(→데이터 노드) | `data_exfil` |
-| R5 신원 장악 | 탈취 Azure 자격증명 + Entra 과도권한 App Registration | 엣지(→Entra 노드) | `identity_takeover`, `cross_cloud:true` |
+| R5 신원 장악 | 탈취 Azure 자격증명 + Entra 과도권한 App Registration | 엣지(→Entra 노드) | `identity_takeover` (Azure 내부, `cross_cloud:false`) |
 
 > 상관 = 한 규칙의 *대상*이 다음 규칙의 *조건 resource*가 되면 엣지를 잇는다(체이닝). 체인 길이 ≥ 3이면 severity를 Critical로 격상(독성 조합). 출력은 계약③ JSON, 콘솔은 그걸 읽어 렌더(console 5.1).
+>
+> **경계 횡단(`cross_cloud:true`)은 R3 `credential_theft`(AWS→Azure) 하나뿐** — R5 `identity_takeover`는 Azure 내부(SP→App Registration) 이동이라 `false`다. 그래프 데이터 모델(`attackpath/model`)의 `validate_graph`가 **`cross_cloud` 플래그 ↔ 노드 cloud 실제 경계횡단 여부 일치**를 강제하므로, R5를 true로 표기하면 검증에서 거부된다(콘솔 강조 렌더가 데이터와 어긋나는 것 방지).
 >
 > **R1 "同 resource"의 실제 매칭 기준(구현 명확화):** KEV finding과 SG finding은 `resource_id`가 다르다(예: `aws:eks_pod:shop/product` vs `aws:security_group:sg-0product1234`) — 문자열 동일이 아니라 **워크로드↔SG 토폴로지 인접**으로 엮는다. 매핑 출처 = 스캐너 리소스 메타데이터(**EKS 파드 → 노드/ENI → attached SG**); 상관 엔진은 각 워크로드 노드에 부착된 SG 집합을 인덱싱해 두고, 그 SG에 open-ingress finding이 있으면 R1을 발화시킨다. **MVP mock**은 이 토폴로지를 명시 선언한다 — 골든 경로의 `shop/product` 파드는 `sg-0product1234` 뒤에 있다고 간주(f1 KEV ↔ f3 open-ingress SG 연결). 실제 배포에선 Prowler/Config의 리소스 관계 필드로 해소.
 

@@ -47,6 +47,7 @@
 
 > 무엇을 만들었/추가했는지 한 줄씩. (git 커밋이 1차 기록이지만, 사람이 빠르게 훑는 용도)
 
+- `2026-07-01 / 준형 / [docs] attackpath 영역 문서 정합 스윕 — attackpath/README.md 신설(model+correlation 워크스루·R1~R5 표·그래프모델·2-pass·스왑). 검토 중 project-draft §4.4 R5 오류 발견: identity_takeover를 cross_cloud:true로 적었으나 n4→n5는 Azure 내부라 false(경계횡단은 R3 credential_theft 하나뿐) → 실구현·mock과 정합하게 수정(validate_graph가 이 불변식 강제). target-app-design §3 산문 4단계↔그래프 5노드(n1~n5) 매핑 명시. console-app-design·contracts/README·manual-infra는 정합 확인(무변)`
 - `2026-07-01 / 준형 / [attackpath] attackpath/model 그래프 데이터 모델 구현(Node·Edge·AttackPathGraph·validate_graph — 계약③ SSOT, cross_cloud↔경계횡단 불변식 검사) + correlation.py 리팩터(인라인 _node/_edge 제거→모델 사용, R1~R5 로직 무변). 계약③ additionalProperties:false 위반이던 finding_ids를 출력에서 제거(모델이 backfill provenance로 보유). run_demo.py 윈도우 UTF-8 수정. python -m attackpath.run_demo 5노드/4엣지/backfill 8건 골든 정합 OK, exit=0`
 - `2026-07-01 / 준형 / [engine] engine/README.md 5단계 워크스루 상세화(§0 챗봇탈출 기준~§7 실험거리, 출력↔코드 매핑·파일링크) + run_demo.py 윈도우 콘솔(cp949) UnicodeEncodeError 수정(sys.stdout.reconfigure utf-8 강제 — 한글·em-dash 출력 크래시 방지). 준형 복습·진우 클로드 이해·심사자 설명 겸용 문서화`
 - `2026-07-01 / 진우 / [attackpath] attackpath/correlation 구현 완료 — CorrelationEngine R1~R5 규칙(KEV+SG->과도IRSA->평문Azure cred+SP->공개S3+PII->Entra App). 체인 >=3 Critical 격상, 2-pass backfill. python -m attackpath.run_demo: 5노드 AWS3+Azure2, 4엣지, cross_cloud credential_theft, backfill 8건 골든 정합 OK`

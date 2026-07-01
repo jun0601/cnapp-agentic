@@ -134,6 +134,8 @@
       = 크로스클라우드 신원 시스템 장악(디렉터리 전체 통제권)
 ```
 
+> **그래프 실현(계약③ = `mock-attack-paths.json`):** 위 산문 4단계는 그래프에서 **5노드**로 펼쳐진다 — `n1` product 취약 이미지 · `n2` order 과도 IRSA · `n3` member 공개 S3+PII · `n4` 탈취 Azure SP 자격증명 · `n5` 과도권한 App Registration. Azure 쪽 [4]가 **n4(SP 자격증명)→n5(App 장악)** 두 노드로 갈린다. 엣지 4종 = `lateral_move`(n1→n2) · `data_exfil`(n2→n3) · `credential_theft`(n2→n4, **유일한 `cross_cloud:true`**) · `identity_takeover`(n4→n5, Azure 내부라 `false`). 노드↔결함 매핑은 §2.0 표.
+
 LLM이 이 신호들(취약점+KSPM+CIEM+CSPM+데이터, **AWS 워크로드→Azure 신원**)을 **하나의 공격 서사로 엮는 것** = attack-path 내러티브 + "왜 LLM이냐"의 답.
 
 > **구현 범위:** MVP는 "order의 평문 시크릿에 Azure 자격증명이 노출되면 → Azure 신원(Entra)까지 장악 위험"을 **분석·시각화**하는 수준까지다. 실제로 AWS에서 Azure로 횡단해 신원을 장악하는 **동작 구현은 보너스**(되면 데모). 정답지(심은 결함)와 그 상관 그래프만으로 차별점은 충분히 성립한다.
