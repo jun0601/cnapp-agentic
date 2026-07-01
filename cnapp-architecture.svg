@@ -224,7 +224,6 @@
   <text x="736" y="1018" font-size="11" fill="#065f46">● 키 없는 인증 — CI/CD는 GitHub OIDC, 파드는 IRSA (장기 키 없음)</text>
   <text x="736" y="1042" font-size="11" fill="#065f46">● 무료 티어 가드레일 — Organizations/Identity Center 안 켬(크레딧 소멸 방지)</text>
   <text x="736" y="1066" font-size="11" fill="#065f46">   종량제 서비스는 데모만 켜고 destroy · Budgets $50/$100 알림</text>
-  <text x="736" y="1088" font-size="9.5" fill="#94a3b8">동기: ① 강사님이 강조한 AI를 에이전틱으로 적용 ② 팀플에서 못 챙긴 보안을 정면으로 보강</text>
 
   <!-- 구현 현황 푸터 (2026-07) -->
   <rect x="40" y="1122" width="1320" height="62" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>

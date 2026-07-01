@@ -92,7 +92,7 @@ cnapp-agentic/
 ├── CLAUDE.md                 ✅ 작업 기준 · 협업 규칙 · 변경 로그(읽기 우선)
 ├── README.md                 ✅
 ├── troubleshooting.md        ✅ 작업 로그 (트러블슈팅 + 진행, [영역] 태그)
-├── cnapp-architecture.svg    ✅ 아키텍처 다이어그램(강사 피드백용)
+├── cnapp-architecture.svg    ✅ 아키텍처 다이어그램
 ├── .github/workflows/        ✅ CI — contracts 정합 게이트(contracts-validate.yml, validate.py 4-assert)
 ├── contracts/                ✅ ★공유 이음새 계약(7종 JSON Schema) + control-catalog(14종) + 골든 mock 3종 + validate.py
 ├── docs/                     ✅ 설계 SSOT — project-draft · target-app-design · console-app-design · manual-infra
