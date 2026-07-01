@@ -1,0 +1,39 @@
+{
+  "name": "cnapp-console",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "CNAPP 관제 앱 (console) — findings·attack-path·AI 설명 대시보드. 목업 우선(MSW + contracts/mock-*.json).",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "gen:types": "node scripts/gen-types.mjs",
+    "msw:init": "msw init public/ --save"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.59.0",
+    "@xyflow/react": "^12.3.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.27.0",
+    "recharts": "^2.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.8.1",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "json-schema-to-typescript": "^15.0.3",
+    "msw": "^2.6.0",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  },
+  "msw": {
+    "workerDirectory": ["public"]
+  }
+}

@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*.local
+
+# MSW 워커는 생성물이지만 커밋해도 무방 — 여기선 무시(각자 msw:init)
+# public/mockServiceWorker.js
+
+.DS_Store
+*.log
