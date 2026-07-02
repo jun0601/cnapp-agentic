@@ -18,8 +18,12 @@ from typing import Optional
 
 _SEV_LABEL = {1: "Critical", 2: "High", 3: "Medium", 4: "Low", 5: "Info"}
 
-# 실배포 시 Bedrock 서울 model ID 확정 필요 (현재 플레이스홀더)
-_BEDROCK_MODEL_ID = "anthropic.claude-sonnet-4-5"
+# ⚠️ 실배포 전 반드시 교체: 아래는 bare name(별칭)이라 Bedrock에서 404 남.
+#   실 RAG 스왑 세션에서 콘솔 '추론 프로파일'의 Global inference profile ID로 교체
+#   (Haiku가 global.anthropic.claude-haiku-4-5-20251001-v1:0로 확정된 것과 동일 방식).
+#   예상 형태: global.anthropic.claude-sonnet-...-v1:0 (정확 버전은 콘솔 확인).
+#   지금은 mock=True 경로만 동작해 안 터지지만, mock=False 실호출 시 즉시 404.
+_BEDROCK_MODEL_ID = "anthropic.claude-sonnet-4-5"  # TODO(실전환): global inference profile ID로 교체
 
 
 def _mock_explanation(finding: dict, chunks: list[dict], evidence: list[dict]) -> str:

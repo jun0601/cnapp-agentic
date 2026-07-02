@@ -64,6 +64,16 @@ def _asff_severity(label: str) -> int:
 def _prowler_severity(label: str) -> int:
     return _PROWLER_SEV.get(label.lower(), 3)
 
+# OCSF severity_id(0 Unknown·1 Info·2 Low·3 Medium·4 High·5 Critical·6 Fatal)
+# → 내부 컨벤션(1 Critical ~ 5 Info). 방향이 반대라 매핑 필요.
+_OCSF_SEV = {0: 3, 1: 5, 2: 4, 3: 3, 4: 2, 5: 1, 6: 1}
+
+def _ocsf_severity_id(sid) -> int:
+    try:
+        return _OCSF_SEV.get(int(sid), 3)
+    except (TypeError, ValueError):
+        return 3
+
 
 # ── resource_id 캐논화 (4.4.1a 규칙) ─────────────────────────────────
 # 형식: {cloud}:{type}:{native_id}
@@ -194,6 +204,66 @@ def _parse_prowler(raw: dict, cloud_hint: str) -> List[dict]:
         first_seen=ts,
         last_seen=ts,
     )]
+
+
+# ── OCSF 파서 (Prowler `-M json-ocsf` — AWS+Azure 공통) ───────────────
+# 설계 확정(project-draft §24·계약⑤): 실 Prowler는 OCSF로 출력 → S3 → ingest가
+# source_format="ocsf"로 봉투화(from_s3_event). OCSF는 클라우드 중립이라 AWS 전용
+# ASFF와 달리 Azure Entra까지 파서 하나로 커버한다("멀티클라우드 OCSF 통합" 셀링포인트).
+# ⚠️ OCSF는 Prowler 버전별로 필드 위치가 조금씩 달라 여러 경로를 방어적으로 탐색한다.
+#    (실 OCSF fixture 확보 전이라 run_demo의 mock OCSF로 shape 검증 — 실전환 시 실출력과 대조)
+def _parse_ocsf(raw: dict, cloud_hint: str) -> List[dict]:
+    """OCSF Detection Finding(Prowler) 단건 → finding 목록(resources[]별 1건)."""
+    unmapped = raw.get("unmapped") or {}
+    # check_id: control 매핑 키. Prowler OCSF는 metadata.event_code에 체크ID를 둔다.
+    check_id = (
+        raw.get("metadata", {}).get("event_code")
+        or unmapped.get("check_id")
+        or unmapped.get("CheckID")
+        or ""
+    )
+    source_key = f"prowler:{check_id}" if check_id else "prowler:unknown"
+    control_id = lookup_control(source_key)
+
+    cloud = (raw.get("cloud") or {}).get("provider") or cloud_hint
+
+    # status: OCSF status_code(PASS/FAIL) 우선 → FAIL=open. status("New"/"Suppressed") 보조.
+    status_code = str(raw.get("status_code") or raw.get("status") or "FAIL").upper()
+    status = "open" if status_code in ("FAIL", "FAILED", "NEW") else "remediated"
+
+    # severity: Prowler가 문자열("High" 등) 주면 그걸 우선(ASFF/prowler와 동일 매핑),
+    # 없으면 OCSF 숫자 severity_id를 내부 컨벤션으로 뒤집어 매핑.
+    sev_label = raw.get("severity")
+    severity_id = _prowler_severity(sev_label) if sev_label else _ocsf_severity_id(raw.get("severity_id", 3))
+
+    title = raw.get("finding_info", {}).get("title") or raw.get("message") or check_id
+    ts = raw.get("time_dt") or raw.get("time")
+    if not isinstance(ts, str):
+        ts = _now()
+
+    findings: List[dict] = []
+    for res in (raw.get("resources") or [{}]):
+        raw_id = res.get("uid") or res.get("name") or ""
+        # 리소스 타입: OCSF resources[].group.name(=Prowler service) → _PROWLER_RTYPE.
+        # 없으면 type 문자열로 폴백. Azure는 resourceId가 이미 캐논(azure:...)이면 passthrough.
+        svc = (res.get("group") or {}).get("name") or res.get("type") or ""
+        rtype = _PROWLER_RTYPE.get(str(svc).lower(), "other")
+        rid = _canon_resource_id(cloud, rtype, raw_id)
+        dedup = f"{rid}|{control_id}" if control_id else f"{rid}|{source_key}"
+        findings.append(_make_finding(
+            cloud=cloud,
+            resource_id=rid,
+            resource_type=rtype,
+            control_id=control_id or "INTERNAL-UNKNOWN-001",
+            title=title,
+            severity_id=severity_id,
+            status=status,
+            source_key=source_key,
+            dedup_key=dedup,
+            first_seen=ts,
+            last_seen=ts,
+        ))
+    return findings
 
 
 # ── Trivy JSON 파서 ───────────────────────────────────────────────────
@@ -329,6 +399,9 @@ class Normalizer:
             return _parse_asff(raw, source, cloud_hint)
         if fmt == "prowler-json":
             return _parse_prowler(raw, cloud_hint)
+        if fmt == "ocsf":
+            # Prowler json-ocsf(실 Azure·AWS 경로) — from_s3_event가 이 포맷으로 봉투화
+            return _parse_ocsf(raw, cloud_hint)
         if fmt == "trivy-json":
             return _parse_trivy(raw, cloud_hint)
         # custom(manifest scan 등)은 이미 정규화된 finding dict로 간주

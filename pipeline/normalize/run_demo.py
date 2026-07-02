@@ -187,6 +187,48 @@ MOCK_ENVELOPES = [
             "cloud": "aws",
         },
     },
+    # ── OCSF(실 Prowler json-ocsf 경로) AWS: S3 공개버킷 → INTERNAL-S3-PUBLIC-001 ──
+    #    설계 확정(§24·계약⑤): 실 Prowler는 OCSF 출력 → ingest가 source_format="ocsf" 봉투화.
+    #    OCSF 파서 하나로 AWS·Azure 둘 다 커버함을 아래 2건(AWS/Azure)으로 증명.
+    {
+        "envelope_id": "e0000001-0000-4000-8000-000000000009",
+        "source": "prowler-aws",
+        "source_format": "ocsf",
+        "cloud_hint": "aws",
+        "scan_batch_id": "batch-2026-07-02-prowler-ocsf-aws",
+        "ingested_at": "2026-07-02T01:25:00Z",
+        "raw_inline": {
+            "metadata": {"event_code": "s3_bucket_public_access",
+                         "product": {"name": "Prowler"}},
+            "severity": "High",
+            "status_code": "FAIL",
+            "finding_info": {"title": "S3 Bucket Public Access Block disabled"},
+            "cloud": {"provider": "aws"},
+            "resources": [{"uid": "arn:aws:s3:::member-pii-prod",
+                           "group": {"name": "s3"}}],
+            "time_dt": "2026-07-02T01:25:00Z",
+        },
+    },
+    # ── OCSF(실 Prowler json-ocsf 경로) Azure: Entra 과도권한 App → INTERNAL-ENTRA-OVERPRIV-APP-001 ──
+    {
+        "envelope_id": "e0000001-0000-4000-8000-00000000000a",
+        "source": "prowler-azure",
+        "source_format": "ocsf",
+        "cloud_hint": "azure",
+        "scan_batch_id": "batch-2026-07-02-prowler-ocsf-azure",
+        "ingested_at": "2026-07-02T01:25:00Z",
+        "raw_inline": {
+            "metadata": {"event_code": "entra_id_app_registration_overprivileged",
+                         "product": {"name": "Prowler"}},
+            "severity": "Critical",
+            "status_code": "FAIL",
+            "finding_info": {"title": "Entra App Registration granted Directory.ReadWrite.All"},
+            "cloud": {"provider": "azure"},
+            "resources": [{"uid": "azure:app_registration:283ca885-134e-4a74-92d6-7dd1ed9cd46f",
+                           "group": {"name": "appregistration"}}],
+            "time_dt": "2026-07-02T01:25:00Z",
+        },
+    },
 ]
 
 
@@ -225,6 +267,23 @@ def main() -> int:
             print(f"  {f['resource_id']} | {f['control_id']}")
             print(f"  sources: {f['sources']}")
 
+    # ── OCSF 파서 단독 검증 (dedup 머지로 가려지는 silent-fail 방지) ──
+    _hr("OCSF 파서 단독 검증 (Prowler json-ocsf — AWS+Azure 파서 1개)")
+    ocsf_envs = [e for e in MOCK_ENVELOPES if e["source_format"] == "ocsf"]
+    ocsf_findings: list = []
+    for e in ocsf_envs:
+        ocsf_findings.extend(normalizer.normalize(e))
+    ocsf_ctrls = {f["control_id"] for f in ocsf_findings}
+    ocsf_ok = (
+        len(ocsf_findings) == len(ocsf_envs)                       # 봉투마다 finding 1건
+        and "INTERNAL-S3-PUBLIC-001" in ocsf_ctrls                 # AWS OCSF
+        and "INTERNAL-ENTRA-OVERPRIV-APP-001" in ocsf_ctrls        # Azure OCSF (동일 파서)
+        and "INTERNAL-UNKNOWN-001" not in ocsf_ctrls               # check_id 매핑 성공
+    )
+    for f in ocsf_findings:
+        print(f"  ✓ {f['cloud']:5s} {f['control_id']} ({f['resource_id']})")
+    print("OCSF 파서 AWS+Azure 매핑: %s" % ("OK ✅" if ocsf_ok else "FAIL ⚠️"))
+
     # ── 골든 정합 검증 ──────────────────────────────────────────────
     _hr("골든 정합 검증")
     ctrl_ids = {f["control_id"] for f in deduped}
@@ -240,9 +299,10 @@ def main() -> int:
     missing = golden_expected - ctrl_ids
     extra_unknown = {c for c in ctrl_ids if c == "INTERNAL-UNKNOWN-001"}
 
-    ok = not missing and not extra_unknown
+    ok = not missing and not extra_unknown and ocsf_ok
     print("골든 control_id 전부 매핑: %s" % ("OK ✅" if not missing else "FAIL ⚠️  누락: " + str(missing)))
     print("UNKNOWN control 없음    : %s" % ("OK ✅" if not extra_unknown else "FAIL ⚠️  있음"))
+    print("OCSF 파서(AWS+Azure)     : %s" % ("OK ✅" if ocsf_ok else "FAIL ⚠️"))
     print("전체: %s" % ("OK ✅" if ok else "FAIL ⚠️"))
     return 0 if ok else 1
 
