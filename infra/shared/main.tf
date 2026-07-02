@@ -109,7 +109,7 @@ data "aws_ami" "fck_nat" {
 
 resource "aws_security_group" "nat" {
   name        = "${var.project}-nat"
-  description = "NAT instance — VPC 내부에서 들어와 인터넷으로 나감"
+  description = "NAT instance - inbound from VPC, outbound to internet"
   vpc_id      = module.vpc.vpc_id
 
   ingress {
@@ -276,11 +276,11 @@ resource "aws_db_subnet_group" "this" {
 
 resource "aws_security_group" "rds" {
   name        = "${var.project}-rds"
-  description = "RDS pgvector — VPC 내부에서만 5432"
+  description = "RDS pgvector - 5432 from within VPC only"
   vpc_id      = module.vpc.vpc_id
 
   ingress {
-    description = "PostgreSQL from VPC (Lambda VPC + EKS). TODO: 소스 SG로 좁히기"
+    description = "PostgreSQL from VPC (Lambda + EKS). TODO: narrow to source SG"
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"

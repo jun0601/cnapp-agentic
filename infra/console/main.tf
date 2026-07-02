@@ -235,7 +235,7 @@ data "archive_file" "backend" {
 
 resource "aws_security_group" "backend_lambda" {
   name        = "${var.project}-console-backend"
-  description = "console-backend Lambda egress(RDS·Bedrock·SFn)"
+  description = "console-backend Lambda egress (RDS, Bedrock, SFn)"
   vpc_id      = local.vpc_id
   egress {
     from_port   = 0
