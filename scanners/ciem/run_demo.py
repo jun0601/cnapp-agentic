@@ -55,10 +55,12 @@ MOCK_PROWLER_AZURE_CHECKS = [
         "timestamp": "2026-07-02T01:20:00Z",
         "cloud": "azure",
     },
-    # ── f16 골든 finding: SP 자격증명 무만료 ────────────────────────────
+    # ── f16 골든 finding: SP 자격증명 장기 유효(24개월, 6개월 초과 기준) ──
+    #    Entra는 포털에서 "무만료" 옵션 자체를 지원 안 함(최대 24개월) → 기준을
+    #    "무만료"가 아닌 "장기 유효(>6개월)"로 완화(2026-07-02 확정, manual-infra §3.6.4).
     {
         "checkID": "entra_id_sp_credential_no_expiry",
-        "checkTitle": "Service Principal credential without expiry (leak risk)",
+        "checkTitle": "Service Principal credential with excessive validity (24 months, leak risk)",
         "status": "FAIL",
         "severity": "high",
         "service": "entraid",

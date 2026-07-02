@@ -103,8 +103,8 @@
 | 항목 | 내용 | 담당 | 상태 |
 |---|---|---|---|
 | **② App Registration — SSO 연동용** | Cognito SAML 2.0 IdP 연동. `custom:groups` 클레임 매핑(console-app-design §7). *`infra/console` 선행.* | 진우 | 미착수 |
-| **③ App Registration — 과도권한 결함용** | `Directory.ReadWrite.All` Application 권한. 골든 f8·f16 소스. | 진우 | ✅ 완료 |
-| **③ Service Principal — order 평문 시크릿용** | `Directory.Read.All` + `Application.Read.All` 스코프만. 만료일 6개월. order 파드 env에 평문 노출(결함 f5). | 진우 | ✅ 완료 |
+| **③ App Registration — 과도권한 결함용** | `Directory.ReadWrite.All` Application 권한. 골든 f8 소스. | 진우 | ✅ 완료 |
+| **③ Service Principal — order 평문 시크릿용** | `Directory.Read.All` + `Application.Read.All` 스코프만. 만료일 24개월(장기 유효 — f16 소스 겸용). order 파드 env에 평문 노출(결함 f5). | 진우 | ✅ 완료 |
 | **③ Service Principal — Prowler 스캔용** | `Directory.Read.All` + `Policy.Read.All` + `AuditLog.Read.All`. Prowler Azure 모드가 이 SP로 Entra/Defender 스캔 → OCSF → S3. | 진우 | ✅ 완료 |
 | **④ Federated Identity Credential (Prowler SP)** | Prowler 스캔 SP에 GitHub Federated Credential 등록. Subject: `repo:jun0601/cnapp-agentic:ref:refs/heads/main`. 키리스 인증(D4). | 진우 | ✅ 완료 |
 | **⑤ Defender for Cloud** | 데모 기간만 활성, 이후 비활성(종량제 — project-draft 22번). | 진우 | 미착수 |
@@ -121,7 +121,6 @@
 | **클라이언트 시크릿 값** | ⚠️ git 미기록 — 본인 로컬 보관. 실배포 시 Secrets Manager 이전 예정 |
 
 > 이 앱 등록 자체가 CIEM finding `INTERNAL-ENTRA-OVERPRIV-APP-001`(f8)의 소스.
-> 만료 없는(장기) 시크릿이 finding `INTERNAL-ENTRA-SP-CRED-001`(f16)의 소스.
 
 #### 3.6.2 order 평문 시크릿용 SP 상세 ✅
 
@@ -131,10 +130,11 @@
 | **Application (client) ID** | `541938e7-2d6d-4098-b211-1512f3026a30` |
 | **Tenant ID** | `8e160cea-faa9-47de-a717-6eb01e4a262b` |
 | **API 권한** | `Directory.Read.All` + `Application.Read.All` (Application, 관리자 동의 완료) |
-| **클라이언트 시크릿 만료** | 6개월 (~2027-01) |
+| **클라이언트 시크릿 만료** | 24개월(2028-07-01) — 비밀 ID `e0589f10-3ad7-4975-81c3-a21f324d1e14` |
 | **클라이언트 시크릿 값** | ⚠️ git 미기록 — 본인 로컬 보관. `apps/target/order` 파드 env에 평문 노출 예정(결함 f5) |
 
 > 이 SP 자격증명을 order 파드 매니페스트 env에 평문으로 박는 것 자체가 finding `INTERNAL-SECRET-PLAINTEXT-001`(f5) 소스.
+> **장기(24개월) 유효 시크릿 자체가 finding `INTERNAL-ENTRA-SP-CRED-001`(f16)의 소스** — 2026-07-02 §3.6.4 리마인더 해소 시 6개월→24개월로 재발급(기존 시크릿 `acbe478f-...` 삭제). Entra가 포털 레벨에서 "무만료" 옵션 자체를 지원 안 해 최대치(24개월/730일)로 설정 — control 타이틀도 "무만료"가 아닌 "장기 유효(6개월 초과)"로 완화.
 
 #### 3.6.3 Prowler 스캔용 SP 상세 ✅
 
@@ -151,10 +151,11 @@
 
 #### 3.6.4 ⚠️ 실전환 시 맞출 것 (mock ↔ real 정합 — 지금은 정상, 나중 리마인드)
 
-Prowler가 실제 Entra finding을 흘리기 시작하면 아래 2건을 반드시 맞춘다:
+Prowler가 실제 Entra finding을 흘리기 시작하면 아래를 반드시 맞춘다:
 
 1. **mock GUID → 실 appId 스왑.** `contracts/mock-attack-paths.json`·`mock-findings.json`의 Azure 노드는 placeholder GUID(n4 `azure:service_principal:b2c3d4e5…` · n5 `azure:app_registration:a1b2c3d4…`)다. 실 finding의 `resource_id`는 위 실제 appId(`order-sp 541938e7…` · `overpriv-app 283ca885…`)를 써야 정합(4.4.1a 캐논). **실전환 전까지는 placeholder가 정상.**
-2. **f16(무만료 SP cred, `INTERNAL-ENTRA-SP-CRED-001`) 노드 매핑 확인.** contracts/target-app-design §2.0은 f16 → **노드 n4(service_principal)**로 매핑. 그런데 실물에선 무만료(24개월) 시크릿을 **`overpriv-app`(App Registration, n5쪽)**에 붙였고, 실 SP인 `order-sp`엔 6개월(f5용)을 붙였다. → **f16을 n4(order-sp)에 둘지 / n5(overpriv-app)에 둘지 진우와 확정** 후 mock·카탈로그·§2.0을 일치시킨다.
+
+**[x] f16 노드 매핑 확정(2026-07-02, 준형↔진우 확정) — closed.** `attackpath/correlation.py`의 R3 규칙이 `INTERNAL-ENTRA-SP-CRED-001` control_id를 가진 finding을 **코드로 n4에 고정**해서 배정한다(`_R3_AZURE_SP` → `Node("n4", ...)`). 이 control_id를 다른 노드로 옮기면 그래프가 깨지므로(n4/n5 resource_id 충돌), **f16 = n4(order-sp) 고정**으로 확정 — mock/contracts 변경 없음. 대신 실물 쪽을 맞춤: order-sp 시크릿을 6개월→**24개월(2028-07-01, 비밀 ID `e0589f10-3ad7-4975-81c3-a21f324d1e14`)로 재발급**(§3.6.2). Entra가 포털에서 "무만료" 옵션을 아예 제공하지 않아(플랫폼 보안 기본값 — 최대 730일/24개월) control 타이틀도 "무만료" 대신 **"장기 유효(6개월 초과)"**로 완화(control-catalog.json·mock-findings.json·target-app-design §2.0 반영). overpriv-app(§3.6.1)은 f8만 소스, f16과 무관으로 정정.
 
 ---
 
