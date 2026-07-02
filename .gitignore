@@ -141,3 +141,29 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+.venv/
+venv/
+*.egg-info/
+*.egg
+pip-log.txt
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+*.cover
+
+# Terraform (루트 레벨 보조 — 각 infra/ 하위에도 .gitignore 있음)
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+.terraform.lock.hcl
+terraform.tfvars
+override.tf
+override.tf.json
