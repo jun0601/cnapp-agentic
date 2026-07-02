@@ -1,0 +1,35 @@
+# ArgoCD Application — 타깃 앱(shop) GitOps 배포.
+# 개념: Git(이 레포)이 '원하는 상태'의 단일 진실. ArgoCD가 클러스터로 pull-sync(자동)하고,
+#       드리프트가 생기면 self-heal로 되돌린다(수동 kubectl 변경 무효화). project-draft §19 #3 드리프트와 정합.
+#       pull 기반이라 CI에 클러스터 자격증명을 밀어넣지 않음(키리스/최소권한 테마와 정합).
+#
+# 적용(EKS 살아있을 때, gitops/README 부트스트랩 후):
+#   kubectl apply -f gitops/argocd/app-target.yaml
+#
+# ⚠️ product 매니페스트의 image가 ACCOUNT_ID placeholder라, 실 배포 전 ECR push + 이미지 치환 필요.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shop-target
+  namespace: argocd
+  # destroy(App 삭제) 시 배포 리소스도 같이 정리 — apply→destroy 사이클 비용 규율.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jun0601/cnapp-agentic.git
+    targetRevision: main
+    path: apps/target
+    directory:
+      recurse: true # apps/target/**/k8s 의 매니페스트(namespace·product·order·member)를 모두 sync
+      include: "{k8s/*.yaml,k8s/*.yml}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: shop
+  syncPolicy:
+    automated:
+      prune: true # Git에서 지운 리소스는 클러스터에서도 제거
+      selfHeal: true # 클러스터 드리프트를 Git 상태로 자동 복구
+    syncOptions:
+      - CreateNamespace=true # shop 네임스페이스 자동 생성(namespace.yaml도 있으나 안전망)

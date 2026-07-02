@@ -48,7 +48,7 @@
 |---|---|---|---|
 | **NAT Instance** (`t4g.nano` + fck-nat AMI) | NAT Gateway | 월 **~$32 → ~$3** + 데이터 처리비 | HA 없음(단일 인스턴스), 수동 관리. 데모엔 무관 |
 | **S3·DynamoDB Gateway Endpoint** | NAT 경유 트래픽 | 두 서비스 트래픽은 **NAT 우회(무료 경로)** | Gateway Endpoint 지원 서비스에 한정 |
-| **EKS spot `t3.small` · scale 0~2** | on-demand·상시 노드 | spot 할인 + **비데모 시 노드 0개**(scale-to-zero) | spot 회수 가능성, 콜드스타트. 데모 시 desired만 올림 |
+| **EKS + Karpenter(spot) · consolidation** | on-demand·고정 노드그룹 | spot 할인 + **저활용/빈 노드 자동 정리(consolidation)** + 필요 시 just-in-time 프로비저닝 | spot 회수 가능성·콜드스타트. control plane 고정비($0.10/h)는 오토스케일러로 못 줄임 → destroy로만 |
 | **RDS `db.t3.micro` + pgvector** | Aurora Serverless / OpenSearch | 벡터DB를 **기존 postgres에 동거**(추가 인프라 0) | 소규모 전용, 스케일 한계. 데모 코퍼스엔 충분 |
 
 > ⚠️ **정직한 주의:** EKS control plane은 노드가 0개여도 **시간당 ~$0.10 고정**이다. 그래서 클러스터를 상시 방치하지 않고 **`apply → test → destroy` 사이클**로 실사용 시간만 과금한다 — 이 규율이 없으면 위 절감이 무의미해진다.
@@ -91,6 +91,25 @@
 | **절감** | 특히 **Macie(스캔 GB당)·Inspector**를 상시 켜지 않아 큰 폭 절감 |
 | **트레이드오프** | 연속 모니터링 데이터는 안 쌓임(데모는 스냅샷). 실무는 상시 필요 |
 | **가드레일** | AWS Budgets 알림 상시 유지로 초과 조기 감지 |
+
+### 2.7 배포·오토스케일링 — CI/CD + Karpenter/HPA (개념과 근거)
+
+> "이왕 할 거 CI/CD 다 한다. free credit이라 데모 세션엔 부담 없음 — 대신 **개념 정확 + 절감 근거**를 남긴다."
+
+**CI / CD를 나눈 이유(비용 관점):**
+
+| | 무엇 | 언제 | 비용 | 근거 |
+|---|---|---|---|---|
+| **CI** (GitHub Actions) | 코드 회귀(run_demo·run_e2e·validate) + Shift-Left 스캔(Trivy·Checkov) | 매 push·PR | **$0** (인프라 무관) | 항상 켜도 공짜 → 2인 병렬 회귀 방지 + 차별점(Shift-Left) 상시 증명 |
+| **CD** (ArgoCD GitOps) | Git 매니페스트 → EKS 배포·self-heal | EKS 살아있을 때 | EKS 시간과금 | 살아있는 클러스터 필요 → `apply→데모→destroy` 사이클로만 |
+
+**CD = ArgoCD 선택 근거:** GitOps 표준 · pull 기반(CI에 클러스터 키 안 밀어넣음, 키리스 정합) · self-heal(드리프트 자동복구, §19 #3) · 데모 UI · cosign 서명 강제 훅(D17). 대안(Flux 경량·UI약 / GH Actions push=GitOps 아님·드리프트 교정 없음)보다 우위.
+
+**오토스케일링 2층:**
+- **파드층 = HPA** — replica를 CPU 부하로 조절(metrics-server 필요).
+- **노드층 = Karpenter**(Cluster Autoscaler 대체) — spot 우선 + 인스턴스 유연 + **consolidation(저활용 노드 자동 정리)**로 유휴 비용 제거. 노드그룹 사전정의 불필요.
+
+**⚠️ 정직한 핵심(과장 금지):** 데모 규모(파드 소수)에선 **노드 오토스케일러 선택이 실비를 크게 좌우하지 않는다.** 진짜 비용 1위는 **EKS control plane $0.10/h 고정**(노드 수 무관)이라 **destroy만이 답**이다. 그래서 Karpenter를 고른 이유는 *실 절감보다* **모던 아키텍처 + 포폴 신호(FinOps 역량)**이고, 실제 절감은 **(a) 안 쓸 때 destroy (b) spot** 이 지배적. 선언형 코드는 [`gitops/`](../gitops/)에.
 
 ---
 

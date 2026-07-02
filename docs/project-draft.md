@@ -719,7 +719,7 @@ MVP 코퍼스: A(CIS AWS+K8s) + FSBP + C(KEV) + E(자체 루브릭).
 
 - 크레딧 소멸 트리거: **Organizations / Identity Center / Control Tower → 절대 안 켬.**
 - Config·Security Hub·Inspector·Macie·Defender는 종량제 → **데모 기간만 켜고 `destroy`.** 서비스별 1일 추정: Config ~$0.30, Security Hub ~$0.03, Inspector ~$0.01, Macie 첫 달 무료(이후 $1/버킷), Defender ~$0.02/서버/시간.
-- **EKS:** NAT Gateway 제거 → **NAT Instance(t3.nano, ~$3.40/월) + S3·DynamoDB Gateway Endpoint(무료)** 조합. ※ Interface VPC Endpoint는 개당 $7.30/월 — 6개 시 $43.80/월로 NAT Gateway($32.85)보다 비쌈. **spot + 작은 노드(t3.small×2)**, 비데모 시 **노드 스케일-0**(Cluster Autoscaler minSize=0), 완전 비사용 시 `terraform destroy`, **Budgets 알림($50/$100)**.
+- **EKS:** NAT Gateway 제거 → **NAT Instance(t3.nano, ~$3.40/월) + S3·DynamoDB Gateway Endpoint(무료)** 조합. ※ Interface VPC Endpoint는 개당 $7.30/월 — 6개 시 $43.80/월로 NAT Gateway($32.85)보다 비쌈. **노드 오토스케일러 = Karpenter(spot·consolidation, Cluster Autoscaler 대체)** + 파드 **HPA**. ⚠️ control plane 고정비($0.10/h)는 오토스케일러로 못 줄이므로 **비사용 시 `terraform destroy`가 핵심 절감**, **Budgets 알림($50/$100)**. 배포 = **ArgoCD GitOps**(CI = GitHub Actions·$0). 상세 근거·선언형 코드 = [cost-strategy.md §2.7](cost-strategy.md)·[`gitops/`](../gitops/).
 - **DB: RDS PostgreSQL t3.micro + pgvector** (Aurora 미사용 — idle 최소 $43/월). free tier 12개월. 이후 ~$13/월. 비데모 시 **RDS Stop**(최대 7일 자동유지, 이후 재시작) → 스토리지만 $0.115/GB/월(20GB ≈ $2.30/월). **7일 자동 재기동 방지: EventBridge Scheduler(daily 새벽 2시 KST) + Lambda → RDS 상태 확인 후 `available`이면 자동 Stop.** infra/shared 포함, 비용 ~$0.
 - Azure: Entra ID 무료 티어(신원·App Registration), 컴퓨팅·스토리지 미사용으로 사실상 $0, Defender 소액(데모만).
 - 오픈소스(Trivy·Checkov·kube-bench·cosign)는 컴퓨팅 비용만.

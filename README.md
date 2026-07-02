@@ -72,7 +72,8 @@
 |---|---|
 | **AWS 보안** | CloudTrail, Config, Security Hub, Prowler, Inspector, IAM Access Analyzer, Macie(S3 민감데이터 전용) |
 | **Azure 보안** | Microsoft Entra ID(신원·CIEM 핵심), Defender for Cloud(리소스 secure score) — *데이터 저장소 아님* |
-| **워크로드 / 배포** | EKS, ECR, ArgoCD(GitOps), IRSA |
+| **워크로드 / 배포** | EKS, ECR, **ArgoCD(GitOps CD)**, **Karpenter(노드 오토스케일·spot·consolidation) · HPA(파드)**, IRSA |
+| **CI/CD** | **GitHub Actions**(CI: 회귀 + Shift-Left 스캔 Trivy·Checkov, $0) → **ArgoCD**(CD: GitOps pull-sync). 선언형 코드 = [`gitops/`](gitops/) |
 | **Shift-Left** | GitHub Actions(OIDC), Checkov / OPA, Trivy, kube-bench |
 | **에이전틱 AI** | Amazon Bedrock(멀티에이전트), 수동 RAG, pgvector(RDS PostgreSQL t3.micro) |
 | **수집 / 오케스트레이션** | EventBridge, SQS, Lambda, Step Functions, OCSF 정규화 |
@@ -96,7 +97,8 @@ cnapp-agentic/
 ├── troubleshooting.md        ✅ 작업 로그 (트러블슈팅 + 진행, [영역] 태그)
 ├── cnapp-architecture.svg    ✅ 아키텍처 다이어그램
 ├── run_e2e.py                ✅ Phase2 end-to-end 러너(스캐너→정규화→상관→엔진→RAG 한 줄 관통)
-├── .github/workflows/        ✅ CI — contracts 정합 게이트(contracts-validate.yml, validate.py 4-assert)
+├── .github/workflows/        ✅ CI — ci.yml(9개 데모·run_e2e·validate 회귀 + Trivy/Checkov Shift-Left) · contracts-validate.yml
+├── gitops/                   ✅ CD(ArgoCD Application) + 오토스케일링(Karpenter·HPA) 선언형 — apply는 EKS 세션
 ├── contracts/                ✅ ★공유 이음새 계약(7종 JSON Schema) + control-catalog(14종) + 골든 mock 3종 + validate.py
 ├── docs/                     ✅ 설계 SSOT — project-draft · target/console-app-design · manual-infra · cost-strategy
 ├── apps/
@@ -169,6 +171,7 @@ cnapp-agentic/
 | 🔗 **Phase2 end-to-end 배선 (`run_e2e.py`)** | ✅ **관통 확인(2026-07-02)** — 스캐너(Trivy) → 정규화 → 상관(attack-path) → 엔진 → RAG를 **한 러너로 연결**, 스캐너발 CVE가 파이프라인 끝(엔진 판정·RAG 설명)까지 도달(exit 0). 정규화·상관은 실 코드 관통, 스캐너는 실 trivy 출력 동일 구조 JSON(⬜ 라이브 `trivy image`는 trivy 설치/CI 대기), 엔진·RAG는 무비용 Mock(실 tool-use는 Phase1) |
 | 🏗️ **공유 인프라 (`infra/shared`·`infra/target`)** | ✅ **스캐폴드** — VPC·NAT Instance·EKS(spot·IRSA)·ECR·RDS pgvector·OIDC·Evidence/Bedrock IAM + 결함 IaC 토글(f3·f4·f6). `terraform validate`/`fmt` 통과. apply는 게이트 후 |
 | 📦 **TF state 부트스트랩** | ✅ `cnapp-agentic-tfstate` 버킷(manual-infra §2) · **Bedrock 모델 액세스 ✅**(manual-infra §4) |
+| ⚙️ **CI/CD (`.github/workflows/ci.yml`·`gitops/`)** | ✅ **코드 세팅** — CI(GitHub Actions: 9개 데모·run_e2e·validate 회귀 + Trivy/Checkov Shift-Left, $0) · CD(ArgoCD Application) + 오토스케일링(Karpenter spot·consolidation / HPA) 선언형. ⬜ CD/오토스케일 **실적용은 EKS apply 세션**(비용 규율). 근거 = cost-strategy §2.7 |
 | ⬜ **수집부(ingest) · console-backend · 실데이터 전환** | ⬜ **예정** — Phase1(실 tool-use) → 스캐너 실 finding → 수집 파이프라인 순 |
 
 > **전략 = 계약·목업 우선.** 실제 스캐너/엔진을 기다리지 않고 `contracts/mock-*.json`으로 관제 콘솔·엔진을 끝까지 만든 뒤 실데이터로 교체 — 직렬 의존을 두 병렬 트랙으로 분리한다.

@@ -1,0 +1,68 @@
+name: ci
+
+# CI (Shift-Left) — 매 push·PR마다:
+#   ① checks(하드 게이트): 전 영역 run_demo + run_e2e + contracts validate가 전부 exit 0 이어야 통과.
+#      → 2인 병렬 작업의 회귀(머지 충돌·계약 위반)를 즉시 잡는다.
+#   ② shift-left(리포트): Trivy(IaC/Dockerfile 미스컨피그·CVE) + Checkov(Terraform)로 스캔.
+#      ⚠️ 이 레포는 '의도적 취약' 타깃(infra/target·apps/target)을 포함하므로 여기선 report 모드(soft-fail).
+#         실서비스 파이프라인이면 hard-gate(exit 1)로 프로덕션 배포 차단이 정석(project-draft §18).
+# CD(배포)는 ArgoCD GitOps(gitops/) — 살아있는 EKS 필요라 CI(코드쪽·$0)와 분리. gitops/README 참조.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  checks:
+    name: 로직 회귀 (run_demo · run_e2e · contracts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # 목업 데모는 순수 stdlib(Bedrock/boto3는 지연 import) — 별도 설치 불필요, $0.
+      - name: contracts 정합 (계약 4-assert)
+        run: python contracts/validate.py
+      - name: 전 영역 run_demo + end-to-end 회귀
+        env:
+          PYTHONIOENCODING: "utf-8"
+        run: |
+          set -e
+          for m in \
+            engine.run_demo \
+            attackpath.run_demo \
+            pipeline.normalize.run_demo \
+            pipeline.ingest.run_demo \
+            rag.retrieval.run_demo \
+            rag.corpus.run_demo \
+            scanners.workload.run_demo \
+            scanners.cspm.run_demo \
+            run_e2e ; do
+            echo "::group::python -m $m"
+            python -m "$m"
+            echo "::endgroup::"
+          done
+
+  shift-left:
+    name: Shift-Left 보안 스캔 (report — 의도적 취약 포함)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Trivy — IaC/Dockerfile 미스컨피그 + 의존성 CVE. 의도적 취약 데모라 report(soft-fail).
+      - name: Trivy config scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: config
+          scan-ref: .
+          exit-code: "0" # report only — 실서비스면 "1"로 하드 게이트
+          severity: CRITICAL,HIGH
+      # Checkov — Terraform 미스컨피그. 마찬가지로 report(soft_fail).
+      - name: Checkov (Terraform)
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infra
+          soft_fail: true
+          framework: terraform

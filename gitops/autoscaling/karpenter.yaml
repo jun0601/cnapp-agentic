@@ -1,0 +1,65 @@
+# Karpenter — 노드층 오토스케일러(비용 최적화 핵심). Cluster Autoscaler 대체.
+#
+# 왜 Karpenter (근거):
+#   - bin-packing + '필요한 만큼 딱' just-in-time 프로비저닝 → 유휴 노드 최소화.
+#   - consolidation: 저활용/빈 노드를 자동으로 정리·교체 → 비용↓ (CAS엔 없는 강점).
+#   - spot 네이티브 + 인스턴스 타입 유연 → 가장 싼 조합 자동 선택.
+#   - 노드그룹 사전정의 불필요(NodePool 선언만). AWS가 미는 모던 표준 = 포폴 신호.
+#
+# ⚠️ 전제(infra/shared apply 세션에서 준형과 함께):
+#   - Karpenter 컨트롤러(helm) + IRSA + spot 중단 SQS는 terraform으로 설치.
+#   - 컨트롤러/시스템 파드는 '작은 관리형 노드그룹(또는 Fargate)' 1개 위에서 돌고,
+#     Karpenter가 그 위에서 workload용 spot 노드를 provisioning.
+#   - subnet/SG는 karpenter.sh/discovery=cnapp-eks 태그로 발견(terraform이 태깅).
+# API: Karpenter v1 (karpenter.sh/v1 · karpenter.k8s.aws/v1). 적용은 kubectl/ArgoCD.
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    spec:
+      requirements:
+        # ── 비용: spot 우선 ──
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        # ── 작은 인스턴스부터(데모 워크로드 소규모) ──
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["t", "m", "c"]
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values: ["small", "medium", "large"]
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+      expireAfter: 168h # 노드 최대 수명(주기적 롤·패치)
+  limits:
+    cpu: "16" # 폭주 방지 상한(비용 가드레일)
+  disruption:
+    # 놀거나 저활용된 노드를 정리/교체 → 유휴 비용 제거(Karpenter 핵심 절감 레버)
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 30s
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  amiFamily: AL2023
+  amiSelectorTerms:
+    - alias: al2023@latest
+  # infra/shared terraform이 만드는 노드 인스턴스 프로파일 역할명(스왑 시 실제 값으로)
+  role: "KarpenterNodeRole-cnapp"
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: cnapp-eks
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: cnapp-eks
