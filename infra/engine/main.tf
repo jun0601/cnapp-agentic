@@ -159,7 +159,8 @@ data "archive_file" "correlation" {
   source {
     filename = "index.py"
     content  = <<-PY
-      # TODO(real apply): CI가 attackpath/correlation(CorrelationEngine) 실코드로 교체.
+      # 실코드 스왑 = handler "attackpath.correlation.handler.handler"(attackpath 패키지 + psycopg2).
+      # findings/attack_paths 테이블 필요 → 스키마 infra/shared/db/schema.sql. 실코드=attackpath/correlation/handler.py.
       import json
       def handler(event, context):
           print("correlation:", json.dumps(event)[:500])
@@ -174,7 +175,8 @@ data "archive_file" "orchestrator" {
   source {
     filename = "index.py"
     content  = <<-PY
-      # TODO(real apply): CI가 engine(Orchestrator: Triage→Hypothesis→Evidence→Reasoning) 실코드로 교체.
+      # 실코드 스왑 = handler "engine.handler.handler"(engine 패키지 + psycopg2, REAL_TOOLS=1이면 실 Bedrock tool-use).
+      # cases/findings 테이블 필요 → 스키마 infra/shared/db/schema.sql. 실코드=engine/handler.py(run_real.py 구성 미러링).
       import json
       def handler(event, context):
           print("orchestrator:", json.dumps(event)[:500])

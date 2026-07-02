@@ -13,6 +13,15 @@
 | **`main.tf`** | 전체 리소스 — 구역: `[TF·BACKEND]`(버전·S3 백엔드 네이티브 락) · `[PROVIDER]` · `[VPC]`(2AZ, NAT GW 끔, Gateway Endpoint) · `[NAT]`(raw NAT Instance t4g.nano) · `[EKS]`(spot t3.small·scale 0~2·IRSA) · `[ECR]`(4종, scan-on-push) · `[RDS]`(PG t3.micro+pgvector, Secrets Manager) · `[IAM-OIDC]`(GitHub OIDC, 키 없음) · `[IAM-ENGINE]`(Evidence read-only=계약④, Bedrock invoke) |
 | `variables.tf` / `terraform.tfvars.example` | 입력 변수 + 예시 |
 | `outputs.tf` | 하위 레이어가 참조할 출력(vpc·eks·ecr·rds·iam) |
+| **`db/schema.sql`** | pgvector 데이터 스키마 DDL(계약①③⑦⑥ + console §5). RDS apply 후 **VPC 내부에서 1회 적용**(아래) — 실 데이터 평면(pipeline·engine·rag·console)의 테이블 전제 |
+
+## DB 스키마 적용 (RDS apply 후)
+
+RDS는 private subnet이라 로컬에서 직접 못 닿는다. **VPC 내부**(마이그레이션 Lambda / 배스천 / normalize·corpus 첫 실행)에서 멱등 SQL을 1회 적용:
+```bash
+# DSN은 Secrets Manager(rds_secret_arn) — VPC 내부 셸에서
+psql "$PG_DSN" -f db/schema.sql   # CREATE EXTENSION vector + 6개 테이블(IF NOT EXISTS)
+```
 
 ## apply 전 사전작업 (필수)
 

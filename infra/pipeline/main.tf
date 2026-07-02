@@ -182,7 +182,8 @@ data "archive_file" "ingest" {
   source {
     filename = "index.py"
     content  = <<-PY
-      # TODO(real apply): CI가 pipeline/ingest 실코드+deps로 교체. 지금은 배포 가능한 스텁.
+      # 실코드 스왑 = handler "pipeline.ingest.handler.handler"(pipeline 패키지 번들, boto3만/RDS 불요).
+      # 지금은 배포 가능한 스텁(이벤트 로깅). 실코드는 pipeline/ingest/handler.py에 있음.
       import json
       def handler(event, context):
           print("ingest:", json.dumps(event)[:500])
@@ -197,7 +198,8 @@ data "archive_file" "normalize" {
   source {
     filename = "index.py"
     content  = <<-PY
-      # TODO(real apply): CI가 pipeline/normalize(Normalizer) 실코드+deps로 교체.
+      # 실코드 스왑 = handler "pipeline.normalize.handler.handler"(pipeline 패키지 + psycopg2 레이어).
+      # findings 테이블 필요 → 스키마 infra/shared/db/schema.sql 선적용. 실코드는 pipeline/normalize/handler.py.
       import json
       def handler(event, context):
           print("normalize records:", len(event.get("Records", [])))
