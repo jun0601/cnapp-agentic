@@ -5,6 +5,9 @@ run_demo.py가 이 클래스를 단일 진입점으로 호출한다.
 """
 from __future__ import annotations
 
+import json
+import os
+import time
 from typing import Dict, List, Optional, Tuple
 
 from engine.core import case as case_mod
@@ -21,6 +24,42 @@ _INVESTIGATION_ORDER = [
     "INTERNAL-DATA-PII-EXPOSED-001",
     "INTERNAL-IAM-OVERPRIV-001",
 ]
+
+
+def _emit_case_metrics(case: dict, findings_n: int, escalated_n: int, elapsed_ms: float) -> None:
+    """EMF(Embedded Metric Format) 한 줄 — infra/monitoring 대시보드·알람(CnappAgentic/Engine
+    네임스페이스, Verdict×RiskLevel 디멘션)이 이 로그 라인을 파싱한다. 별도 의존성·비용 없음
+    (infra/monitoring/README.md §2③.1 스켈레톤 그대로).
+    """
+    if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        return  # Lambda 밖(run_demo/run_e2e 로컬 실행)에선 콘솔 스팸 방지 위해 미발행
+    meta = case.get("evidence_meta", {})
+    reasoning = case.get("reasoning", {})
+    emf = {
+        "_aws": {
+            "Timestamp": int(time.time() * 1000),
+            "CloudWatchMetrics": [{
+                "Namespace": "CnappAgentic/Engine",
+                "Dimensions": [["Verdict", "RiskLevel"]],
+                "Metrics": [
+                    {"Name": "FindingsEvaluated", "Unit": "Count"},
+                    {"Name": "FindingsEscalated", "Unit": "Count"},
+                    {"Name": "ToolCallsPerCase", "Unit": "Count"},
+                    {"Name": "ConfidenceScore", "Unit": "None"},
+                    {"Name": "TimeToVerdictMs", "Unit": "Milliseconds"},
+                ],
+            }],
+        },
+        "Verdict": meta.get("verdict", "unknown"),
+        "RiskLevel": reasoning.get("risk_level", "unknown"),
+        "CaseId": case.get("case_id"),
+        "FindingsEvaluated": findings_n,
+        "FindingsEscalated": escalated_n,
+        "ToolCallsPerCase": meta.get("tool_calls_count", 0),
+        "ConfidenceScore": meta.get("confidence_score", 0.0),
+        "TimeToVerdictMs": elapsed_ms,
+    }
+    print(json.dumps(emf))
 
 
 class Orchestrator:
@@ -55,6 +94,7 @@ class Orchestrator:
           - escalated_findings: 트리아지 통과 finding 전체
           - case_findings: 실제 Evidence가 조사한 finding 목록
         """
+        t0 = time.time()
         fmap = findings_by_id(findings)
         golden_path_id = paths[0]["attack_path_id"] if paths else None
 
@@ -106,4 +146,5 @@ class Orchestrator:
         rsn = self._rsn.analyze(c, fmap)
         case_mod.set_reasoning(c, rsn["narrative"], rsn["risk_level"], rsn["recommended_actions"])
 
+        _emit_case_metrics(c, len(findings), len(escalated), (time.time() - t0) * 1000)
         return c, escalated, case_findings
