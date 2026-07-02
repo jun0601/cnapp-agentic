@@ -49,7 +49,12 @@ data "terraform_remote_state" "shared" {
 # [S3] member 회원 PII 버킷 (f6 공개=INTERNAL-S3-PUBLIC-001 · f7 PII=INTERNAL-DATA-PII-EXPOSED-001, seeder 적재)
 # =============================================================================
 resource "aws_s3_bucket" "member_pii" {
-  bucket        = var.member_pii_bucket
+  # S3 버킷 이름은 전 세계 유일해야 함 — "member-pii-prod"만 쓰면 다른 계정이 이미 선점했을 수
+  # 있어 apply가 실패할 수 있다(front-${account_id}·audit-${account_id}과 동일 컨벤션으로 계정ID
+  # 접미사 추가, 2026-07-03 apply 전 검증에서 발견). 계정ID는 apply 후에만 알 수 있어 apps/target
+  # /member/k8s/deployment.yaml의 MEMBER_PII_BUCKET env(placeholder)도 IRSA role-arn과 동일하게
+  # apply 후 실제 값으로 1회 수동 치환 필요.
+  bucket        = "${var.member_pii_bucket}-${data.aws_caller_identity.current.account_id}"
   force_destroy = true # 데모 — destroy 편의
 }
 

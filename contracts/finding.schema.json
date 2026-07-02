@@ -11,7 +11,7 @@
     "cloud": { "enum": ["aws", "azure"] },
     "resource_id": {
       "type": "string",
-      "pattern": "^(aws|azure):[a-z_]+:.+$",
+      "pattern": "^(aws|azure):[a-z0-9_]+:.+$",
       "description": "{cloud}:{type}:{native_id} — 4.4.1(a) 캐논 규칙. ARN은 마지막 세그먼트만, 대소문자 보존, 계정ID·리전·path 제외. 예: aws:s3_bucket:member-pii-prod"
     },
     "resource_type": {

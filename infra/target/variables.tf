@@ -16,7 +16,7 @@ variable "region" {
 variable "member_pii_bucket" {
   type        = string
   default     = "member-pii-prod"
-  description = "회원 합성 PII 버킷(member seeder가 적재, Macie 대상)"
+  description = "회원 합성 PII 버킷 이름 접두사(member seeder가 적재, Macie 대상). 실제 버킷명은 main.tf에서 이 값 뒤에 계정ID를 붙여 전역 유일성을 확보한다(예: member-pii-prod-123456789012)."
 }
 
 # ── 결함 토글(개별) — target-app-design §7 권장. 기본 off(안전), 데모 시 켠다. ──

@@ -17,6 +17,12 @@ import json
 import sys
 from pathlib import Path
 
+# 윈도우 콘솔(cp949) 대응 — 한글·em-dash 등 출력 시 UnicodeEncodeError 방지(다른 run_demo.py와 동일 패턴).
+try:
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+except Exception:
+    pass
+
 HERE = Path(__file__).resolve().parent
 errors = []
 

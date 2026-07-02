@@ -132,10 +132,19 @@ def _iam_least_privilege(role_name: str, policy_name: str,
 
 # ── 감사(불변) + RDS 상태 갱신 ─────────────────────────────────────────
 def _write_audit(record: dict, region: str) -> None:
-    """S3 Object Lock 버킷에 감사 레코드를 불변 저장(§17 — 조치 후 사후 변조 불가)."""
+    """S3 Object Lock 버킷에 감사 레코드를 불변 저장(§17 — 조치 후 사후 변조 불가).
+
+    이 함수가 호출되는 시점엔 이미 실 변경(dry_run=False, applied=True)이 끝난 뒤라,
+    AUDIT_BUCKET 미설정으로 조용히 skip하면 "실 클라우드 변경은 있었는데 불변 감사
+    기록이 없는" 상태가 되어 §17 보장을 깬다 — 조용히 넘기지 않고 예외로 실패시켜
+    Lambda 에러(→ infra/monitoring의 lambda_errors 알람)로 드러나게 한다.
+    """
     bucket = os.environ.get("AUDIT_BUCKET")
     if not bucket:
-        return
+        raise RuntimeError(
+            "AUDIT_BUCKET 미설정 — 실 변경(%s)이 적용됐는데 불변 감사 기록을 못 남김(§17 위반)"
+            % record.get("action")
+        )
     import boto3
     key = "remediation/%s-%s.json" % (record["ts"].replace(":", ""),
                                       record.get("remediation_id") or "na")

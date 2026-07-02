@@ -6,16 +6,16 @@
 소스(준형 영역):
   - Security Hub  (CSPM 점검·점수)      → ASFF
   - AWS Config    (설정 규칙)           → ASFF(securityhub 경유) / custom
-  - Prowler(AWS)  (오픈소스 CSPM)       → prowler-json
+  - Prowler(AWS)  (오픈소스 CSPM)       → OCSF(`-M json-ocsf`, 멀티클라우드 중립 파서 재사용 — project-draft §24 확정)
   - Macie         (S3 민감데이터/DSPM)  → ASFF
-  - IAM Access Analyzer (CIEM 과도권한) → (prowler-json 매핑 또는 custom)
-정규화부가 ASFF·prowler-json을 모두 파싱하므로, 스캐너는 원본을 그 두 포맷 중 하나로 봉투화한다.
+  - IAM Access Analyzer (CIEM 과도권한) → (OCSF 매핑 또는 custom)
+정규화부가 ASFF·OCSF·prowler-json(레거시/목업 네이티브 포맷)을 모두 파싱하므로, 스캐너는 원본을 이 포맷 중 하나로 봉투화한다.
 
 mock-first (실 스캐너·계정 없이 CI/데모):
-  scan_from_json(raw, source, source_format) — 미리 받아둔 원본을 계약⑤ 봉투로 감싼다.
+  scan_from_json(raw, source, source_format) — 미리 받아둔 원본을 계약⑤ 봉투로 감싼다(source_format은 호출자가 지정 — prowler-json 네이티브 포맷 목업 등 자유롭게 테스트 가능).
 실 경로 (지연 import — 미설치/무자격 환경에서도 이 모듈 import는 안전):
   scan_securityhub()  — boto3 securityhub.get_findings() → FAILED만 → ASFF 봉투[]
-  scan_prowler(...)   — prowler CLI 실행 → prowler-json 봉투[]  (Trivy.scan_image과 동형)
+  scan_prowler(...)   — prowler CLI를 `-M json-ocsf`로 실행 → **OCSF** 봉투[]  (Trivy.scan_image과 동형)
   (Config/Macie/AccessAnalyzer는 동일 패턴으로 확장 — 실배포 시 추가)
 
 실배포 스왑: EventBridge(Security Hub Findings Imported 등) → 수집부(pipeline/ingest) → SQS,
@@ -106,10 +106,18 @@ class CSPMScanner:
 
     def scan_prowler(self, provider: str = "aws", checks: Optional[str] = None,
                      timeout: int = 600) -> List[dict]:
-        """prowler CLI 실행 → prowler-json 봉투[] 반환(Trivy.scan_image과 동형).
+        """prowler CLI를 `-M json-ocsf`로 실행 → OCSF 봉투[] 반환(Trivy.scan_image과 동형).
 
         prowler는 오픈소스라 read-only 자격증명만으로 계정 스캔 가능(Security Hub 미활성이어도 됨).
         provider: aws | azure. checks: 쉼표구분 체크 ID(선택).
+
+        ⚠️ 2026-07-03 버그 수정: CLI는 OCSF 출력을 요청하면서(`-M json-ocsf`) 봉투의
+        source_format을 "prowler-json"으로 잘못 태깅했었다 — 정규화부(pipeline/normalize)의
+        디스패처가 source_format으로 파서를 고르는데, "prowler-json"은 _parse_prowler(다른
+        필드 구조를 읽는 레거시/네이티브 포맷 파서)로 가서 실제 OCSF 데이터를 잘못 파싱해
+        control_id가 전부 None(INTERNAL-UNKNOWN-001)이 되는 문제였다(mock 경로는 scan_from_json이
+        format을 직접 지정해 우회하므로 run_demo로는 안 잡힘). scanners/ciem/entra.py의
+        scan_prowler(Azure)도 이 메서드에 위임하므로 동일하게 영향받았음 — 함께 해결됨.
         """
         source = "prowler-aws" if provider == "aws" else "prowler-azure"
         cloud = "aws" if provider == "aws" else "azure"
@@ -132,7 +140,8 @@ class CSPMScanner:
             raise CSPMScanError("prowler 출력 JSON 파싱 실패: %s" % e)
         items = findings if isinstance(findings, list) else [findings]
         # FAIL만 봉투화(정규화부가 status로 open/remediated 판정하지만, 노이즈 최소화)
-        return [self._build_envelope(it, source, "prowler-json", cloud) for it in items]
+        # source_format="ocsf" — 위 CLI가 실제로 내놓는 포맷과 일치시킴(정규화부 _parse_ocsf로 라우팅).
+        return [self._build_envelope(it, source, "ocsf", cloud) for it in items]
 
 
 # ── 헬퍼 ──────────────────────────────────────────────────────────────

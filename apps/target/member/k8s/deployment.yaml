@@ -35,7 +35,7 @@ spec:
           ports: [{ containerPort: 8080 }]
           env:
             - name: MEMBER_PII_BUCKET
-              value: "member-pii-prod" # 공개 결함은 버킷 정책(infra/target)에 있음
+              value: "member-pii-prod-ACCOUNT_ID" # infra/target output(member_pii_bucket)의 실제 값으로 치환(전역 유일성 위해 계정ID 접미사, 2026-07-03). 공개 결함은 버킷 정책(infra/target)에 있음
             - name: MEMBER_PII_COUNT
               value: "200"
             - name: AWS_REGION
