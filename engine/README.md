@@ -137,6 +137,8 @@ def _check(self, tool):
 
 계약(`contracts/*.json`)이 SSOT라 `Orchestrator(RealToolExecutor())` 한 줄이면 실AWS로 스왑. **이 매끄러운 스왑이 목업 우선 전략의 배당금.**
 
+> **✅ 2026-07-02 — 실 스왑 배포판 작성됨:** [`engine/handler.py`](handler.py)(Lambda 진입점 — `REAL_TOOLS=1`이면 `RealToolExecutor`+`BedrockEvidenceAgent`, `run_real.py`와 동일 구성). RDS에서 finding/attack_path 로드 → `cases`·`finding_explanations` upsert. 스키마 = [`infra/shared/db/schema.sql`](../infra/shared/db/schema.sql), 배포 = [`infra/engine`](../infra/engine/). Phase1에서 tool-use 자체는 실검증 완료(`run_real`).
+
 ---
 
 ## 🔗 7. attackpath와의 연결 (엔진의 입력은 어디서 오나)

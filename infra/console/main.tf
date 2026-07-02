@@ -63,6 +63,7 @@ locals {
   bedrock_policy  = data.terraform_remote_state.shared.outputs.bedrock_invoke_policy_arn
   account_id      = data.aws_caller_identity.current.account_id
   saml_enabled    = var.saml_metadata_url != ""
+  has_cert        = var.acm_certificate_arn != "" # 인증서 있어야 HTTPS+authenticate-cognito 활성(단계별 apply)
   sfn_arn         = var.remediation_state_machine_arn != "" ? var.remediation_state_machine_arn : "arn:aws:states:${var.region}:${local.account_id}:stateMachine:${var.project}-remediation"
 }
 
@@ -377,24 +378,37 @@ resource "aws_lb_target_group_attachment" "backend" {
   depends_on       = [aws_lambda_permission.alb]
 }
 
-# HTTP:80 → 443 리다이렉트
+# HTTP:80 — cert 있으면 443 리다이렉트(SSO 경로), 없으면 Lambda로 직접 forward(무인증 데모/단계별 apply).
+# → acm_certificate_arn 없이도 이 레이어가 apply되고 API가 HTTP로 동작(SSO는 cert 확보 후 활성).
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.this.arn
   port              = 80
   protocol          = "HTTP"
-  default_action {
-    type = "redirect"
-    redirect {
-      port        = "443"
-      protocol    = "HTTPS"
-      status_code = "HTTP_301"
+
+  dynamic "default_action" {
+    for_each = local.has_cert ? [1] : []
+    content {
+      type = "redirect"
+      redirect {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+  }
+  dynamic "default_action" {
+    for_each = local.has_cert ? [] : [1]
+    content {
+      type             = "forward"
+      target_group_arn = aws_lb_target_group.backend.arn
     }
   }
 }
 
 # HTTPS:443 → authenticate-cognito(order 1) → forward to Lambda(order 2)
-# ⚠️ acm_certificate_arn 필요(authenticate-cognito는 HTTPS 필수) — apply 전 채우기.
+# authenticate-cognito는 HTTPS(=ACM 인증서) 필수 → cert 있을 때만 생성(count). 없으면 위 HTTP로 동작.
 resource "aws_lb_listener" "https" {
+  count             = local.has_cert ? 1 : 0
   load_balancer_arn = aws_lb.this.arn
   port              = 443
   protocol          = "HTTPS"

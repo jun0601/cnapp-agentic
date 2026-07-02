@@ -2,7 +2,7 @@
 
 > 멀티클라우드(**AWS = 워크로드의 주인 / Azure = 신원의 주인(Entra ID)**) 환경의 설정부터 워크로드·IaC 코드까지 **code-to-cloud 보안 위험을 점검·통합·상관분석**하고, 그 위에 **에이전틱 AI(Bedrock 멀티에이전트 + RAG)**로 발견 항목을 설명·우선순위화·자동 개선하는 CNAPP형 보안 플랫폼.
 >
-> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 문서·공통 계약 정합 완료 · **구현 진행 중** — 공통 계약(INTERNAL control 14종·골든 목업·CI 게이트) + 공유 인프라 스캐폴드 + TF state 부트스트랩 + **관제 앱(`apps/console`) 8화면 목업 동작** + **타깃 앱(`apps/target`) shop 포털·member 서비스 실행** + 결함 IaC(`infra/target`) + **엔진 5단계 능동조사·attack-path 상관·정규화부·RAG·Trivy 스캐너(목업 동작)** + **❤️ 엔진 실 tool-use(Phase1) 실검증 완료**(실 Bedrock Claude Haiku가 실 S3를 스스로 read-only 조사 → CONFIRMED, 2026-07-02) + **🔗 Phase2 end-to-end 배선 관통**(스캐너→정규화→상관→엔진→RAG `run_e2e.py`). 다음 = 실 trivy 스캔·console-backend.
+> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 문서·공통 계약 정합 완료 · **구현 진행 중** — 공통 계약(INTERNAL control 14종·골든 목업·CI 게이트) + 공유 인프라 스캐폴드 + TF state 부트스트랩 + **관제 앱(`apps/console`) 8화면 목업 동작** + **타깃 앱(`apps/target`) shop 포털·member 서비스 실행** + 결함 IaC(`infra/target`) + **엔진 5단계 능동조사·attack-path 상관·정규화부·RAG·Trivy 스캐너(목업 동작)** + **❤️ 엔진 실 tool-use(Phase1) 실검증 완료**(실 Bedrock Claude Haiku가 실 S3를 스스로 read-only 조사 → CONFIRMED, 2026-07-02) + **🔗 Phase2 end-to-end 배선 관통**(스캐너→정규화→상관→엔진→RAG `run_e2e.py`) + **관제 백엔드(`apps/console-backend`)·배포 인프라 5층(`infra/`)·pgvector 스키마·Lambda 핸들러** 코드 완성(전 terraform `validate` 통과). **다음 = 단계별 실 apply**(apply→검증→destroy).
 
 ### 📂 이 레포는 무엇인가 / docs 안내
 
@@ -77,7 +77,7 @@
 | **Shift-Left** | GitHub Actions(OIDC), Checkov / OPA, Trivy, kube-bench |
 | **에이전틱 AI** | Amazon Bedrock(멀티에이전트), 수동 RAG, pgvector(RDS PostgreSQL t3.micro) |
 | **수집 / 오케스트레이션** | EventBridge, SQS, Lambda, Step Functions, OCSF 정규화 |
-| **인증** | Microsoft Entra ID(IdP) → Cognito → ALB(authenticate-oidc) |
+| **인증** | Microsoft Entra ID(IdP, SAML) → Cognito(허브) → ALB(authenticate-cognito) |
 | **관제 앱 (프론트)** | Vite + React + TypeScript, TanStack Query, Tailwind, React Flow(attack-path 그래프), Recharts(점수), MSW(mock 하네스) |
 | **관제 앱 (백엔드)** | TypeScript Lambda (findings 읽기 API) — *폴리글랏: console=TS / engine·pipeline=Python* |
 | **관측 / 호스팅** | S3 + CloudFront, kube-prometheus-stack |
@@ -122,11 +122,14 @@ cnapp-agentic/
 ├── attackpath/               ✅ finding→그래프 상관 동작 (골든 정합 OK)
 │   ├── model/                (준형) 그래프 데이터 모델·불변식 검증 ✅
 │   └── correlation/          (진우) R1~R5 상관·2-pass backfill ✅
-└── infra/                    Terraform (레이어드) — shared 먼저 → target · console · 영역별
-    ├── shared/               ✅ VPC·NAT·EKS·ECR·RDS pgvector·OIDC·IAM (main.tf 스캐폴드, validate 통과)
+└── infra/                    Terraform (레이어드) — shared 먼저 → 영역별. 전 레이어 validate 통과
+    ├── shared/               ✅ VPC·NAT·EKS·ECR·RDS pgvector·OIDC·IAM + db/schema.sql(pgvector 6테이블)
     ├── target/               ✅ 취약 워크로드 + 의도적 결함 IaC(f3·f4·f6 var.enable_* 토글)
-    ├── console/              📁 S3+CloudFront·ALB·Cognito·console-backend·SFn
-    └── {scanners,pipeline,…} ⬜ 영역별 terraform(영역 주인이 apply)
+    ├── console/              ✅ S3+CloudFront·ALB(authenticate-cognito)→Lambda·Cognito SSO·조치 SFn
+    ├── pipeline/             ✅ EventBridge→SQS→ingest/normalize Lambda
+    ├── engine/               ✅ 상관·오케스트레이터 Lambda·Bedrock IAM·조치 Step Functions(HITL)
+    ├── slice/                ✅ 엔진 실 tool-use 최소비용 검증 픽스처(Phase1 — 레이어 아님)
+    └── {scanners,rag,attackpath} ⬜ 영역별 terraform(미구현 — 데모 핵심 경로 밖)
 
 # 컴포넌트 폴더(scanners·pipeline·engine·rag·attackpath)는 코드만 — 배포는 CI가 infra/에서 apply.
 # 폴더는 사람이 아니라 컴포넌트로 나눔(소유·이음새는 docs/project-draft 4.6).
@@ -176,7 +179,7 @@ cnapp-agentic/
 | 🗄️ **DB 스키마 + Lambda wrapper** | ✅ **코드 완성** — `infra/shared/db/schema.sql`(pgvector 6테이블: findings·attack_paths·cases·finding_explanations·remediation_requests·rag_chunks, 계약①③⑦⑥ 도출·멱등) + 핸들러 wrapper 4종(ingest·normalize·correlation·orchestrator, 기존 로직 재사용 + RDS I/O + 2-pass 발행, engine은 `REAL_TOOLS=1`이면 실 Bedrock tool-use). py_compile+import OK. ⬜ 실 RDS 대상 SQL은 apply 세션에서 라이브 검증 |
 | 📦 **TF state 부트스트랩** | ✅ `cnapp-agentic-tfstate` 버킷(manual-infra §2) · **Bedrock 모델 액세스 ✅**(manual-infra §4) |
 | ⚙️ **CI/CD (`.github/workflows/ci.yml`·`gitops/`)** | ✅ **코드 세팅** — CI(GitHub Actions: 10개 데모·run_e2e·validate 회귀 + Trivy/Checkov Shift-Left, $0) · CD(ArgoCD Application) + 오토스케일링(Karpenter spot·consolidation / HPA) 선언형. ⬜ CD/오토스케일 **실적용은 EKS apply 세션**(비용 규율). 근거 = cost-strategy §2.7 |
-| ⬜ **수집부(ingest) · console-backend · 실데이터 전환** | ⬜ **예정** — Phase1(실 tool-use) → 스캐너 실 finding → 수집 파이프라인 순 |
+| ⏭️ **다음 = 단계별 실 apply** | ⬜ **예정** — 코드(앱·엔진·인프라 5층·스키마·wrapper)는 준비 완료. `apply→검증→destroy` 사이클로 실전환(EKS 첫 apply 직전 확인). SSO 라이브는 도메인+ACM 확보 후 |
 
 > **전략 = 계약·목업 우선.** 실제 스캐너/엔진을 기다리지 않고 `contracts/mock-*.json`으로 관제 콘솔·엔진을 끝까지 만든 뒤 실데이터로 교체 — 직렬 의존을 두 병렬 트랙으로 분리한다.
 
@@ -186,16 +189,4 @@ cnapp-agentic/
 
 설계의 배경·결정 근거·로드맵 등 상세 내용은 상단 [📂 docs 안내](#-이-레포는-무엇인가--docs-안내) 표의 문서를 참고한다. (project-draft → target-app-design → console-app-design 순)
 
----
-
-*변경 요약: Azure 역할을 데이터→신원(Entra ID) 중심으로 전환 — 데이터(회원 PII)는 AWS S3 전용·Macie도 S3 전용, Azure는 Entra CIEM + Defender secure score. 크로스클라우드 attack-path를 "AWS 워크로드→Azure 신원 장악" 경로로 갱신. README 상단에 레포 소개·docs 안내 추가.*
-
-*변경 요약(2): 폴더 구조를 실제 구조(`contracts`·`scanners`·`pipeline`·`rag`·`attackpath`·`troubleshooting.md`)로 갱신 — 컴포넌트 단위 분리·terraform 레이어드 반영(docs/project-draft 4.6과 정합).*
-
-*변경 요약(3): 구현 진입 반영 — 상단 상태 갱신 + **구현 현황(Status) 표 신설**(contracts 졸업·infra/shared 스캐폴드·CI 게이트), 폴더 트리에 `.github/workflows` 추가.*
-
-*변경 요약(4): 앱 개발 진입 반영 — 앱 2개 구현 청사진(console §15·target §7) 완료 + **앱 2개 모두 준형 전담** 확정, 다음 착수 = `apps/console` 스캐폴딩. 기술 스택 표에 확정된 관제 앱 프론트/백엔드 스택(Vite+React+TS·TanStack·React Flow·MSW)·폴리글랏(console=TS/engine·pipeline=Python) 반영, docs 안내에 각 앱 구현 청사진 절 표기. **폴더 구조 트리를 실제 디스크 상태로 갱신** — 상태 마커(✅ 내용 있음 / 📁 빈 폴더 / ⬜ 미생성) 도입, `infra/` 하위(shared·target·console) 전개, `cnapp-architecture.svg` 추가, 미생성 컴포넌트 폴더(scanners·pipeline·rag·attackpath) 구분 표기.*
-
-*변경 요약(5): 구현 진행 반영 — `apps/console` 골격 스캐폴드 완료(🔨, 빌드 통과)·TF state 부트스트랩(✅ `cnapp-agentic-tfstate`)를 상단 상태·Status 표·폴더 트리에 반영. 파비콘(cross-cloud attack-path 모티프 SVG) 추가.*
-
-*변경 요약(6): 구현 진척 반영 — 관제 콘솔 **8화면 목업 동작**(스텁 4화면 완성), 타깃 앱 **member 실행 + shop 포털**(product·order·member 소개·네비), 결함 IaC(`infra/target`) 토글을 상단 상태·Status 표에 갱신. 관제 앱 파비콘을 **밝은 방패**로, 타깃 앱은 **쇼핑백 파비콘** 신설. 인트로 "현재 단계" 문구를 최신화하고 "SSOT 정합"→"설계 문서·공통 계약 정합"으로 명확화.*
+> 📌 상세 변경 이력은 [CLAUDE.md 변경 로그](CLAUDE.md#변경-로그-최신이-위로)와 [troubleshooting.md](troubleshooting.md)에서 관리한다(README는 현재 상태만 유지).

@@ -290,14 +290,15 @@ API가 있는 곳은 ① 스캐너↔클라우드 API(읽기) ② console-backen
 ## 12. infra/console 매핑 (Terraform 골격) 🏗️
 
 > v2: 백엔드를 타깃 EKS와 분리(4번 확정)함에 따라 EKS 네임스페이스/Ingress 대신 **Lambda + ALB** 골격으로 갱신.
+> **✅ 2026-07-02 — 이 골격이 [`infra/console`](../infra/console/)로 구현됨**(terraform `validate` 통과, apply 전). 아래 항목이 실제 리소스로 존재.
 
-- Cognito User Pool(SAML IdP = Entra ID 등록 포함, Identity Pool 불필요 — 프론트가 AWS 직접 호출 없음)
-- S3(정적 자산) + CloudFront 배포
-- **ALB + 리스너 규칙(`authenticate-cognito` 액션) → Lambda 타깃 그룹**(타깃 EKS와 별개 환경)
+- Cognito User Pool(SAML IdP = Entra ID 등록 포함, Identity Pool 불필요 — 프론트가 AWS 직접 호출 없음) — `custom:groups` 커스텀 속성 + SAML `attribute_mapping`
+- S3(정적 자산, 비공개) + CloudFront(OAC) 배포
+- **ALB + 리스너 규칙(`authenticate-cognito` 액션) → Lambda 타깃 그룹**(타깃 EKS와 별개 환경). ACM 인증서 없이도 apply되게 HTTPS 리스너는 `count` 가드 + HTTP 폴백(단계별 apply)
 - **console-backend Lambda 함수**(read-only 실행 역할) + 로그 그룹
 - **RDS PostgreSQL t3.micro**(pgvector extension 활성화) — `engine/`과 공유, 관제 전용 경계(타깃 워크로드 비접근). Lambda와 동일 VPC private subnet 배치(VPC Lambda 방식)
-- Step Functions 상태 머신(조치 카탈로그 1차 범위는 project-draft 24번 미확정 항목, 결정 시 본 문서 갱신)
-- IAM: 콘솔용 read-only 롤 / 조치 실행용 격상 롤 분리(별도 정책)
+- Step Functions 상태 머신 — **조치 카탈로그 MVP 3종 확정(§24): S3 public block · open SG(0.0.0.0) 제거 · IAM diff**. 상태머신 본체는 [`infra/engine`](../infra/engine/)에 있고 콘솔은 승인 시 `StartExecution`만 트리거
+- IAM: 콘솔용 read-only 롤 / 조치 실행용 격상 롤 분리(별도 정책) — 격상 롤은 `infra/engine`의 remediation Lambda에만
 
 ---
 

@@ -71,7 +71,8 @@ def handler(event: dict, context=None) -> dict:
     _upsert_explanations(case)
     return {
         "case": case["case_id"],
-        "verdict": (case.get("reasoning") or {}).get("verdict"),
+        # verdict/confidence는 case["evidence_meta"](set_evidence 기록). reasoning엔 narrative·risk_level만.
+        "verdict": (case.get("evidence_meta") or {}).get("verdict"),
     }
 
 
@@ -119,6 +120,7 @@ def _upsert_case(case: dict) -> None:
 def _upsert_explanations(case: dict) -> None:
     """case에 속한 finding들에 AI 설명 카드(UC1) + ai_status=done 반영."""
     reasoning = case.get("reasoning") or {}
+    meta = case.get("evidence_meta") or {}  # confidence_score·verdict는 여기(set_evidence 기록)
     fids = _case_finding_ids(case)
     if not fids:
         return
@@ -129,8 +131,8 @@ def _upsert_explanations(case: dict) -> None:
                 cur.execute(_UPSERT_EXPL, {
                     "finding_id": fid,
                     "ai_summary": reasoning.get("narrative", ""),
-                    "confidence_score": reasoning.get("confidence_score"),
-                    "rag_refs": reasoning.get("rag_refs", []),
+                    "confidence_score": meta.get("confidence_score"),
+                    "rag_refs": reasoning.get("rag_refs", []),  # RAG 연동 전엔 []( reasoning엔 아직 미기록)
                     "case_id": case["case_id"],
                 })
                 cur.execute("UPDATE findings SET ai_status = 'done' WHERE finding_id = %s;", (fid,))

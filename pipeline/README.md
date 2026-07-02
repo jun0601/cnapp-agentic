@@ -160,6 +160,8 @@ dedup_key = "aws:s3_bucket:member-pii-prod|INTERNAL-S3-PUBLIC-001"
 
 **ingest.py·normalizer.py 로직은 무변** — 각 Lambda 핸들러에서 `Ingestor().lambda_handler(event)` / `Normalizer().normalize(envelope)`를 호출하기만 하면 실배포 전환 완료. 전제조건: `infra/shared` apply(EventBridge 룰·SQS 큐·Lambda) 완료.
 
+> **✅ 2026-07-02 — 이 스왑 코드가 이미 작성됨:** `pipeline/ingest/handler.py`·`pipeline/normalize/handler.py`(Lambda 진입점 — 이벤트 어댑팅 + RDS upsert + `cnapp.findings.batch.completed` 발행). 스키마 = [`infra/shared/db/schema.sql`](../infra/shared/db/schema.sql), 배포 = [`infra/pipeline`](../infra/pipeline/). 라이브 검증은 apply 세션.
+
 ---
 
 ## 🔗 7. 앞뒤 컴포넌트 연결

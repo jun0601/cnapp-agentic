@@ -132,6 +132,8 @@ engine ③ Evidence: AI가 그 경로의 위험을 read-only API로 확증
 
 → **그래프 모델(model/)은 무변** — 형태는 데이터 소스와 독립. `correlate()` 인터페이스도 동일.
 
+> **✅ 2026-07-02 — 스왑 코드 작성됨:** `attackpath/correlation/handler.py`(Lambda 진입점 — `cnapp.findings.batch.completed` 구독 → RDS open finding 로드 → `correlate` → `attack_paths` upsert + `findings.attack_path_id` backfill → `cnapp.attackpath.correlation.completed` 발행). 배포 = [`infra/engine`](../infra/engine/)(상관 Lambda). 위 표의 "실배포" 열이 이제 실제 코드로 존재.
+
 ---
 
 ## ✅ 8. 골든 정합 (run_demo 검증 항목)
