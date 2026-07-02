@@ -1,0 +1,332 @@
+"""정규화부 (진우 담당) — 스캐너 원본 → OCSF-lite finding 변환.
+
+각 스캐너가 내놓는 포맷(ASFF·prowler-json·trivy-json)을 엔진·콘솔이
+공통으로 쓰는 계약① finding.schema.json 형식으로 변환한다.
+
+실배포 스왑: Lambda 핸들러가 SQS 메시지(계약⑤ ingest-envelope)에서
+raw_inline/raw_location을 꺼내 Normalizer.normalize()로 넘기면 됨.
+변환 로직(이 파일)은 무변.
+"""
+from __future__ import annotations
+
+import fnmatch
+import json
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+# ── control-catalog 로드 ──────────────────────────────────────────────
+_CATALOG_PATH = Path(__file__).parent.parent.parent / "contracts" / "control-catalog.json"
+
+def _load_catalog() -> dict:
+    with open(_CATALOG_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
+_CATALOG = _load_catalog()
+
+# ── control-catalog 역인덱스 빌드 ─────────────────────────────────────
+# source 표기: "securityhub:S3.8", "prowler:s3_bucket_public_access", "inspector:CVE-*"
+# 정확 매칭과 와일드카드(*) 매칭을 모두 지원
+
+def _build_source_index(catalog: dict) -> Tuple[Dict[str, str], List[Tuple[str, str]]]:
+    exact: Dict[str, str] = {}      # "securityhub:S3.8" → "INTERNAL-S3-PUBLIC-001"
+    wildcards: List[Tuple[str, str]] = []  # [("inspector:CVE-*", "INTERNAL-VULN-KEV-001"), ...]
+    for ctrl_id, meta in catalog.get("controls", {}).items():
+        for src in meta.get("sources", []):
+            if "*" in src:
+                wildcards.append((src, ctrl_id))
+            else:
+                exact[src] = ctrl_id
+    return exact, wildcards
+
+_EXACT_INDEX, _WILDCARD_INDEX = _build_source_index(_CATALOG)
+
+
+def lookup_control(source_key: str) -> Optional[str]:
+    """source:checkId → INTERNAL control_id. 없으면 None."""
+    if source_key in _EXACT_INDEX:
+        return _EXACT_INDEX[source_key]
+    for pattern, ctrl_id in _WILDCARD_INDEX:
+        if fnmatch.fnmatch(source_key, pattern):
+            return ctrl_id
+    return None
+
+
+# ── severity 변환 ─────────────────────────────────────────────────────
+# 내부 컨벤션: 1=Critical ~ 5=Info (낮을수록 심각 — OCSF와 반대, finding.schema.json 주석 참고)
+_ASFF_SEV = {"CRITICAL": 1, "HIGH": 2, "MEDIUM": 3, "LOW": 4, "INFORMATIONAL": 5}
+_PROWLER_SEV = {"critical": 1, "high": 2, "medium": 3, "low": 4, "informational": 5}
+
+def _asff_severity(label: str) -> int:
+    return _ASFF_SEV.get(label.upper(), 3)
+
+def _prowler_severity(label: str) -> int:
+    return _PROWLER_SEV.get(label.lower(), 3)
+
+
+# ── resource_id 캐논화 (4.4.1a 규칙) ─────────────────────────────────
+# 형식: {cloud}:{type}:{native_id}
+# ARN이면 마지막 경로 세그먼트만 취함. 계정ID·리전 제외.
+_ASFF_RTYPE = {
+    "AwsS3Bucket":         "s3_bucket",
+    "AwsIamRole":          "iam_role",
+    "AwsEc2SecurityGroup": "security_group",
+    "AwsEcrRepository":    "ecr_repo",
+    "AwsEksCluster":       "eks_pod",     # 클러스터 수준 finding
+}
+_PROWLER_RTYPE = {
+    "s3":            "s3_bucket",
+    "iam":           "iam_role",
+    "ec2":           "security_group",
+    "ecr":           "ecr_repo",
+    "eks":           "eks_pod",
+    "secretsmanager":"secret_plaintext",
+    "entraid":       "service_principal",  # Prowler Azure
+    "entra_id":      "service_principal",
+    "appregistration": "app_registration",
+}
+
+def _arn_to_native(arn: str) -> str:
+    """ARN → native_id: 마지막 세그먼트(/ 또는 : 구분). S3는 버킷명만."""
+    if not arn.startswith("arn:"):
+        return arn  # 이미 native ID이면 그대로
+    parts = arn.split(":")
+    # S3: arn:aws:s3:::bucket-name → parts[-1] = bucket-name
+    native = parts[-1]
+    # 경로 포함(IAM role 등): arn:aws:iam::acct:role/my-role → "role/my-role" → "my-role"
+    if "/" in native:
+        native = native.split("/")[-1]
+    return native
+
+def _canon_resource_id(cloud: str, rtype: str, raw_id: str) -> str:
+    """cloud:rtype:native_id 형태로 정규화. 이미 캐논 형식이면 그대로."""
+    # 이미 캐논 형식(cloud:type:native_id)이면 재가공 금지
+    if raw_id.startswith(("aws:", "azure:")):
+        return raw_id
+    native = _arn_to_native(raw_id)
+    return f"{cloud}:{rtype}:{native}"
+
+
+# ── ASFF 파서 (Security Hub · Inspector · Macie) ─────────────────────
+def _parse_asff(raw: dict, source: str, cloud_hint: str) -> List[dict]:
+    """ASFF 단건 → finding 목록(보통 1건, 복수 리소스면 복수)."""
+    findings = []
+    resources = raw.get("Resources", [{}])
+    sev_label = raw.get("Severity", {}).get("Label", "MEDIUM")
+    title = raw.get("Title", "")
+    updated_at = raw.get("UpdatedAt", _now())
+    created_at = raw.get("CreatedAt", updated_at)
+    status = "open" if raw.get("Compliance", {}).get("Status") == "FAILED" else "remediated"
+
+    # control key: "securityhub:S3.8" 형태로 lookup
+    ctrl_key = raw.get("ProductFields", {}).get("ControlId", "")
+    if ctrl_key:
+        ctrl_key = f"{source}:{ctrl_key}"
+    # GeneratorId fallback: "security-control/S3.8" → "S3.8"
+    if not ctrl_key:
+        gen = raw.get("GeneratorId", "")
+        if "security-control/" in gen:
+            ctrl_key = f"securityhub:{gen.split('security-control/')[-1]}"
+
+    # Macie: Types 기반
+    types = raw.get("Types", [])
+    if any("SensitiveData" in t for t in types):
+        ctrl_key = "macie:SensitiveData/*"  # wildcard match용
+
+    control_id = lookup_control(ctrl_key) if ctrl_key else None
+
+    for res in resources:
+        rtype_asff = res.get("Type", "")
+        rtype = _ASFF_RTYPE.get(rtype_asff, "other")
+        raw_id = res.get("Id", "")
+        rid = _canon_resource_id(cloud_hint, rtype, raw_id)
+        dedup = f"{rid}|{control_id}" if control_id else f"{rid}|unknown"
+
+        findings.append(_make_finding(
+            cloud=cloud_hint,
+            resource_id=rid,
+            resource_type=rtype,
+            control_id=control_id or "INTERNAL-UNKNOWN-001",
+            title=title,
+            severity_id=_asff_severity(sev_label),
+            status=status,
+            source_key=ctrl_key or source,
+            dedup_key=dedup,
+            first_seen=created_at,
+            last_seen=updated_at,
+        ))
+    return findings
+
+
+# ── Prowler JSON 파서 (AWS + Azure) ──────────────────────────────────
+def _parse_prowler(raw: dict, cloud_hint: str) -> List[dict]:
+    """Prowler JSON 단건 → finding 1건."""
+    check_id = raw.get("checkID", raw.get("check_id", ""))
+    source_key = f"prowler:{check_id}"
+    control_id = lookup_control(source_key)
+
+    service = raw.get("service", check_id.split("_")[0] if check_id else "other")
+    rtype = _PROWLER_RTYPE.get(service.lower(), "other")
+
+    # resource ID: resourceArn 있으면 ARN→native, 없으면 resourceId 직접
+    raw_id = raw.get("resourceArn") or raw.get("resource_arn") or raw.get("resourceId") or raw.get("resource_id", "")
+    cloud = raw.get("cloud", cloud_hint)
+    rid = _canon_resource_id(cloud, rtype, raw_id)
+
+    status_raw = raw.get("status", raw.get("Status", "FAIL")).upper()
+    status = "open" if status_raw == "FAIL" else "remediated"
+
+    sev = raw.get("severity", raw.get("Severity", "medium"))
+    ts = raw.get("timestamp", raw.get("Timestamp", _now()))
+    dedup = f"{rid}|{control_id}" if control_id else f"{rid}|{source_key}"
+
+    return [_make_finding(
+        cloud=cloud,
+        resource_id=rid,
+        resource_type=rtype,
+        control_id=control_id or "INTERNAL-UNKNOWN-001",
+        title=raw.get("checkTitle", raw.get("check_title", check_id)),
+        severity_id=_prowler_severity(sev),
+        status=status,
+        source_key=source_key,
+        dedup_key=dedup,
+        first_seen=ts,
+        last_seen=ts,
+    )]
+
+
+# ── Trivy JSON 파서 ───────────────────────────────────────────────────
+def _parse_trivy(raw: dict, cloud_hint: str) -> List[dict]:
+    """Trivy JSON(이미지 스캔) → finding 목록. CVE별 1건."""
+    artifact = raw.get("ArtifactName", "unknown")
+    results = raw.get("Results", [])
+    findings = []
+    for result in results:
+        for vuln in result.get("Vulnerabilities", []):
+            cve = vuln.get("VulnerabilityID", "")
+            sev = vuln.get("Severity", "MEDIUM")
+            source_key = f"trivy:{cve}"
+            control_id = lookup_control(source_key) or "INTERNAL-VULN-KEV-001"
+            rid = f"aws:eks_pod:{artifact}"
+            dedup = f"{rid}|{control_id}|{cve}"
+            findings.append(_make_finding(
+                cloud=cloud_hint,
+                resource_id=rid,
+                resource_type="eks_pod",
+                control_id=control_id,
+                title=f"{cve} in {artifact} ({vuln.get('PkgName','')})",
+                severity_id=_asff_severity(sev),
+                status="open",
+                source_key=source_key,
+                dedup_key=dedup,
+                first_seen=_now(),
+                last_seen=_now(),
+            ))
+    return findings
+
+
+# ── finding 조립 헬퍼 ─────────────────────────────────────────────────
+def _now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+def _make_finding(
+    cloud: str,
+    resource_id: str,
+    resource_type: str,
+    control_id: str,
+    title: str,
+    severity_id: int,
+    status: str,
+    source_key: str,
+    dedup_key: str,
+    first_seen: str,
+    last_seen: str,
+) -> dict:
+    """계약① finding 조립. finding_id는 UUID v4 신규 발급."""
+    if resource_type not in (
+        "s3_bucket","iam_role","eks_pod","security_group",
+        "secret_plaintext","app_registration","service_principal","ecr_repo",
+    ):
+        resource_type = "other"
+    catalog_meta = _CATALOG.get("controls", {}).get(control_id, {})
+    pillar = catalog_meta.get("pillar", "cspm")
+    return {
+        "finding_id": str(uuid.uuid4()),
+        "cloud": cloud,
+        "resource_id": resource_id,
+        "resource_type": resource_type,
+        "pillar": pillar,
+        "control_id": control_id,
+        "title": title,
+        "severity_id": severity_id,
+        "status": status,
+        "sources": [source_key],
+        "dedup_key": dedup_key,
+        "priority_score": None,
+        "attack_path_id": None,
+        "ai_status": "pending",
+        "first_seen": first_seen,
+        "last_seen": last_seen,
+        "raw_ref": None,
+    }
+
+
+# ── dedup: 같은 dedup_key면 source 누적, finding은 1개 ────────────────
+def dedup_findings(findings: List[dict]) -> List[dict]:
+    """dedup_key 기준 중복 제거. sources는 union, last_seen은 최신으로."""
+    seen: Dict[str, dict] = {}
+    for f in findings:
+        key = f["dedup_key"]
+        if key not in seen:
+            seen[key] = f
+        else:
+            existing = seen[key]
+            # sources 누적(중복 제거)
+            existing["sources"] = list(set(existing["sources"]) | set(f["sources"]))
+            # last_seen 최신 유지
+            if f["last_seen"] > existing["last_seen"]:
+                existing["last_seen"] = f["last_seen"]
+    return list(seen.values())
+
+
+# ── 메인 Normalizer ───────────────────────────────────────────────────
+class Normalizer:
+    """ingest-envelope → 계약① finding[] 변환기.
+
+    실배포: Lambda 핸들러에서 Normalizer().normalize(envelope) 호출.
+    목업:   run_demo.py가 mock envelope으로 직접 호출.
+    """
+
+    def normalize(self, envelope: dict) -> List[dict]:
+        """계약⑤ ingest-envelope → 계약① finding 목록(dedup 완료)."""
+        source = envelope.get("source", "")
+        source_format = envelope.get("source_format", "")
+        cloud_hint = envelope.get("cloud_hint", "aws")
+        raw = envelope.get("raw_inline") or {}
+
+        # raw_inline이 배열이면 각각 처리(Prowler 배치 등)
+        raw_list = raw if isinstance(raw, list) else [raw]
+
+        findings: List[dict] = []
+        for item in raw_list:
+            if not item:
+                continue
+            parsed = self._parse_one(item, source, source_format, cloud_hint)
+            findings.extend(parsed)
+
+        return dedup_findings(findings)
+
+    def _parse_one(self, raw: dict, source: str, fmt: str, cloud_hint: str) -> List[dict]:
+        if fmt == "asff":
+            # Security Hub / Inspector / Macie 공통
+            return _parse_asff(raw, source, cloud_hint)
+        if fmt == "prowler-json":
+            return _parse_prowler(raw, cloud_hint)
+        if fmt == "trivy-json":
+            return _parse_trivy(raw, cloud_hint)
+        # custom(manifest scan 등)은 이미 정규화된 finding dict로 간주
+        if fmt == "custom":
+            if "finding_id" in raw:
+                return [raw]
+        return []
