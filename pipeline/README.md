@@ -113,9 +113,12 @@ ing.publish(envelopes, dry_run=False)   # boto3 sqs.send_message
 | `source_format` | 대상 스캐너 | 파서 함수 |
 |---|---|---|
 | `asff` | Security Hub · Inspector · Macie | `_parse_asff()` |
-| `prowler-json` | Prowler (AWS + Azure/Entra) | `_parse_prowler()` |
+| `prowler-json` | Prowler native JSON (목업·직접 호출) | `_parse_prowler()` |
+| `ocsf` | **실 Prowler(`-M json-ocsf`) — AWS+Azure 공통** | `_parse_ocsf()` |
 | `trivy-json` | Trivy (컨테이너 이미지) | `_parse_trivy()` |
 | `custom` | 이미 정규화된 finding dict | 그대로 통과 |
+
+> **`ocsf` 파서 = 실 Prowler 경로 확정판**(설계 §24·계약⑤). 실 Prowler는 `-M json-ocsf`로 출력하고, 준형 `ingest.from_s3_event()`가 이 결과를 `source_format="ocsf"`로 봉투화한다. OCSF는 **클라우드 중립**이라 AWS 전용 ASFF와 달리 Azure Entra까지 **파서 하나로** 커버 — "멀티클라우드 OCSF 통합" 셀링포인트와 정합. (`prowler-json`은 CLI 없이 native dict를 직접 넣는 목업/직접호출 경로로 유지.) OCSF는 Prowler 버전별로 필드 위치가 달라 `metadata.event_code`(check_id)·`resources[].group.name`(service)·`severity`/`severity_id`를 방어적으로 탐색한다.
 
 ### ③ control_id 매핑 — control-catalog 역인덱스
 
