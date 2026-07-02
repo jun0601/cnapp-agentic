@@ -106,16 +106,16 @@ cnapp-agentic/
 │   ├── core/                 (공유) contracts · tools · case
 │   ├── evidence/             (준형) triage · evidence — 능동조사
 │   └── reasoning/            (진우) hypothesis · reasoning · orchestrator
-├── scanners/                 🔨 스캐너 연동
-│   ├── cspm/                 (준형) Config · Prowler · Security Hub · Macie  ⬜ 예정
+├── scanners/                 🔨 스캐너 연동 (목업 동작)
+│   ├── cspm/                 ✅ SecurityHub·Macie·Prowler → 계약⑤ 봉투(mock+실 boto3/CLI) (준형)
 │   ├── workload/             ✅ Trivy ✅ · Inspector·kube-bench·Defender ⬜ (진우)
 │   └── ciem/                 (진우) Prowler entra_id_* · Entra CIEM  ⬜ 다음 착수
-├── pipeline/                 🔨 수집·정규화 (normalize ✅ / ingest ⬜)
-│   ├── ingest/               (준형) EventBridge→SQS  ⬜ 예정
-│   └── normalize/            (진우) Lambda→OCSF  ✅ ASFF·prowler·trivy→OCSF-lite(dedup·역인덱스)
-├── rag/                      ⬜ RAG — 가제
-│   ├── corpus/               (준형) 코퍼스·임베딩 적재
-│   └── retrieval/            (진우) 검색·LLM 답변
+├── pipeline/                 ✅ 수집·정규화 (목업 동작)
+│   ├── ingest/               ✅ EventBridge/S3 이벤트 → 계약⑤ 봉투 → SQS (준형)
+│   └── normalize/            ✅ Lambda→OCSF (ASFF·prowler·trivy→OCSF-lite, dedup·역인덱스) (진우)
+├── rag/                      ✅ RAG (목업 동작)
+│   ├── corpus/               ✅ 청크 → Titan 임베딩 → pgvector 적재(계약⑥, mock+실) (준형)
+│   └── retrieval/            ✅ 검색 · LLM 답변 (진우)
 ├── attackpath/               ✅ finding→그래프 상관 동작 (골든 정합 OK)
 │   ├── model/                (준형) 그래프 데이터 모델·불변식 검증 ✅
 │   └── correlation/          (진우) R1~R5 상관·2-pass backfill ✅
@@ -145,9 +145,9 @@ cnapp-agentic/
 |---|---|---|---|---|---|
 | 🖥️ **앱 & 환경 세팅** | 타깃 앱 · 관제 앱 **2개 개발** | ✅ 목업 동작(콘솔 8화면 · 타깃 member+포털) | **AWS/Azure 환경**(M365·Entra 데모 테넌트·계정 초기) | 🔄 AWS 계정 ✅ / Azure 테넌트 진행중 | ⬜ apply 시 배포(Phase2~) · Azure 테넌트·AWS 계정은 실물 ✅ |
 | 🏗️ **공유 인프라 · 토대** | `infra/shared`·`infra/target` 주도 · CI/CD · Shift-Left | 🔨 스캐폴드(apply 전) | 모니터링·운영관제(Grafana·CloudTrail) | ⬜ 예정 | ⬜ apply 전(TF state 버킷만 실물 ✅) |
-| 🔍 **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ⬜ 예정 | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM(`scanners/ciem/` 신설) | 🔨 Trivy(`scanners/workload`) ✅ · ciem/ 다음 착수 ⬜ · 나머지 ⬜ | ⬜ Phase2 첫 실스캐너(trivy `scan_image` 실 이미지) → Phase3 확장 |
-| 📥 **수집 · 정규화** | 수집부 (EventBridge→SQS) | ⬜ 예정 | 정규화부 (Lambda→OCSF) | ✅ 목업 동작(`pipeline/normalize`) | ⬜ Phase2(Lambda 배포 + 실 finding) |
-| 📚 **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ⬜ 예정 | 검색 · LLM 답변 생성 | ✅ 목업 동작(`rag/retrieval`) | ⬜ Phase3(pgvector 적재 + Bedrock 임베딩) |
+| 🔍 **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ✅ 목업 동작(`scanners/cspm`, 골든 5종) | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM(`scanners/ciem/` 신설) | 🔨 Trivy(`scanners/workload`) ✅ · ciem/ 다음 착수 ⬜ · 나머지 ⬜ | ⬜ Phase2 첫 실스캐너(scan_securityhub/scan_prowler 실계정) → Phase3 확장 |
+| 📥 **수집 · 정규화** | 수집부 (EventBridge→SQS) | ✅ 목업 동작(`pipeline/ingest`) | 정규화부 (Lambda→OCSF) | ✅ 목업 동작(`pipeline/normalize`) | ⬜ Phase2(Lambda 배포 + 실 finding) |
+| 📚 **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ✅ 목업 동작(`rag/corpus`, 계약⑥ 24청크) | 검색 · LLM 답변 생성 | ✅ 목업 동작(`rag/retrieval`) | ⬜ Phase3(pgvector 적재 + Bedrock 임베딩) |
 | 🧠 **엔진 (Bedrock)** | Evidence(tool use) · Triage | ✅ 목업 능동조사(`engine/`) | Hypothesis · Reasoning · Orchestrator | ✅ 목업 동작(전체 루프) | **✅ Phase1 완료(2026-07-02)** — 실 Bedrock(Haiku)이 실 S3를 read-only **자가 조사 → CONFIRMED**(apply→`run_real`→destroy) |
 | 🕸️ **attack-path** | 그래프 데이터 모델 | ✅ 모델·불변식 검증(`attackpath/model`) | 상관 로직(R1~R5) · 내러티브 | ✅ R1~R5 상관·2-pass backfill | ⬜ Phase2에 엮임(실 finding 상관) |
 
@@ -164,7 +164,7 @@ cnapp-agentic/
 | 📜 **공통 계약 (`contracts/`)** | ✅ **졸업** — 계약 7종 JSON Schema + INTERNAL control 카탈로그(14종) + 골든 시나리오 mock(findings·attack-path·case). `validate.py` 4-assert + GitHub Actions CI 게이트로 정합 보장 |
 | 🖥️ **관제 콘솔 (`apps/console`)** | ✅ **8화면 목업 동작** — Vite+React+TS+Tailwind+TanStack+React Flow+MSW. 대시보드·Findings·Finding상세(Evidence 탭)·Attack-path + 조치·컴플라이언스·감사로그·로그인. MSW가 `contracts/mock-*.json` 서빙 → 백엔드·AWS 0으로 동작. `tsc`·`vite build` 통과 |
 | 🛒 **타깃 앱 (`apps/target`)** | ✅ **member 실행 + shop 포털** — member(Python/FastAPI) 회원 REST + **PII seeder**(faker→S3, Macie 미끼) + 포털. product/order는 결함 매니페스트(f1·f2·f5). 모든 PII/시크릿 가짜 |
-| 🧩 **로직 계층 (전부 목업 동작 · exit 0)** | ✅ 엔진 5단계 능동조사(`engine`)·attack-path R1~R5 상관+그래프(`attackpath`)·정규화부(`pipeline/normalize`)·RAG 검색·답변(`rag/retrieval`)·Trivy 스캐너(`scanners/workload`). 전부 `contracts/mock-*.json` 기반 |
+| 🧩 **로직 계층 (전부 목업 동작 · exit 0)** | ✅ 엔진 5단계 능동조사(`engine`)·attack-path R1~R5 상관+그래프(`attackpath`)·수집부(`pipeline/ingest`)·정규화부(`pipeline/normalize`)·RAG 검색·답변(`rag/retrieval`)+코퍼스 적재(`rag/corpus`)·Trivy(`scanners/workload`)+CSPM(`scanners/cspm`) 스캐너. 각 영역 준형/진우 half 다 채워짐(계약 SSOT로 정합) |
 | ❤️ **엔진 실 tool-use (Phase1 — 심장)** | ✅ **실검증 완료(2026-07-02)** — `infra/slice` apply → `run_real` → destroy 전 과정 실행. **실 Bedrock Claude Haiku가 스스로 `s3:GetBucketPolicy`·`GetPublicAccessBlock` 호출 → 실 S3 응답으로 판정 CONFIRMED(100%)** → 즉시 destroy(비용 ~$0). 챗봇 탈출(LLM 능동 tool use)이 목업이 아니라 **실제로 동작함을 증명** |
 | 🔗 **Phase2 end-to-end 배선 (`run_e2e.py`)** | ✅ **관통 확인(2026-07-02)** — 스캐너(Trivy) → 정규화 → 상관(attack-path) → 엔진 → RAG를 **한 러너로 연결**, 스캐너발 CVE가 파이프라인 끝(엔진 판정·RAG 설명)까지 도달(exit 0). 정규화·상관은 실 코드 관통, 스캐너는 실 trivy 출력 동일 구조 JSON(⬜ 라이브 `trivy image`는 trivy 설치/CI 대기), 엔진·RAG는 무비용 Mock(실 tool-use는 Phase1) |
 | 🏗️ **공유 인프라 (`infra/shared`·`infra/target`)** | ✅ **스캐폴드** — VPC·NAT Instance·EKS(spot·IRSA)·ECR·RDS pgvector·OIDC·Evidence/Bedrock IAM + 결함 IaC 토글(f3·f4·f6). `terraform validate`/`fmt` 통과. apply는 게이트 후 |

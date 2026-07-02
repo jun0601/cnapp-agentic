@@ -30,9 +30,10 @@ from attackpath.correlation.correlation import CorrelationEngine
 from engine.core.contracts import findings_by_id, load_findings
 from engine.core.tools import MockToolExecutor
 from engine.reasoning.orchestrator import Orchestrator
-from pipeline.normalize.normalizer import Normalizer
+from pipeline.normalize.normalizer import Normalizer, dedup_findings
 from rag.retrieval.answer_gen import RAGAnswerGenerator
 from rag.retrieval.retriever import RAGRetriever
+from scanners.cspm.cspm import CSPMScanner
 from scanners.workload.trivy import TrivyScanner, TrivyScanError
 
 _KEV = "INTERNAL-VULN-KEV-001"
@@ -70,6 +71,42 @@ _FIXTURE_TRIVY_JSON = {
         }
     ],
 }
+
+
+# CSPM 스캐너(준형)가 낼 원본 — golden attack-path의 AWS 설정·데이터·권한 노드 소스.
+# (raw, source, source_format). Azure Entra는 진우 ciem 스캐너 미구현이라 mock-findings에서 채움.
+_CSPM_RAWS = [
+    ({"SchemaVersion": "2018-10-08", "Title": "S3 should block public access",
+      "Severity": {"Label": "HIGH"}, "Compliance": {"Status": "FAILED"},
+      "ProductFields": {"ControlId": "S3.8"},
+      "Resources": [{"Type": "AwsS3Bucket", "Id": "arn:aws:s3:::member-pii-prod"}],
+      "UpdatedAt": "2026-07-02T01:00:00Z", "CreatedAt": "2026-07-01T00:00:00Z"},
+     "securityhub", "asff"),
+    ({"SchemaVersion": "2018-10-08", "Title": "SG should not allow 0.0.0.0/0",
+      "Severity": {"Label": "HIGH"}, "Compliance": {"Status": "FAILED"},
+      "ProductFields": {"ControlId": "EC2.19"},
+      "Resources": [{"Type": "AwsEc2SecurityGroup",
+                     "Id": "arn:aws:ec2:ap-northeast-2:123456789012:security-group/sg-0product1234"}],
+      "UpdatedAt": "2026-07-02T01:00:00Z", "CreatedAt": "2026-07-01T00:00:00Z"},
+     "securityhub", "asff"),
+    ({"SchemaVersion": "2018-10-08", "Title": "SensitiveData: PII detected",
+      "Severity": {"Label": "HIGH"}, "Compliance": {"Status": "FAILED"},
+      "Types": ["Sensitive Data Identifications/PII/SensitiveData:S3Object"],
+      "Resources": [{"Type": "AwsS3Bucket", "Id": "arn:aws:s3:::member-pii-prod"}],
+      "UpdatedAt": "2026-07-02T01:05:00Z", "CreatedAt": "2026-07-01T00:00:00Z"},
+     "macie", "asff"),
+    ({"checkID": "iam_inline_policy_allows_privilege_escalation",
+      "checkTitle": "Over-privileged IRSA (s3:*)", "status": "FAIL", "severity": "critical",
+      "service": "iam", "resourceArn": "arn:aws:iam::123456789012:role/order-irsa",
+      "timestamp": "2026-07-02T01:15:00Z", "cloud": "aws"}, "prowler-aws", "prowler-json"),
+    ({"checkID": "eks_cluster_secret_encryption",
+      "checkTitle": "Plaintext Azure SP credential (order)", "status": "FAIL", "severity": "critical",
+      "service": "secretsmanager", "resourceId": "aws:secret_plaintext:shop/order/AZURE_SP_CRED",
+      "timestamp": "2026-07-02T01:15:00Z", "cloud": "aws"}, "prowler-aws", "prowler-json"),
+]
+
+# Azure Entra findings(진우 ciem 스캐너 미구현 → mock-findings에서)
+_AZURE_CONTROLS = {"INTERNAL-ENTRA-SP-CRED-001", "INTERNAL-ENTRA-OVERPRIV-APP-001"}
 
 
 def _hr(t: str) -> None:
@@ -112,15 +149,22 @@ def main() -> int:
         print("   ✓ %s / %s / %s" % (f["control_id"], f["resource_id"], f["sources"][0]))
     scanned_ids = {f["finding_id"] for f in scanned}
 
-    # ── 스캔된 CVE + 나머지 골든 finding(기존 스캐너 몫은 mock) 합류 ────
-    # 실배포: SG/IAM/S3/PII/Azure는 각 스캐너(SecurityHub·Prowler·Macie)발 실 finding.
-    # 여기선 그 부분만 mock으로 채워 attack-path(R1~R5)가 성립하게 함.
-    others = [f for f in load_findings() if f.get("control_id") != _KEV]
-    findings = scanned + others
+    # ── 스캐너 2개(Trivy + CSPM) findings 합류 ─────────────────────────
+    # CSPM(SG·IAM·S3·PII·secret) = 준형 CSPMScanner로 실 정규화 관통(scanners/cspm).
+    # Azure Entra(SP·App) = 진우 ciem 스캐너 미구현 → mock-findings에서 채움.
+    cspm = CSPMScanner()
+    cspm_findings = dedup_findings([
+        f for raw, src, fmt in _CSPM_RAWS
+        for f in normalizer.normalize(cspm.scan_from_json(raw, src, fmt))
+    ])
+    print("  + CSPM 스캐너 finding %d건(SG·IAM·S3·PII·secret)" % len(cspm_findings))
+    azure = [f for f in load_findings() if f.get("control_id") in _AZURE_CONTROLS]
+    print("  + Azure Entra finding %d건(mock — ciem 스캐너 미구현)" % len(azure))
+    findings = scanned + cspm_findings + azure
 
-    # ── ③ 상관 (CorrelationEngine) — 스캔 CVE가 attack-path에 편입 ─────
+    # ── ③ 상관 (CorrelationEngine) — 실 스캐너 2개 findings가 attack-path에 편입 ─────
     paths = CorrelationEngine().correlate(findings)  # findings에 attack_path_id backfill(2-pass)
-    _hr("③ 상관 (CorrelationEngine) — R1~R5 → attack-path")
+    _hr("③ 상관 (CorrelationEngine) — R1~R5 → attack-path (소스: Trivy + CSPM 실 정규화)")
     if not paths:
         print("  attack-path 미생성 — 체인 불성립"); return 1
     p = paths[0]
