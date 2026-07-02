@@ -141,7 +141,7 @@ cnapp-agentic/
 | **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ⬜ 예정 | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM | ⬜ 예정 |
 | **수집 · 정규화** | 수집부 (EventBridge→SQS) | ⬜ 예정 | 정규화부 (Lambda→OCSF) | ✅ 목업 동작(`pipeline/normalize`) |
 | **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ⬜ 예정 | 검색 · LLM 답변 생성 | ⬜ 예정 |
-| **엔진 (Bedrock)** | Evidence(tool use) · Triage | ✅ 목업 능동조사(`engine/`) | Hypothesis · Reasoning · Orchestrator | ✅ 목업 동작(전체 루프) |
+| **엔진 (Bedrock)** | Evidence(tool use) · Triage | ✅ 목업 능동조사 + 🔨 Bedrock 실 플래너 코드(`engine/`, 실 검증 전) | Hypothesis · Reasoning · Orchestrator | ✅ 목업 동작(전체 루프) |
 | **attack-path** | 그래프 데이터 모델 | ✅ 모델·불변식 검증(`attackpath/model`) | 상관 로직(R1~R5) · 내러티브 | ✅ R1~R5 상관·2-pass backfill |
 
 > ⚠️ "관제"는 두 가지 — **관제 "앱"**(CNAPP 보안 대시보드 제품) = 준형 / **운영 "관제"**(Grafana·CloudTrail 플랫폼 관측) = 진우. 애플리케이션 2개는 모두 준형이 개발한다.
@@ -159,7 +159,8 @@ cnapp-agentic/
 | **타깃 앱 (`apps/target`)** | ✅ **member 서비스 실행 + shop 포털** — member(Python/FastAPI) 회원 REST + **PII seeder**(faker→S3, Macie 미끼) + `/` 포털(product·order·member 소개). product/order는 결함 매니페스트(f1·f2·f5). 모든 PII/시크릿 가짜 |
 | **결함 IaC (`infra/target`)** | ✅ **스캐폴드** — 공개 S3(f6)·열린 SG(f3)·과도 IRSA(f4) `var.enable_*` 토글(기본 off), remote_state로 infra/shared 참조. `terraform fmt` 통과 |
 | TF state 부트스트랩 | ✅ `cnapp-agentic-tfstate` 버킷(manual-infra §2) |
-| **엔진 · attack-path · 정규화부 (목업)** | ✅ **동작** — 엔진 5단계 능동조사(`engine`, read-only 툴 4회·confirmed)·attack-path R1~R5 상관 + 그래프 모델(`attackpath`)·정규화부 ASFF/prowler/trivy→OCSF-lite(`pipeline/normalize`). 전부 `contracts/mock-*.json` 기반. 엔진 실 tool-use 배관(`RealToolExecutor`·`infra/slice`)은 apply 전 |
+| **엔진 · attack-path · 정규화부 (목업)** | ✅ **동작** — 엔진 5단계 능동조사(`engine`, read-only 툴 4회·confirmed)·attack-path R1~R5 상관 + 그래프 모델(`attackpath`)·정규화부 ASFF/prowler/trivy→OCSF-lite(`pipeline/normalize`). 전부 `contracts/mock-*.json` 기반 |
+| **엔진 실 tool-use (Phase1)** | 🔨 **뇌+배관 코드 작성** — `BedrockEvidenceAgent`(Converse tool-use 플래너, LLM이 read-only API 자가 선택)·`RealToolExecutor`(boto3 S3)·`infra/slice`(공개 S3 표적)·`engine/run_real.py`. 가짜 Bedrock으로 **에이전틱 루프 오프라인 검증 OK**. ⬜ 실 Bedrock 검증(apply 세션: 모델 액세스·서울 model ID·slice apply→destroy) |
 | 스캐너 · 수집부(ingest) · RAG · console-backend · **실데이터 전환** | ⬜ **예정** — 엔진 실 tool-use → 스캐너 finding → 수집 파이프라인 순 |
 
 > **전략 = 계약·목업 우선.** 실제 스캐너/엔진을 기다리지 않고 `contracts/mock-*.json`으로 관제 콘솔·엔진을 끝까지 만든 뒤 실데이터로 교체 — 직렬 의존을 두 병렬 트랙으로 분리한다.

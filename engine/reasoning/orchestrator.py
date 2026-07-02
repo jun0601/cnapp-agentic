@@ -30,10 +30,16 @@ class Orchestrator:
     Triage·Hypothesis·Evidence·Reasoning 로직은 무변 — executor만 갈아끼운다.
     """
 
-    def __init__(self, executor: Optional[ToolExecutor] = None) -> None:
+    def __init__(
+        self,
+        executor: Optional[ToolExecutor] = None,
+        evidence_agent: Optional[object] = None,
+    ) -> None:
+        # evidence_agent: 규칙 플래너(EvidenceAgent, 기본) ↔ LLM 플래너(BedrockEvidenceAgent)
+        # 스왑 지점. 둘 다 investigate(findings)->EvidenceOutput 동일 인터페이스.
         self.executor = executor or MockToolExecutor()
         self._hyp = HypothesisAgent()
-        self._ev = EvidenceAgent(self.executor)
+        self._ev = evidence_agent or EvidenceAgent(self.executor)
         self._rsn = ReasoningAgent()
 
     def run(
