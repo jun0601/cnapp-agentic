@@ -41,6 +41,7 @@
 
 > 무엇을 만들었/추가했는지 한 줄씩. (git 커밋이 1차 기록이지만, 사람이 빠르게 훑는 용도)
 
+- `2026-07-02 / 준형 / [docs] 진우 App Reg(ef0ad44) 파악 + 실전환 정합 2건 명시 — manual-infra §3.6.4 신설: ①mock placeholder GUID(n4 b2c3d4e5…·n5 a1b2c3d4…)→실 appId(order-sp 541938e7…·overpriv-app 283ca885…) 스왑(실 finding 흐를 때) ②f16 노드 매핑 애매(contracts는 f16→n4 SP인데 실물은 무만료 시크릿을 overpriv-app=n5쪽에 붙임) → 진우와 n4/n5 확정 필요. 지금은 mock이라 정상. CLAUDE §7.1 진우 진행에 App Reg 3종 ✅ 반영`
 - `2026-07-02 / 진우 / [infra] Azure App Registration 3종 + Federated Credential 생성 완료 — ①overpriv-app(Directory.ReadWrite.All, 24개월 시크릿, f8·f16 소스) ②order-sp(Directory.Read.All+Application.Read.All, 6개월 시크릿, f5 평문 노출 예정) ③prowler-sp(Directory.Read.All+Policy.Read.All+AuditLog.Read.All, 시크릿 없음, GitHub OIDC Federated Credential). manual-infra.md §3.6 갱신`
 - `2026-07-01 / 준형 / [docs] docs/cost-strategy.md 신설(포폴 셀링포인트) — 비용 최적화를 "돈 없어서"가 아니라 "의도적 엔지니어링 트레이드오프"로 정리한 결정 원장: mock-first(빌드 대부분 AWS $0)·apply→destroy 규율·경량 대체(NAT Instance/RDS t3.micro/pgvector)·Bedrock 모델 티어링+Triage 게이트·Azure 평가판+신원만·거버넌스 회피. 각 결정에 절감+트레이드오프, 정직한 "포기한 것" 절, 비용 order-of-magnitude 표. README docs 안내·폴더트리에 링크`
 - `2026-07-01 / 준형 / [docs] attackpath/README.md 신설 — model+correlation 전체 워크스루(R1~R5 표·그래프 모델·2-pass 흐름·목업→실배포 스왑)`

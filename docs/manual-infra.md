@@ -148,6 +148,13 @@
 
 > GitHub Actions에서 `azure/login` 액션으로 이 SP에 OIDC 인증 → 시크릿 없이 Prowler 스캔 가능.
 
+#### 3.6.4 ⚠️ 실전환 시 맞출 것 (mock ↔ real 정합 — 지금은 정상, 나중 리마인드)
+
+Prowler가 실제 Entra finding을 흘리기 시작하면 아래 2건을 반드시 맞춘다:
+
+1. **mock GUID → 실 appId 스왑.** `contracts/mock-attack-paths.json`·`mock-findings.json`의 Azure 노드는 placeholder GUID(n4 `azure:service_principal:b2c3d4e5…` · n5 `azure:app_registration:a1b2c3d4…`)다. 실 finding의 `resource_id`는 위 실제 appId(`order-sp 541938e7…` · `overpriv-app 283ca885…`)를 써야 정합(4.4.1a 캐논). **실전환 전까지는 placeholder가 정상.**
+2. **f16(무만료 SP cred, `INTERNAL-ENTRA-SP-CRED-001`) 노드 매핑 확인.** contracts/target-app-design §2.0은 f16 → **노드 n4(service_principal)**로 매핑. 그런데 실물에선 무만료(24개월) 시크릿을 **`overpriv-app`(App Registration, n5쪽)**에 붙였고, 실 SP인 `order-sp`엔 6개월(f5용)을 붙였다. → **f16을 n4(order-sp)에 둘지 / n5(overpriv-app)에 둘지 진우와 확정** 후 mock·카탈로그·§2.0을 일치시킨다.
+
 ---
 
 *수동 관리 리소스 현황 — Terraform 외부에서 직접 생성·설정한 항목만 기록. Terraform 관리 리소스는 `infra/` 폴더 코드가 기준.*
