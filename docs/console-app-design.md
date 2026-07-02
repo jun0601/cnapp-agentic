@@ -215,15 +215,16 @@ pgvector 위에 둘 주요 테이블과 컬럼·용도를 정리한 표다.
   - **분석가(viewer):** 모든 화면 조회만, 조치 제안 확인 가능, 승인 불가.
   - **보안관리자(approver):** 조치 승인/반려 가능 — 17번 "변경은 분리된 승인 경로로만"을 역할 분리로 구현.
 - 무료 가능 근거·구현 방식은 project-draft 10번을 그대로 따름(Week 1 우선 검증 대상).
-- **데모 시연:** Entra ID에 그룹 2개(`cnapp-viewer`, `cnapp-approver`)와 테스트 계정 2개를 만들고 각 그룹에 배정 → 그룹 클레임이 Cognito 토큰에 실려 콘솔에서 분석가/보안관리자로 갈림. 시연은 viewer로 로그인(승인 버튼 비활성) → approver로 재로그인(승인 버튼 활성·조치 승인)으로 역할 분리를 보여줌.
+- **데모 시연:** Entra ID에 그룹 2개(`cnapp-viewer`, `cnapp-approver`)와 테스트 계정 2개를 만들고 앱에 배정 → 그룹 클레임이 Cognito 토큰에 실려 콘솔에서 분석가/보안관리자로 갈림. 시연은 viewer로 로그인(승인 버튼 비활성) → approver로 재로그인(승인 버튼 활성·조치 승인)으로 역할 분리를 보여줌.
+- **⚠️ 그룹 클레임 = 이름이 아니라 개체 ID(GUID) (2026-07-02 확정):** Entra **무료 티어**라 "애플리케이션에 할당된 그룹"(그룹 이름 내보내기, P1/P2 필요)을 못 쓰고 **"보안 그룹" 모드**를 쓰는데, 이 모드는 클라우드 전용 그룹 이름 내보내기를 지원 안 해 **클레임에 GUID만** 실린다. 그래서 `auth.ts`는 그룹 이름이 아니라 **`cnapp-approver` 개체 ID로 매칭**(이름보다 불변 식별자라 오히려 견고). 실제 GUID·계정은 [manual-infra §3.6.5](manual-infra.md). 개별 사용자(viewer@·approver@)를 앱에 직접 할당(무료 티어는 그룹 할당 불가).
 - **그룹 클레임 매핑 구현 경로:**
   ```
   Entra SAML assertion
-    └─ attribute: http://schemas.microsoft.com/ws/2008/06/identity/claims/groups
+    └─ attribute: http://schemas.microsoft.com/ws/2008/06/identity/claims/groups  (값=그룹 GUID[])
          ↓ Cognito SAML attribute mapping (infra/console Terraform)
-    Cognito User Pool custom attribute: custom:groups
+    Cognito User Pool custom attribute: custom:groups  (= "guid1,guid2,...")
          ↓ ALB가 Lambda로 전달
-    x-amzn-oidc-data 헤더(JWT) → Lambda에서 custom:groups 추출 → viewer/approver 분기
+    x-amzn-oidc-data 헤더(JWT) → Lambda가 custom:groups에서 approver 그룹 GUID 매칭 → viewer/approver 분기
   ```
 
 ---

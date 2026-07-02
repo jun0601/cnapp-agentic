@@ -199,6 +199,8 @@ resource "aws_cognito_identity_provider" "entra" {
     MetadataURL = var.saml_metadata_url
   }
 
+  # groups 클레임 값 = 그룹 GUID[](Entra 무료 티어 "보안 그룹" 모드 — 이름 내보내기 불가).
+  # auth.ts가 approver 그룹 GUID로 매칭. custom:groups 대상키는 custom: 접두 정식(console §7·manual-infra §3.6.5).
   attribute_mapping = {
     email           = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
     "custom:groups" = "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups"
