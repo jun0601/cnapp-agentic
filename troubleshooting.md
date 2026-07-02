@@ -13,6 +13,8 @@
 
 ## 1. 트러블슈팅 로그 (문제 → 해결)
 
+- `2026-07-02 / 진우 / [pipeline] normalizer.py Azure resource_id 이중 prefix 버그 — Prowler Azure raw에서 resourceId가 이미 "azure:app_registration:..." 캐논 형식으로 들어왔는데, _canon_resource_id()가 또 "azure:app_registration:" prefix를 앞에 붙여 "azure:app_registration:azure:app_registration:..."으로 이중화. 원인: ARN 체크 없이 무조건 cloud:type: prefix 추가. 해결: raw_id가 "aws:" 또는 "azure:"로 시작하면 캐논 형식으로 간주하고 그대로 반환`
+- `2026-07-02 / 진우 / [pipeline] normalizer.py Prowler check ID → control 매핑 실패(UNKNOWN-001) — mock checkID "entra_id_app_directory_readwrite_all"이 catalog 와일드카드 패턴("prowler:entra_id_app_*_overprivileged", "prowler:entra_id_application_*")에 매칭 안 됨. 원인: 패턴이 과도하게 구체적(suffix 강제). 해결: demo checkID를 catalog 패턴에 맞는 "entra_id_app_registration_overprivileged"로 변경 → INTERNAL-ENTRA-OVERPRIV-APP-001 매핑 OK`
 - `2026-07-01 / 준형 / [apps-console] 외부 리뷰: Evidence 탭 데이터 소스 이중(§5 finding_explanations.evidence_json ↔ §15.4 mock-cases) 발견 → UC0=case단위/UC1=finding단위로 확정, finding_explanations에 case_id FK + cases 테이블 신설, 상세는 finding_id∈case.finding_ids 조인. ai_status placeholder·정합 3건·스택 확정(RF/MSW/TS)+폴리글랏 반영`
 - `2026-07-01 / 준형 / [contracts] §2.1 계약 정합 4건 수정 중 attack-path 노드 n4(azure SP)에 대응 finding 부재 발견(assert c 위반) → f16을 골든 경로 편입(control도 ENTRA-SP-CRED-001 신규). validate.py로 4-assert 자동화, CI 게이트(.github/workflows) 추가. validate 통과`
 - `2026-07-01 / 준형 / [infra] infra/shared terraform init provider 버전 충돌(fck-nat 모듈 aws>=6.0 vs vpc/eks 5.x <6.0) → fck-nat 모듈을 raw NAT instance(fck-nat 공개 AMI + source_dest_check=false + private route)로 교체해 충돌·모듈 변수 불확실성 동시 제거. fmt·validate 통과`

@@ -18,6 +18,7 @@
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-07-02 / 진우 / `pipeline/normalize` 정규화부 구현 완료** — `Normalizer` 클래스: ASFF(Security Hub·Macie)·prowler-json(AWS+Azure)·trivy-json → 계약① OCSF-lite finding 변환. control-catalog 역인덱스(정확+와일드카드 fnmatch), resource_id 캐논화(ARN→`cloud:type:native_id`), severity 변환, dedup(sources 누적). `python -m pipeline.normalize.run_demo` 골든 control_id 7종 전부 매핑 OK ✅. 실배포 스왑 = Lambda 핸들러에서 `Normalizer().normalize(envelope)` 호출만. **`[PULL 필요]`**
 - **2026-07-02 / 준형 / 진우 App Reg 작업 파악 + mock↔real 정합 리마인더 명시(§7.1 진우 진행 갱신)** — 진우 `ef0ad44`(App Reg 3종) 검토: 보안 OK(시크릿 값 미커밋·appId/tenantId만=식별자), Prowler SP 키리스(D4). **§7.1 진우 진행에 App Reg 3종 ✅ 반영.** manual-infra §3.6.4 신설로 **실전환 시 맞출 2건** 못박음: ① mock placeholder GUID → 실 appId 스왑(실 finding 흐를 때) ② **f16(무만료 SP cred) 노드 매핑 — contracts는 n4(SP)인데 실물은 무만료 시크릿을 overpriv-app(n5쪽)에 붙임 → 진우와 n4/n5 확정 필요.** 지금은 mock이라 정상, 리마인더 목적. **`[PULL 필요]`** (진우: f16 매핑 확인 요청)
 - **2026-07-02 / 진우 / Azure App Registration 3종 + Federated Credential 완료** — ① `cnapp-agentic-overpriv-app`(`Directory.ReadWrite.All`, 24개월 시크릿 — f8·f16 소스) ② `cnapp-agentic-order-sp`(`Directory.Read.All`+`Application.Read.All`, 6개월 시크릿 — f5 평문 노출 예정) ③ `cnapp-agentic-prowler-sp`(`Directory.Read.All`+`Policy.Read.All`+`AuditLog.Read.All`, 시크릿 없음 — GitHub OIDC Federated Credential). `manual-infra.md §3.6` 갱신. SSO용 App Reg는 `infra/console` apply 후. **`[PULL 필요]`**
 - **2026-07-01 / 준형 / `docs/cost-strategy.md` 신설(포폴 셀링포인트)** — 비용 최적화를 "돈 없어서 감수"가 아니라 **의도적 엔지니어링 트레이드오프**로 정리한 결정 원장. mock-first(빌드 대부분 AWS $0)·apply→destroy 규율·경량 대체(NAT Instance/RDS t3.micro/pgvector)·Bedrock 모델 티어링+Triage 게이트 비용통제 내재화·Azure 평가판+신원만·거버넌스(Orgs/IC/CT) 회피 — 각 결정에 절감+트레이드오프, **정직한 "포기한 것" 절**(HA 없음·mock≠실검증 등), 비용 order-of-magnitude 표. README docs 안내·폴더트리에 링크. (엔진 실 tool-use vertical slice 실행 플랜은 준형 요청으로 클로드 메모리에만 보관 — 나중 apply 시 체크리스트.) **`[PULL 필요]`**
@@ -188,8 +189,8 @@ cnapp-agentic/
 - ▶ 다음: **Phase1 = 엔진 실 tool-use** — 배관 작성 완료(`RealToolExecutor`·`infra/slice` 미니 버킷, apply 전), **남은 것: Bedrock LLM tool-use 플래너(핵심) + apply→test→destroy(준형과 함께)** → 이후 console-backend(TS Lambda)
 
 *진우*
-- ✅ 한 것: TF state 버킷 · Cognito SSO 설계(authenticate-cognito·그룹 클레임) · 2-pass 트리거 이벤트 · Azure/Entra 테넌트 · **엔진 Hypothesis·Reasoning·Orchestrator** · **Azure App Registration 3종(과도권한 overpriv-app·order-sp·prowler-sp) + Prowler SP GitHub Federated Credential**(manual-infra §3.6)
-- ▶ 다음: App Registration(SSO)+그룹(infra/console 선행) · 워크로드 스캐너 · 정규화부 · Defender(데모 때만)
+- ✅ 한 것: TF state 버킷 · Cognito SSO 설계(authenticate-cognito·그룹 클레임) · 2-pass 트리거 이벤트 · Azure/Entra 테넌트 · **엔진 Hypothesis·Reasoning·Orchestrator** · **Azure App Registration 3종(과도권한 overpriv-app·order-sp·prowler-sp) + Prowler SP GitHub Federated Credential**(manual-infra §3.6) · **`pipeline/normalize` 정규화부**(ASFF·prowler-json·trivy-json → OCSF-lite, dedup)
+- ▶ 다음: 워크로드 스캐너(`scanners/workload/`) · RAG 검색·답변(`rag/retrieval/`) · App Registration(SSO)(infra/console 선행) · Defender(데모 때만)
 - ✅ 폴더 정리 완료: `engine/` = `core/`(공유) + `evidence/`(준형) + `reasoning/`(진우) 3폴더 확정(진우가 reasoning/로 합침 — 조율 완료)
 
 *공통 미완:* 스캐너 실행 · 수집/정규화 · RAG · infra apply(비용)
