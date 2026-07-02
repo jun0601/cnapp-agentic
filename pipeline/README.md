@@ -36,11 +36,12 @@
 
 ```
 pipeline/
-├── normalize/               (진우 — 완료 ✅)
-│   ├── normalizer.py   ★ Normalizer 클래스 — 포맷 파서 3종 + dedup
-│   └── run_demo.py       데모 실행 + 골든 정합 검증
-└── ingest/                  (준형 — infra apply 후 Lambda로 구현)
-    └── (미착수 — EventBridge→SQS→Lambda 수집부)
+├── ingest/                  (준형 — 완료 ✅, 코드 세팅. 실배포는 infra apply 후)
+│   ├── ingest.py   ★ Ingestor 클래스 — 입구 2종 → 계약⑤ 봉투 → SQS(dry-run/실)
+│   └── run_demo.py    데모 실행 + 수집→정규화 핸드오프 검증
+└── normalize/               (진우 — 완료 ✅)
+    ├── normalizer.py   ★ Normalizer 클래스 — 포맷 파서 3종 + dedup
+    └── run_demo.py       데모 실행 + 골든 정합 검증
 ```
 
 ---
@@ -49,14 +50,49 @@ pipeline/
 
 ```bash
 # 레포 루트에서
+python -m pipeline.ingest.run_demo
 python -m pipeline.normalize.run_demo
 ```
 
-**출력 요약:** mock envelope 3종(ASFF·Prowler·Trivy) → finding 정규화 → control_id 7종 전부 매핑 확인 → dedup 9→8건 확인 → 골든 정합 OK ✅
+**출력 요약(ingest):** Security Hub EventBridge 이벤트(inline) + Prowler S3 드롭 이벤트(포인터) → 계약⑤ 봉투 2종 조립 → SQS 발행 dry-run → inline 봉투를 `Normalizer`에 직접 넘겨 `INTERNAL-S3-PUBLIC-001`로 정규화되는 것까지 확인(수집→정규화 핸드오프 증명) → 골든 정합 OK ✅
+
+**출력 요약(normalize):** mock envelope 3종(ASFF·Prowler·Trivy) → finding 정규화 → control_id 7종 전부 매핑 확인 → dedup 9→8건 확인 → 골든 정합 OK ✅
 
 ---
 
-## 🔬 4. normalize 상세
+## 🔬 4. ingest 상세 — [ingest/ingest.py](ingest/ingest.py)
+
+### 입구 2종 (계약⑤가 이 둘을 하나의 봉투로 흡수)
+
+| 입구 | 트리거 | 메서드 | raw 저장 방식 |
+|---|---|---|---|
+| ① EventBridge | Security Hub `Findings Imported` / 커스텀 `cnapp.scanner scan.completed` | `from_eventbridge(event)` | `raw_inline`(작아서 인라인) |
+| ② S3 이벤트 | Prowler가 S3에 떨군 결과의 `ObjectCreated` | `from_s3_event(event)` | `raw_location`(크므로 s3 포인터) |
+
+S3 키 경로에 `azure`가 있으면 `prowler-azure`, 없으면 `prowler-aws`로 자동 추론한다.
+
+```python
+ing = Ingestor()
+envelopes = ing.from_eventbridge(securityhub_event)   # → 계약⑤ 봉투[]
+ids = ing.publish(envelopes, dry_run=True)             # mock: SQS 미발행, envelope_id만 반환
+```
+
+### 실 경로
+
+```python
+ing = Ingestor(queue_url="https://sqs.ap-northeast-2.amazonaws.com/.../ingest-queue")
+ing.publish(envelopes, dry_run=False)   # boto3 sqs.send_message
+```
+
+`lambda_handler(event, context)`가 실배포 진입점 — 이벤트에 `Records`가 있으면 S3, 없으면 EventBridge로 자동 판별 후 봉투화→발행까지 한 번에 처리한다.
+
+### enum 가드
+
+`source`/`source_format`이 계약⑤ enum을 벗어나면 봉투화 단계에서 `IngestError`로 즉시 막는다 — 정규화부가 못 알아듣는 봉투가 SQS까지 못 가게 하는 방어선.
+
+---
+
+## 🔬 5. normalize 상세
 
 ### ① 계약⑤ envelope 입력
 
@@ -111,24 +147,25 @@ dedup_key = "aws:s3_bucket:member-pii-prod|INTERNAL-S3-PUBLIC-001"
 
 ---
 
-## 🔄 5. 목업 → 실배포 스왑
+## 🔄 6. 목업 → 실배포 스왑
 
 | 지금 (목업) | 실배포 | 위치 |
 |---|---|---|
+| `from_eventbridge()`/`from_s3_event()` 직접 호출, `publish(dry_run=True)` | EventBridge/S3가 `lambda_handler()`를 트리거, `publish(dry_run=False)` | pipeline/ingest/ |
 | `run_demo.py`가 mock envelope 직접 생성 | Lambda가 SQS 메시지에서 envelope 꺼냄 | pipeline/ingest/ |
 | `Normalizer().normalize(envelope)` 호출 후 콘솔 출력 | 결과 finding을 RDS에 upsert | Lambda 핸들러 |
 
-**Normalizer 로직은 무변** — Lambda 핸들러에서 `Normalizer().normalize(envelope)`를 호출하기만 하면 실배포 전환 완료.
+**ingest.py·normalizer.py 로직은 무변** — 각 Lambda 핸들러에서 `Ingestor().lambda_handler(event)` / `Normalizer().normalize(envelope)`를 호출하기만 하면 실배포 전환 완료. 전제조건: `infra/shared` apply(EventBridge 룰·SQS 큐·Lambda) 완료.
 
 ---
 
-## 🔗 6. 앞뒤 컴포넌트 연결
+## 🔗 7. 앞뒤 컴포넌트 연결
 
 ```
-[scanners/]  scan_image() → 계약⑤ envelope
+[scanners/]  scan_image() 등 → 계약⑤ envelope
                 │
                 ▼
-[pipeline/ingest/]  EventBridge → SQS → Lambda (준형, infra apply 후)
+[pipeline/ingest/]  from_eventbridge()/from_s3_event() → publish() → SQS (실배포: infra apply 후)
                 │
                 ▼
 [pipeline/normalize/]  Normalizer.normalize(envelope) → finding[]

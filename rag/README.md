@@ -33,6 +33,16 @@ KEV(Known Exploited Vulnerabilities) 목록에 등재된 CVE는 실제 공격에
 ## 🗺️ 1. 전체 그림
 
 ```
+mock_corpus.py (진우 — control별 한국어 청크 원문, embedding 없음)
+   │
+   ▼  CorpusLoader.load() (준형)
+   │     mock: 텍스트 해시 기반 결정적 1024-dim 벡터(dry-run)
+   │     real: Titan Embed v2 임베딩 → pgvector UPSERT
+   │
+   ▼  계약⑥ 완성 청크 { chunk_id, text, embedding[1024], embedding_model, dim, metadata }
+         (pgvector에 적재됨 — 검색부가 여기서 읽음)
+
+
 finding (계약①)
    │  control_id = "INTERNAL-VULN-KEV-001"
    │
@@ -54,14 +64,17 @@ finding (계약①)
          ↓ explanation → 관제 앱 Finding 상세 화면
 ```
 
+> **적재(corpus)와 검색(retrieval)은 반드시 같은 임베딩 모델**(`amazon.titan-embed-text-v2:0`, 1024-dim)이어야 벡터가 맞는다 — 계약⑥ `embedding_model`/`dim`이 const로 강제.
+
 ---
 
 ## 🗂️ 2. 파일 지도
 
 ```
 rag/
-├── corpus/               (준형 — 미착수)
-│   └── (임베딩 빌드·pgvector 적재 스크립트 예정)
+├── corpus/               (준형 — 완료 ✅)
+│   ├── loader.py    ★ CorpusLoader — 청크 → 임베딩 → pgvector 적재
+│   └── run_demo.py    데모 실행 + 계약⑥ 검증 + 카탈로그 커버리지 확인
 └── retrieval/            (진우 — 완료 ✅)
     ├── mock_corpus.py  ★ 14 INTERNAL control × 한국어 청크 24개
     ├── retriever.py      RAGRetriever — 청크 검색
@@ -75,10 +88,18 @@ rag/
 
 ```bash
 # 레포 루트에서
+python -m rag.corpus.run_demo
 python -m rag.retrieval.run_demo
 ```
 
-**출력 요약:**
+**출력 요약(corpus):**
+1. 진우 `mock_corpus.all_chunks()`(24개, embedding 없음) 로드
+2. `CorpusLoader.load(dry_run=True)` — mock 임베딩(결정적 1024-dim)으로 계약⑥ 청크 완성
+3. 계약⑥ 검증(embedding[1024]·model/dim const·metadata.control_id) 전 청크 OK
+4. 같은 텍스트 → 같은 벡터(결정성) 확인
+5. control-catalog(14종) 커버리지 확인 → 전체 OK ✅
+
+**출력 요약(retrieval):**
 1. mock finding 3건(KEV·S3공개·Entra과도권한) → 청크 검색 → 설명 생성
 2. `search_multi` 일괄 검색 확인
 3. 코퍼스 커버리지 확인 (14개 control 전부 커버)
@@ -118,7 +139,30 @@ def get_chunks_by_control(control_id: str) -> list[dict]:
     return [_inject_const(c) for c in _CORPUS.get(control_id, [])]
 ```
 
-> `embedding`(1024-dim float 배열)은 mock에서 의도적으로 제외 — 준형이형이 corpus/ 적재 시 Titan Embed v2로 생성.
+> `embedding`(1024-dim float 배열)은 mock_corpus에서 의도적으로 제외 — `CorpusLoader`(아래)가 적재 시 채운다.
+
+### 📥 CorpusLoader — [corpus/loader.py](corpus/loader.py)
+
+`mock_corpus.py`의 청크 원문(embedding 없음)을 받아 임베딩을 채우고 pgvector에 적재하는 준형 쪽 대칭.
+
+```python
+loader = CorpusLoader(mock=True)
+
+# 텍스트 → 1024-dim 벡터 (mock=해시 시드 결정적 벡터 / real=Titan Embed v2)
+vec = loader.embed("KEV 목록에 등재된 CVE는...")
+
+# 청크 원문(chunk_id·text·metadata) → 계약⑥ 완성 청크(embedding 채움)
+chunk = loader.to_chunk(seed)
+
+# 여러 청크 일괄 적재. dry_run=True면 DB 없이 계약⑥ 청크만 생성(mock)
+result = loader.load(seed_chunks, dry_run=True)
+# result = {"loaded": 24, "dim": 1024, "model": "amazon.titan-embed-text-v2:0",
+#           "controls": [...14종...], "chunks": [...]}
+```
+
+real 모드(`mock=False, pg_dsn=...`): `embed()`가 Bedrock Titan Embed v2 `invoke_model`을 호출하고, `load(dry_run=False)`가 psycopg2로 `rag_chunks` 테이블에 UPSERT한다(둘 다 지연 import — mock 환경에서 boto3/psycopg2 미설치여도 무해).
+
+`validate_chunk(chunk)`로 계약⑥ 정합(필수키·embedding 차원·model/dim const·metadata.control_id)을 검사할 수 있다 — run_demo가 적재된 전 청크에 대해 이 검증을 돌린다.
 
 ### 🔎 RAGRetriever — [retrieval/retriever.py](retrieval/retriever.py)
 
@@ -171,18 +215,20 @@ contracts/rag-chunk.schema.json
 
 ---
 
-## 🔄 6. 목업 → 실배포 스왑 (딱 두 군데)
+## 🔄 6. 목업 → 실배포 스왑
 
 | 지금 (목업) | 실배포 | 파일 |
 |---|---|---|
-| `mock_corpus.py` (하드코딩 텍스트) | pgvector에 준형이형이 적재한 실 청크 | rag/corpus/ |
+| `CorpusLoader(mock=True)` — 결정적 벡터 + dry-run | `CorpusLoader(mock=False, pg_dsn=...)` — Titan Embed v2 + pgvector UPSERT | corpus/loader.py |
 | `RAGRetriever(mock=True)` — control_id 직접 매핑 | `RAGRetriever(mock=False)` — Titan Embed v2 + pgvector cosine | retrieval/retriever.py |
 | `RAGAnswerGenerator(mock=True)` — 템플릿 | `RAGAnswerGenerator(mock=False)` — Bedrock Claude Sonnet | retrieval/answer_gen.py |
 
 **전제조건(실배포 전):**
 1. `PG_DSN` 환경변수 — RDS pgvector DSN
-2. 준형이형 corpus/ 적재 완료 — Titan Embed v2로 청크 벡터화 후 pgvector INSERT
+2. `CorpusLoader(mock=False).load(mock_corpus.all_chunks(), dry_run=False)` 1회 실행 — Titan Embed v2로 24개 청크 벡터화 후 pgvector INSERT
 3. Bedrock 모델 액세스 활성화 (서울 리전, Claude Sonnet inference profile ID 확정)
+
+**적재·검색 로직(loader.py·retriever.py·answer_gen.py)은 무변** — 생성자 인자(`mock=False`)만 바꾸면 실배포 전환 완료.
 
 ---
 
