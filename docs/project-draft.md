@@ -5,7 +5,7 @@
 > **관련 문서:** 타깃 앱 상세 → [target-app-design.md](target-app-design.md) · 관제 앱 상세 → [console-app-design.md](console-app-design.md) · 수동 관리 리소스 현황 → [manual-infra.md](manual-infra.md) · 협업 규칙 → [CLAUDE.md](../CLAUDE.md)
 > **읽는 순서:** 처음 합류한 사람은 이 문서를 먼저 통독한 뒤 타깃/관제 상세로 내려간다.
 >
-> 상태: 설계 확정 / **구현 진행 중** — 공통 계약(14 control·목업·CI)·infra/shared·infra/target 스캐폴드, 관제 앱 8화면 목업 동작, 타깃 앱 member 실행 + shop 포털, **엔진 5단계 능동조사·attack-path 상관·정규화부·RAG·Trivy 스캐너(목업)**. **✅ Phase1 = 엔진 실 tool-use 실검증**(실 Bedrock+실 S3 CONFIRMED, 2026-07-02) · **✅ Phase2 = end-to-end 배선 관통**(스캐너→정규화→상관→엔진→RAG `run_e2e.py`). 다음 = 실 trivy 스캔·싼 CI·console-backend
+> 상태: 설계 확정 / **구현 진행 중** — 공통 계약(14 control·목업·CI)·관제 앱 8화면·타깃 앱 member+포털·**엔진 5단계 능동조사·attack-path 상관·정규화·RAG·스캐너(목업)**. **✅ Phase1 = 엔진 실 tool-use 실검증**(실 Bedrock+실 S3 CONFIRMED, 2026-07-02) · **✅ Phase2 = end-to-end 배선 관통**(`run_e2e.py`). **✅ 배포 코드 완성(2026-07-02):** 관제 백엔드(`apps/console-backend`) · **인프라 5층 + slice**(shared/target/console/pipeline/engine, 전 terraform `validate`·shared `plan` 클린 74) · **pgvector 스키마**(`infra/shared/db/schema.sql`, 6테이블) · **Lambda 핸들러 4종**(ingest·normalize·correlation·orchestrator) · **조치 실행기 + 감사 S3 Object Lock**(`engine/remediation.py`, HITL 클로즈드루프). **다음 = 단계별 실 apply**(preflight→shared→4층→검증→destroy, `infra/README.md` §4 규율)
 > 성격: 2인 협업 개인 프로젝트(작업 분담, 각자 전체 이해) · 클라우드 보안 엔지니어 포트폴리오
 > 한 줄: **AWS는 워크로드의 주인, Azure는 신원의 주인(Entra ID)** — 분산된 멀티클라우드 환경을 하나의 에이전틱 CNAPP으로 점검·통합·자동 개선.
 
@@ -298,13 +298,14 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 **terraform = 레이어드.** `infra/`에서만 apply하고, 컴포넌트 폴더(scanners·pipeline·engine·rag·attackpath·apps)는 **코드만**(CI가 배포). 쪼개기 단위는 **영역까지만**(영역 안 반반까지 또 terraform 만들지 않음 — 한 영역 = state 1개, 두 사람이 그 파일만 공유).
 
 ```
-1) 기반 먼저:  infra/shared   (VPC·EKS·OIDC·RDS pgvector·Bedrock·ECR)  → 준형, 최초 apply, 모두가 의존
+1) 기반 먼저:  infra/shared   (VPC·EKS·OIDC·RDS pgvector·Bedrock·ECR + db/schema.sql[pgvector 6테이블])  → 준형, 최초 apply, 모두가 의존
 2) 그 위 영역별 terraform (영역 주인이 apply, 의존성 순서대로):
      infra/target     준형   취약 워크로드+의도적 결함 (휘발성 — 토글하며 apply/destroy 잦음, 격리)  ✅ 코드
-     infra/console    준형   ALB·Cognito·console Lambda·SFn·CloudFront (SSO는 진우 Entra App Reg 연동)  ✅ 코드
+     infra/console    준형   ALB(authenticate-cognito)·Cognito SAML·console Lambda·CloudFront (ACM 없으면 HTTP로 apply·count 가드)  ✅ 코드
      infra/scanners   각 주인  스캔 IAM 역할·서비스 활성화(Config/SecurityHub/Inspector…)  (미구현)
      infra/pipeline   각 주인  EventBridge·SQS·ingest/정규화 Lambda  ✅ 코드
-     infra/engine     각 주인  에이전트 Lambda(상관·오케스트레이터)·Bedrock IAM·조치 Step Functions  ✅ 코드
+     infra/engine     각 주인  상관·오케스트레이터 Lambda·Bedrock IAM·조치 Step Functions + remediation 실행기·감사 S3 Object Lock  ✅ 코드
+   ※ 배포 코드 상세·apply 규율은 infra/README.md, 실코드 스왑(핸들러)은 각 컴포넌트 handler.py / engine/remediation.py
 
   (별도) infra/slice  준형   ★아키텍처 레이어 아님 = 엔진 실 tool-use 최소비용(<$1) 검증용 '일회용 픽스처'
                             (공개 S3 1개 + 가짜 PII 1개, EKS/RDS 무관 독립 스택). Phase1 실검증에 사용.

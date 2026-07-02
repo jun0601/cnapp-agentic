@@ -122,12 +122,13 @@ cnapp-agentic/
 ├── attackpath/               ✅ finding→그래프 상관 동작 (골든 정합 OK)
 │   ├── model/                (준형) 그래프 데이터 모델·불변식 검증 ✅
 │   └── correlation/          (진우) R1~R5 상관·2-pass backfill ✅
-└── infra/                    Terraform (레이어드) — shared 먼저 → 영역별. 전 레이어 validate 통과
+└── infra/                    Terraform (레이어드) — shared 먼저 → 영역별. 전 레이어 validate·plan 통과
+    ├── README.md             ✅ 인프라 루트 개요(레이어링·apply 규율·preflight 체크리스트·비용)
     ├── shared/               ✅ VPC·NAT·EKS·ECR·RDS pgvector·OIDC·IAM + db/schema.sql(pgvector 6테이블)
     ├── target/               ✅ 취약 워크로드 + 의도적 결함 IaC(f3·f4·f6 var.enable_* 토글)
-    ├── console/              ✅ S3+CloudFront·ALB(authenticate-cognito)→Lambda·Cognito SSO·조치 SFn
+    ├── console/              ✅ S3+CloudFront·ALB(authenticate-cognito)→Lambda·Cognito SSO(count 가드)
     ├── pipeline/             ✅ EventBridge→SQS→ingest/normalize Lambda
-    ├── engine/               ✅ 상관·오케스트레이터 Lambda·Bedrock IAM·조치 Step Functions(HITL)
+    ├── engine/               ✅ 상관·오케스트레이터 Lambda·Bedrock IAM·조치 SFn + remediation 실행기·감사 Object Lock
     ├── slice/                ✅ 엔진 실 tool-use 최소비용 검증 픽스처(Phase1 — 레이어 아님)
     └── {scanners,rag,attackpath} ⬜ 영역별 terraform(미구현 — 데모 핵심 경로 밖)
 
