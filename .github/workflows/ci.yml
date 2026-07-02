@@ -40,6 +40,7 @@ jobs:
             rag.corpus.run_demo \
             scanners.workload.run_demo \
             scanners.cspm.run_demo \
+            scanners.ciem.run_demo \
             run_e2e ; do
             echo "::group::python -m $m"
             python -m "$m"
