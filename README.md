@@ -103,7 +103,8 @@ cnapp-agentic/
 ├── docs/                     ✅ 설계 SSOT — project-draft · target/console-app-design · manual-infra · cost-strategy
 ├── apps/
 │   ├── target/               ✅ 취약 타깃 앱 (product · order · member[Python] + PII seeder) — 코드만
-│   └── console/              ✅ 관제 앱 (Vite+React+TS, 8화면 MSW 목업 동작) — 코드만
+│   ├── console/              ✅ 관제 앱 프론트 (Vite+React+TS, 8화면 MSW 목업 동작) — 코드만
+│   └── console-backend/      ✅ 관제 앱 백엔드 (ALB→Lambda, findings 읽기 API, mock+실 pgvector 스텁) — 코드만
 ├── engine/                   ✅ 공유 에이전틱 엔진 (전체 루프 동작) — 하위=소유자별
 │   ├── core/                 (공유) contracts · tools · case
 │   ├── evidence/             (준형) triage · evidence — 능동조사
@@ -166,6 +167,7 @@ cnapp-agentic/
 | 📜 **공통 계약 (`contracts/`)** | ✅ **졸업** — 계약 7종 JSON Schema + INTERNAL control 카탈로그(14종) + 골든 시나리오 mock(findings·attack-path·case). `validate.py` 4-assert + GitHub Actions CI 게이트로 정합 보장 |
 | 🖥️ **관제 콘솔 (`apps/console`)** | ✅ **8화면 목업 동작** — Vite+React+TS+Tailwind+TanStack+React Flow+MSW. 대시보드·Findings·Finding상세(Evidence 탭)·Attack-path + 조치·컴플라이언스·감사로그·로그인. MSW가 `contracts/mock-*.json` 서빙 → 백엔드·AWS 0으로 동작. `tsc`·`vite build` 통과 |
 | 🛒 **타깃 앱 (`apps/target`)** | ✅ **member 실행 + shop 포털** — member(Python/FastAPI) 회원 REST + **PII seeder**(faker→S3, Macie 미끼) + 포털. product/order는 결함 매니페스트(f1·f2·f5). 모든 PII/시크릿 가짜 |
+| 🖥️ **관제 백엔드 (`apps/console-backend`)** | ✅ **mock-first 동작** — ALB→Lambda(TS)로 프론트 API 표면(§15.2) 서빙 = MSW의 서버판. tsc 통과 + 스모크(findings·detail·attack-path·scores·**RBAC viewer403/approver200**·404) OK. `USE_MOCK=false`+`PG_DSN`로 pgvector 스왑. 콘솔 MSW→실 API 전환 준비 완료 |
 | 🧩 **로직 계층 (전부 목업 동작 · exit 0)** | ✅ 엔진 5단계 능동조사(`engine`)·attack-path R1~R5 상관+그래프(`attackpath`)·수집부(`pipeline/ingest`)·정규화부(`pipeline/normalize`)·RAG 검색·답변(`rag/retrieval`)+코퍼스 적재(`rag/corpus`)·Trivy(`scanners/workload`)+CSPM(`scanners/cspm`) 스캐너. 각 영역 준형/진우 half 다 채워짐(계약 SSOT로 정합) |
 | ❤️ **엔진 실 tool-use (Phase1 — 심장)** | ✅ **실검증 완료(2026-07-02)** — `infra/slice` apply → `run_real` → destroy 전 과정 실행. **실 Bedrock Claude Haiku가 스스로 `s3:GetBucketPolicy`·`GetPublicAccessBlock` 호출 → 실 S3 응답으로 판정 CONFIRMED(100%)** → 즉시 destroy(비용 ~$0). 챗봇 탈출(LLM 능동 tool use)이 목업이 아니라 **실제로 동작함을 증명** |
 | 🔗 **Phase2 end-to-end 배선 (`run_e2e.py`)** | ✅ **관통 확인(2026-07-02)** — 스캐너(Trivy) → 정규화 → 상관(attack-path) → 엔진 → RAG를 **한 러너로 연결**, 스캐너발 CVE가 파이프라인 끝(엔진 판정·RAG 설명)까지 도달(exit 0). 정규화·상관은 실 코드 관통, 스캐너는 실 trivy 출력 동일 구조 JSON(⬜ 라이브 `trivy image`는 trivy 설치/CI 대기), 엔진·RAG는 무비용 Mock(실 tool-use는 Phase1) |
