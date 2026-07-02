@@ -33,9 +33,9 @@ variable "cognito_domain_prefix" {
 }
 
 variable "saml_metadata_url" {
-  description = "Entra ID(IdP) SAML 메타데이터 URL — 진우 Entra App Reg(SSO)에서 발급(manual-infra §3). 미정 시 빈값(IdP 없이 apply, SSO는 나중)."
+  description = "Entra ID(IdP) SAML 메타데이터 URL — 진우 Entra App Reg(SSO)에서 발급(manual-infra §3.6.5). App Reg `cnapp-agentic-console-sso` 확정값(2026-07-02)."
   type        = string
-  default     = ""
+  default     = "https://login.microsoftonline.com/8e160cea-faa9-47de-a717-6eb01e4a262b/federationmetadata/2007-06/federationmetadata.xml?appid=7c37dd9a-5dc2-4f1f-9482-919fe20267b1"
 }
 
 # --- ALB HTTPS(authenticate-cognito는 HTTPS 필수) ---

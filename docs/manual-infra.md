@@ -12,12 +12,11 @@
 > **담당 (누가 하나) — 요약:**
 > | 영역 | 담당 | 상태 |
 > |---|---|---|
-> | §1 AWS 계정 초기 설정 | **준형**(공유 인프라 주도) | ✅ 완료 |
+> | §1 AWS 계정 초기 설정 | **진우** | ✅ 완료 |
 > | §2 Terraform 부트스트랩(state 버킷) | **진우** | ✅ 완료 |
 > | §3 Azure / Entra ID 초기 설정 | **진우**(신원 영역 주인) | 🔄 **진행 중**(M365/Entra 데모 테넌트 생성) |
 > | §4 AWS Bedrock 모델 액세스 | **준형**(AWS·엔진 Evidence) | ✅ 완료 |
 >
-> *원칙: AWS 워크로드·부트스트랩은 준형 주도, Azure(신원=Entra)는 진우가 전담. 상세는 아래 각 절.*
 
 ---
 
@@ -27,11 +26,11 @@
 
 | 영역 | 설정 내용 | 담당 | 상태 |
 |---|---|---|---|
-| **계정 기본** | 단일 계정, 콘솔 기본 리전 **서울(ap-northeast-2)**. 계정 별칭 설정 완료. Organizations/Identity Center/Control Tower **미활성 확인됨**. | 준형 | ✅ |
-| **루트 계정** | MFA(가상 MFA 앱) 활성화. 액세스 키 없음(보유 시 즉시 삭제). 이후 비상용(결제 변경 등)으로만 사용. | 준형 | ✅ |
-| **결제 가드레일** | IAM 사용자/역할의 결제 정보 액세스 활성화. Free Tier 알림 ON. AWS Budgets **$50/$100** 2단계 알림(임계 80%/100%, 본인+협업자 이메일). | 준형 | ✅ |
-| **IAM 사용자** | `Admins` 그룹(`AdministratorAccess`) 생성. 사용자: **`jw_kim`(진우)·`jh_lee`(준형)** — 모두 그룹 소속. **각자 MFA 필수.** 장기 Access Key 미발급 원칙(CLI는 임시 자격증명만). | 준형(생성)·각자(MFA) | ✅ |
-| **CloudTrail** | 멀티 리전 트레일 생성(D2 전 리전 수집). 관리 이벤트 읽기/쓰기 활성화. 암호화 SSE-S3(기본). 로그 파일 검증 ON. SNS·CloudWatch Logs 연동 OFF. | 준형 | ✅ |
+| **계정 기본** | 단일 계정, 콘솔 기본 리전 **서울(ap-northeast-2)**. 계정 별칭 설정 완료. Organizations/Identity Center/Control Tower **미활성 확인됨**. | 진우 | ✅ |
+| **루트 계정** | MFA(가상 MFA 앱) 활성화. 액세스 키 없음(보유 시 즉시 삭제). 이후 비상용(결제 변경 등)으로만 사용. | 진우 | ✅ |
+| **결제 가드레일** | IAM 사용자/역할의 결제 정보 액세스 활성화. Free Tier 알림 ON. AWS Budgets **$50/$100** 2단계 알림(임계 80%/100%, 본인+협업자 이메일). | 진우 | ✅ |
+| **IAM 사용자** | `Admins` 그룹(`AdministratorAccess`) 생성. 사용자: **`jw_kim`(진우)·`jh_lee`(준형)** — 모두 그룹 소속. **각자 MFA 필수.** 장기 Access Key 미발급 원칙(CLI는 임시 자격증명만). | 진우(생성)·각자(MFA) | ✅ |
+| **CloudTrail** | 멀티 리전 트레일 생성(D2 전 리전 수집). 관리 이벤트 읽기/쓰기 활성화. 암호화 SSE-S3(기본). 로그 파일 검증 ON. SNS·CloudWatch Logs 연동 OFF. | 진우 | ✅ |
 
 ---
 
@@ -56,7 +55,7 @@
 > **담당 = 진우 전담**(Azure=신원의 주인, Entra CIEM 영역). Azure 포털에서 수동 설정, Terraform 미관리(project-draft 14번).
 > **격리 환경:** M365 Business 체험 가입으로 `cnappagentic.onmicrosoft.com` 데모 전용 테넌트 생성 완료(2026-07-01). 실제 조직 테넌트에 결함을 심으면 안 됨(target-app-design 6번 SP 스코프 주의).
 >
-> **진행 순서(의존성):** ① 격리 테넌트 생성 → ② 그룹·계정·Teams 설정 → ③ App Registration(SSO) → ④ 결함용 App Reg·SP → ⑤ Federated Credential → ⑥ Defender(데모 때만). **③(SSO)은 `infra/console` apply(Cognito 연동)의 선행.**
+> **진행 순서(의존성):** ① 격리 테넌트 생성 → ② 그룹·계정·Teams 설정 → ③ App Registration(SSO) → ④ 결함용 App Reg·SP → ⑤ Federated Credential → ⑥ Defender(데모 때만). **③(SSO) ✅ 완료(2026-07-02)** — 메타데이터 URL을 `infra/console/variables.tf`의 `saml_metadata_url` 기본값으로 반영해, `infra/console` apply 선행 조건이 풀렸다(§3.6.1 상세).
 
 ### 3.1 테넌트 기본 정보 ✅
 
@@ -102,14 +101,33 @@
 
 | 항목 | 내용 | 담당 | 상태 |
 |---|---|---|---|
-| **② App Registration — SSO 연동용** | Cognito SAML 2.0 IdP 연동. `custom:groups` 클레임 매핑(console-app-design §7). *`infra/console` 선행.* | 진우 | 미착수 |
-| **③ App Registration — 과도권한 결함용** | `Directory.ReadWrite.All` Application 권한. 골든 f8 소스. | 진우 | ✅ 완료 |
-| **③ Service Principal — order 평문 시크릿용** | `Directory.Read.All` + `Application.Read.All` 스코프만. 만료일 24개월(장기 유효 — f16 소스 겸용). order 파드 env에 평문 노출(결함 f5). | 진우 | ✅ 완료 |
-| **③ Service Principal — Prowler 스캔용** | `Directory.Read.All` + `Policy.Read.All` + `AuditLog.Read.All`. Prowler Azure 모드가 이 SP로 Entra/Defender 스캔 → OCSF → S3. | 진우 | ✅ 완료 |
-| **④ Federated Identity Credential (Prowler SP)** | Prowler 스캔 SP에 GitHub Federated Credential 등록. Subject: `repo:jun0601/cnapp-agentic:ref:refs/heads/main`. 키리스 인증(D4). | 진우 | ✅ 완료 |
-| **⑤ Defender for Cloud** | 데모 기간만 활성, 이후 비활성(종량제 — project-draft 22번). | 진우 | 미착수 |
+| **③ App Registration — SSO 연동용** | Cognito SAML 2.0 IdP 연동. `custom:groups` 클레임 매핑(console-app-design §7). | 진우 | ✅ 완료 |
+| **④ App Registration — 과도권한 결함용** | `Directory.ReadWrite.All` Application 권한. 골든 f8 소스. | 진우 | ✅ 완료 |
+| **④ Service Principal — order 평문 시크릿용** | `Directory.Read.All` + `Application.Read.All` 스코프만. 만료일 24개월(장기 유효 — f16 소스 겸용). order 파드 env에 평문 노출(결함 f5). | 진우 | ✅ 완료 |
+| **④ Service Principal — Prowler 스캔용** | `Directory.Read.All` + `Policy.Read.All` + `AuditLog.Read.All`. Prowler Azure 모드가 이 SP로 Entra/Defender 스캔 → OCSF → S3. | 진우 | ✅ 완료 |
+| **⑤ Federated Identity Credential (Prowler SP)** | Prowler 스캔 SP에 GitHub Federated Credential 등록. Subject: `repo:jun0601/cnapp-agentic:ref:refs/heads/main`. 키리스 인증(D4). | 진우 | ✅ 완료 |
+| **⑥ Defender for Cloud** | 데모 기간만 활성, 이후 비활성(종량제 — project-draft 22번). | 진우 | 미착수 |
 
-#### 3.6.1 과도권한 App Registration 상세 ✅
+#### 3.6.1 SSO 연동용 App Registration 상세 ✅
+
+| 항목 | 값 |
+|---|---|
+| **앱 이름** | `cnapp-agentic-console-sso` (엔터프라이즈 애플리케이션, 비갤러리) |
+| **Application (client) ID** | `7c37dd9a-5dc2-4f1f-9482-919fe20267b1` |
+| **Tenant ID** | `8e160cea-faa9-47de-a717-6eb01e4a262b` |
+| **SAML 식별자(엔터티 ID)** | `urn:amazon:cognito:sp:cnapp-agentic-demo` — ⚠️ 임시값(아래 참고) |
+| **SAML 회신 URL(ACS)** | `https://cnapp-agentic-demo.auth.ap-northeast-2.amazoncognito.com/saml2/idpresponse` |
+| **앱 페더레이션 메타데이터 URL** | `https://login.microsoftonline.com/8e160cea-faa9-47de-a717-6eb01e4a262b/federationmetadata/2007-06/federationmetadata.xml?appid=7c37dd9a-5dc2-4f1f-9482-919fe20267b1` — `infra/console/variables.tf`의 `saml_metadata_url` 기본값으로 반영 완료 |
+| **그룹 클레임** | "보안 그룹" 모드 + 원본특성 "그룹 ID"(GUID) — 무료 티어라 "애플리케이션에 할당된 그룹"(P1/P2 필요)·"클라우드 전용 그룹 이름 내보내기"(보안 그룹 모드 미지원) 둘 다 불가 → GUID로만 나옴 |
+| **사용자 할당** | 그룹 할당 불가(라이선스)라 `viewer@`·`approver@` **개별 사용자** 할당 |
+| **cnapp-approver 개체 ID** | `4d6be000-2a4b-43f7-95ff-cfdb87da786d` |
+| **cnapp-viewer 개체 ID** | `4d9b6544-47ea-495e-99be-8943362d6bc7` |
+
+> 클레임에 그룹 **이름**이 아닌 **GUID**만 실리므로, `apps/console-backend/src/auth.ts`가 `cnapp-approver` 문자열이 아니라 위 **개체 ID(GUID)**로 매칭하도록 구현(이름보다 불변 식별자 매칭이 더 견고 — 의도적 설계, 임시방편 아님).
+
+**⚠️ apply 후 확인할 것:** SAML 식별자(엔터티 ID)가 지금은 `urn:amazon:cognito:sp:cnapp-agentic-demo`(도메인 프리픽스 기반 임시값)인데, AWS Cognito의 실제 SAML SP 엔터티 ID 규칙은 보통 `urn:amazon:cognito:sp:<user_pool_id>`다. `user_pool_id`는 `infra/console` apply 후에만 발급되므로, **apply 후 실제 Cognito User Pool ID로 Entra 앱의 "식별자" 필드를 다시 확인/수정**해야 SSO 로그인이 실제로 성공한다(§3.6.5에 추가 리마인더).
+
+#### 3.6.2 과도권한 App Registration 상세 ✅
 
 | 항목 | 값 |
 |---|---|
@@ -122,7 +140,7 @@
 
 > 이 앱 등록 자체가 CIEM finding `INTERNAL-ENTRA-OVERPRIV-APP-001`(f8)의 소스.
 
-#### 3.6.2 order 평문 시크릿용 SP 상세 ✅
+#### 3.6.3 order 평문 시크릿용 SP 상세 ✅
 
 | 항목 | 값 |
 |---|---|
@@ -134,9 +152,9 @@
 | **클라이언트 시크릿 값** | ⚠️ git 미기록 — 본인 로컬 보관. `apps/target/order` 파드 env에 평문 노출 예정(결함 f5) |
 
 > 이 SP 자격증명을 order 파드 매니페스트 env에 평문으로 박는 것 자체가 finding `INTERNAL-SECRET-PLAINTEXT-001`(f5) 소스.
-> **장기(24개월) 유효 시크릿 자체가 finding `INTERNAL-ENTRA-SP-CRED-001`(f16)의 소스** — 2026-07-02 §3.6.4 리마인더 해소 시 6개월→24개월로 재발급(기존 시크릿 `acbe478f-...` 삭제). Entra가 포털 레벨에서 "무만료" 옵션 자체를 지원 안 해 최대치(24개월/730일)로 설정 — control 타이틀도 "무만료"가 아닌 "장기 유효(6개월 초과)"로 완화.
+> **장기(24개월) 유효 시크릿 자체가 finding `INTERNAL-ENTRA-SP-CRED-001`(f16)의 소스** — 2026-07-02 §3.6.5 리마인더 해소 시 6개월→24개월로 재발급(기존 시크릿 `acbe478f-...` 삭제). Entra가 포털 레벨에서 "무만료" 옵션 자체를 지원 안 해 최대치(24개월/730일)로 설정 — control 타이틀도 "무만료"가 아닌 "장기 유효(6개월 초과)"로 완화.
 
-#### 3.6.3 Prowler 스캔용 SP 상세 ✅
+#### 3.6.4 Prowler 스캔용 SP 상세 ✅
 
 | 항목 | 값 |
 |---|---|
@@ -149,13 +167,15 @@
 
 > GitHub Actions에서 `azure/login` 액션으로 이 SP에 OIDC 인증 → 시크릿 없이 Prowler 스캔 가능.
 
-#### 3.6.4 ⚠️ 실전환 시 맞출 것 (mock ↔ real 정합 — 지금은 정상, 나중 리마인드)
+#### 3.6.5 ⚠️ 실전환 시 맞출 것 (mock ↔ real 정합 — 지금은 정상, 나중 리마인드)
 
 Prowler가 실제 Entra finding을 흘리기 시작하면 아래를 반드시 맞춘다:
 
 1. **mock GUID → 실 appId 스왑.** `contracts/mock-attack-paths.json`·`mock-findings.json`의 Azure 노드는 placeholder GUID(n4 `azure:service_principal:b2c3d4e5…` · n5 `azure:app_registration:a1b2c3d4…`)다. 실 finding의 `resource_id`는 위 실제 appId(`order-sp 541938e7…` · `overpriv-app 283ca885…`)를 써야 정합(4.4.1a 캐논). **실전환 전까지는 placeholder가 정상.**
 
-**[x] f16 노드 매핑 확정(2026-07-02, 준형↔진우 확정) — closed.** `attackpath/correlation.py`의 R3 규칙이 `INTERNAL-ENTRA-SP-CRED-001` control_id를 가진 finding을 **코드로 n4에 고정**해서 배정한다(`_R3_AZURE_SP` → `Node("n4", ...)`). 이 control_id를 다른 노드로 옮기면 그래프가 깨지므로(n4/n5 resource_id 충돌), **f16 = n4(order-sp) 고정**으로 확정 — mock/contracts 변경 없음. 대신 실물 쪽을 맞춤: order-sp 시크릿을 6개월→**24개월(2028-07-01, 비밀 ID `e0589f10-3ad7-4975-81c3-a21f324d1e14`)로 재발급**(§3.6.2). Entra가 포털에서 "무만료" 옵션을 아예 제공하지 않아(플랫폼 보안 기본값 — 최대 730일/24개월) control 타이틀도 "무만료" 대신 **"장기 유효(6개월 초과)"**로 완화(control-catalog.json·mock-findings.json·target-app-design §2.0 반영). overpriv-app(§3.6.1)은 f8만 소스, f16과 무관으로 정정.
+**[x] f16 노드 매핑 확정(2026-07-02, 준형↔진우 확정) — closed.** `attackpath/correlation.py`의 R3 규칙이 `INTERNAL-ENTRA-SP-CRED-001` control_id를 가진 finding을 **코드로 n4에 고정**해서 배정한다(`_R3_AZURE_SP` → `Node("n4", ...)`). 이 control_id를 다른 노드로 옮기면 그래프가 깨지므로(n4/n5 resource_id 충돌), **f16 = n4(order-sp) 고정**으로 확정 — mock/contracts 변경 없음. 대신 실물 쪽을 맞춤: order-sp 시크릿을 6개월→**24개월(2028-07-01, 비밀 ID `e0589f10-3ad7-4975-81c3-a21f324d1e14`)로 재발급**(§3.6.3). Entra가 포털에서 "무만료" 옵션을 아예 제공하지 않아(플랫폼 보안 기본값 — 최대 730일/24개월) control 타이틀도 "무만료" 대신 **"장기 유효(6개월 초과)"**로 완화(control-catalog.json·mock-findings.json·target-app-design §2.0 반영). overpriv-app(§3.6.2)은 f8만 소스, f16과 무관으로 정정.
+
+2. **[ ] SSO SAML 식별자(엔터티 ID) 확정 — apply 후 처리.** `cnapp-agentic-console-sso`(§3.6.1)의 SAML 식별자가 지금은 `urn:amazon:cognito:sp:cnapp-agentic-demo`(도메인 프리픽스 기반 임시값)다. `infra/console` apply 후 발급되는 실제 **Cognito User Pool ID**로 Entra 앱의 "식별자" 필드를 다시 열어 확인/수정 필요(AWS Cognito SAML SP 엔터티 ID 규칙 = `urn:amazon:cognito:sp:<user_pool_id>`). 안 맞추면 SSO 로그인 실패 가능성.
 
 ---
 
