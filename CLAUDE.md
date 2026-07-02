@@ -1,4 +1,4 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 > 이 파일은 Claude Code(및 협업자)가 이 레포에서 작업할 때 가장 먼저 읽는 기준 문서다.
 > 상세 설계는 [docs/project-draft.md](docs/project-draft.md)(메인 설계서 v5), [docs/target-app-design.md](docs/target-app-design.md)(타깃 앱 상세), [docs/console-app-design.md](docs/console-app-design.md)(관제 앱 상세)에 있다. **이 셋이 단일 진실 공급원(SSOT)이며, 본 문서는 그 요약 + 협업 규칙이다.**
@@ -18,6 +18,7 @@
 
 > 형식: `날짜 / 작성자(준형·진우) / 한 줄 요약 / (필요 시 [PULL 필요])`. 최근 10~15개만 유지하고 오래된 항목은 [아카이브](#변경-로그-아카이브)로 내린다.
 
+- **2026-07-02 / 진우 / `scanners/workload/trivy` 워크로드 스캐너 구현 완료** — `TrivyScanner` 클래스: `scan_image()`(trivy CLI → 계약⑤ ingest-envelope) + `scan_from_json()`(mock/CI용). `python -m scanners.workload.run_demo` 골든 정합(3 CVE → INTERNAL-VULN-KEV-001, resource_id 캐논, pillar=vuln) OK ✅. 버그 2건 발견·수정: ① normalizer `_parse_trivy` ArtifactName 태그 미제거(`shop/product:latest` → resource_id에 `:latest` 붙어 mock↔실 불일치) → 태그 제거 로직 추가. ② `scan_from_json` image 파라미터 봉투 미반영 → scan_batch_id에 이미지명 포함. 실배포 스왑 = `scan_image("ECR이미지:tag")` 호출만. **`[PULL 필요]`**
 - **2026-07-02 / 준형 / ❤️ Phase1 엔진 "뇌" 구현 — Bedrock LLM tool-use 플래너(`BedrockEvidenceAgent`) + 실 slice 진입점(`engine/run_real.py`)** — 프로젝트 심장(챗봇 탈출)의 실배포판. `engine/evidence/bedrock_planner.py` 신설: **LLM이 Bedrock Converse `toolConfig`로 read-only API를 스스로 골라 호출**(규칙 `PLAN_BY_CONTROL` 대체). `EvidenceAgent`와 **동일 인터페이스**(`investigate(findings)→EvidenceOutput`)라 Orchestrator에 주입만 하면 스왑(규칙 데모 무변). **allowlist(계약④) 2중 강제**: ① toolConfig `api` enum=allowlist(LLM이 스키마 레벨에서 그 밖 선택 불가) ② `executor._check()`(실행 직전 재확인). `Orchestrator(evidence_agent=...)` 스왑 파라미터 추가. `engine/run_real.py` = `RealToolExecutor`+`BedrockEvidenceAgent` 실 vertical slice 진입점(전제·비용·model ID 404 함정 주석). **검증:** py_compile OK, 목업 데모 무회귀(골든 정합 유지), **가짜 Bedrock 클라이언트로 에이전틱 루프 오프라인 검증 OK**(toolUse 파싱→Mock 실행→toolResult 되먹임→end_turn→verdict=confirmed). **⚠️ 실 Bedrock 호출은 미검증** — apply 세션(Bedrock 액세스+서울 model ID 확정+infra/slice)에서 준형과 함께. boto3는 지연 import(미설치 환경 무영향). **`[PULL 필요]`** (진우: engine 공유 이해 — Evidence 뇌가 규칙→LLM으로 스왑됨)
 - **2026-07-02 / 준형 / 🐛 진우 `hypothesis.py` cross_cloud 가설 버그 수정 + 진우 정규화부 문서 반영(README·draft·§7.1)** — **① 버그(진우 `engine/reasoning/hypothesis.py`):** `_has_cross_cloud()`가 `edge.get("edge_type")=="cross_cloud"`를 검사했는데, 계약③ 엣지는 `type`(값 `credential_theft` 등) + `cross_cloud`(불리언) 구조라 **`edge_type` 키·`"cross_cloud"` type 값이 아예 없음** → 함수가 항상 False → `_CROSS_CLOUD_HYPOTHESIS`(크로스클라우드 체인 가설)가 **한 번도 추가 안 됨**(데모 Hypothesis 출력에도 누락). 골든 검증이 가설 목록을 안 봐서 CI 통과된 채 숨어 있었음. **→ `edge.get("cross_cloud")`(불리언 플래그)로 수정** — 이제 데모에 "AWS 워크로드 침해→평문 Azure SP→Entra 장악" 크로스클라우드 체인 가설 출력, 골든 정합·case 스키마 유지(exit 0). **② 문서:** 진우 `pipeline/normalize`(정규화부) 완료를 README(역할분담·Status·폴더트리)·project-draft 상태줄·§7.1 진우 진행에 반영. **`[PULL 필요]`** (진우: reasoning 영역 코드라 수정 내용 확인 요청 — 의도한 크로스클라우드 가설이 이제 실제로 발화함)
 - **2026-07-02 / 진우 / `pipeline/normalize` 정규화부 구현 완료** — `Normalizer` 클래스: ASFF(Security Hub·Macie)·prowler-json(AWS+Azure)·trivy-json → 계약① OCSF-lite finding 변환. control-catalog 역인덱스(정확+와일드카드 fnmatch), resource_id 캐논화(ARN→`cloud:type:native_id`), severity 변환, dedup(sources 누적). `python -m pipeline.normalize.run_demo` 골든 control_id 7종 전부 매핑 OK ✅. 실배포 스왑 = Lambda 핸들러에서 `Normalizer().normalize(envelope)` 호출만. **`[PULL 필요]`**
@@ -192,7 +193,8 @@ cnapp-agentic/
 
 *진우*
 - ✅ 한 것: TF state 버킷 · Cognito SSO 설계(authenticate-cognito·그룹 클레임) · 2-pass 트리거 이벤트 · Azure/Entra 테넌트 · **엔진 Hypothesis·Reasoning·Orchestrator** · **Azure App Registration 3종(과도권한 overpriv-app·order-sp·prowler-sp) + Prowler SP GitHub Federated Credential**(manual-infra §3.6) · **`pipeline/normalize` 정규화부**(ASFF·prowler-json·trivy-json → OCSF-lite, dedup)
-- ▶ 다음: 워크로드 스캐너(`scanners/workload/`) · RAG 검색·답변(`rag/retrieval/`) · App Registration(SSO)(infra/console 선행) · Defender(데모 때만)
+- ✅ 워크로드 스캐너(`scanners/workload/trivy`) — Trivy 이미지 스캐너 완료(scan_image/scan_from_json, 계약⑤ 봉투화, run_demo OK)
+- ▶ 다음: RAG 검색·답변(`rag/retrieval/`) · 워크로드 스캐너 나머지(Inspector·kube-bench, infra apply 후) · App Registration(SSO)(infra/console 선행) · Defender(데모 때만)
 - ✅ 폴더 정리 완료: `engine/` = `core/`(공유) + `evidence/`(준형) + `reasoning/`(진우) 3폴더 확정(진우가 reasoning/로 합침 — 조율 완료)
 
 *공통 미완:* 스캐너 실행 · 수집/정규화 · RAG · infra apply(비용)

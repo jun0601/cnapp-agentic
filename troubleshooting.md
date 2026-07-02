@@ -1,4 +1,4 @@
-# 작업 로그 (트러블슈팅 + 진행)
+﻿# 작업 로그 (트러블슈팅 + 진행)
 
 > **이 파일의 역할:** 구현하면서 겪은 **문제·해결(트러블슈팅)**과 **추가·작업한 것(진행)**을 한 줄씩 누적하는 *중앙 운영 로그*. 설계 문서(`docs/`)가 "무엇을 만들지", 이 파일은 "만들면서 실제로 무슨 일이 있었는지".
 >
@@ -13,6 +13,8 @@
 
 ## 1. 트러블슈팅 로그 (문제 → 해결)
 
+- `2026-07-02 / 진우 / [scanners][pipeline] normalizer _parse_trivy ArtifactName 태그 미제거 — scan_image("shop/product:latest") 시 Trivy가 ArtifactName에 ":latest" 포함해 내놓으면 resource_id="aws:eks_pod:shop/product:latest"로 생성돼 mock("aws:eks_pod:shop/product")과 불일치. 해결: _parse_trivy에서 ArtifactName rsplit(":",1) 후 태그 세그먼트("/"없는 마지막 세그먼트)를 제거`
+- `2026-07-02 / 진우 / [scanners] trivy.py scan_from_json의 image 파라미터 봉투 미반영 — _build_envelope에 image를 전달하나 실제로 사용 안 돼 봉투 어디에도 이미지명이 없었음. 해결: scan_batch_id에 이미지명 포함("trivy-{safe_img}-{timestamp}")으로 수정 → remediated 판정 스코프(4.4.1c)에서 이미지별 구분 가능`
 - `2026-07-02 / 준형 / [engine] Bedrock LLM tool-use 플래너(bedrock_planner.py) 구현 — 실 Bedrock 없이 로직 검증 필요 → 가짜 converse() 클라이언트(1턴 tool_use 2개→2턴 end_turn) 주입해 오프라인 테스트: 에이전틱 루프가 toolUse 파싱→MockToolExecutor 실행→toolResult 되먹임→종료→verdict=confirmed까지 정확. 실 boto3 client는 __init__에서 session.client("bedrock-runtime")(네트워크 없음)라 오프라인 생성 가능, _client만 가짜로 교체해 검증. 실 Bedrock 호출/서울 model ID/모델 액세스는 apply 세션에서 확정(bare name 404 함정 주석). run_real.py를 스크래치패드 아닌 repo에서 실행할 땐 PYTHONPATH=repo root 필요`
 - `2026-07-02 / 준형 / [engine] hypothesis.py _has_cross_cloud가 edge.get("edge_type")=="cross_cloud" 검사 → 계약③ 엣지는 type(credential_theft…)+cross_cloud(불리언) 구조라 edge_type 키·"cross_cloud" type 값이 없음 → 항상 False → _CROSS_CLOUD_HYPOTHESIS(크로스클라우드 체인 가설)가 절대 추가 안 됨(데모 Hypothesis 출력에도 누락). 골든 검증이 가설 목록을 안 봐 CI 미탐. edge.get("cross_cloud")로 수정 → 데모에 크로스클라우드 체인 가설 출력 + 골든 정합·case 스키마 유지(exit 0). 진우 reasoning 영역 코드라 CLAUDE 변경로그 [PULL 필요]로 알림`
 - `2026-07-02 / 진우 / [pipeline] normalizer.py Azure resource_id 이중 prefix 버그 — Prowler Azure raw에서 resourceId가 이미 "azure:app_registration:..." 캐논 형식으로 들어왔는데, _canon_resource_id()가 또 "azure:app_registration:" prefix를 앞에 붙여 "azure:app_registration:azure:app_registration:..."으로 이중화. 원인: ARN 체크 없이 무조건 cloud:type: prefix 추가. 해결: raw_id가 "aws:" 또는 "azure:"로 시작하면 캐논 형식으로 간주하고 그대로 반환`
@@ -45,6 +47,7 @@
 
 > 무엇을 만들었/추가했는지 한 줄씩. (git 커밋이 1차 기록이지만, 사람이 빠르게 훑는 용도)
 
+- `2026-07-02 / 진우 / [scanners] scanners/workload/trivy 워크로드 스캐너 구현 완료 — TrivyScanner(scan_image: trivy CLI→계약⑤ ingest-envelope, scan_from_json: mock/CI용). python -m scanners.workload.run_demo: 3 CVE→INTERNAL-VULN-KEV-001, resource_id 캐논, pillar=vuln, 골든 정합 OK ✅. 계약 검증(ingest-envelope·finding 스키마 수동 대조) 통과. 실배포 스왑 = scan_image("ECR이미지:tag") 호출만`
 - `2026-07-02 / 진우 / [pipeline] pipeline/normalize 정규화부 구현 완료 — Normalizer(ASFF·prowler-json·trivy-json → OCSF-lite finding 변환), control-catalog 역인덱스(정확+와일드카드 매핑), resource_id 캐논화, severity 변환, dedup(sources 누적). python -m pipeline.normalize.run_demo: 골든 control_id 7종 전부 매핑, UNKNOWN 없음, dedup 9→8건 OK ✅. 실배포 스왑 = Lambda 핸들러에서 Normalizer().normalize(envelope) 호출만`
 - `2026-07-02 / 준형 / [engine][infra] Phase1(엔진 실 tool-use) 배관 작성 — apply/test는 준형과 함께 대기. ①engine/core/tools.py에 RealToolExecutor 추가(boto3 read-only, MockToolExecutor와 동일 인터페이스, boto3 지연 import로 Mock/run_demo 무영향, allowlist는 base가 강제). slice 범위=무료 S3 read-only(GetBucketPolicy·GetPublicAccessBlock)만 실구현, macie/iam/ec2는 NotImplementedError. ②infra/slice/ 신설(공개 S3 1개+가짜 PII, infra/shared 무관 독립, force_destroy, enable_public_policy 토글=계정BPA 대비). py_compile OK·run_demo 무회귀(4회·confirmed)·terraform fmt·validate 통과. 남은 것(준형과 함께): Bedrock LLM tool-use 플래너(진짜 tool use 핵심) + apply→test→destroy`
 - `2026-07-02 / 준형 / [docs] 진우 App Reg(ef0ad44) 파악 + 실전환 정합 2건 명시 — manual-infra §3.6.4 신설: ①mock placeholder GUID(n4 b2c3d4e5…·n5 a1b2c3d4…)→실 appId(order-sp 541938e7…·overpriv-app 283ca885…) 스왑(실 finding 흐를 때) ②f16 노드 매핑 애매(contracts는 f16→n4 SP인데 실물은 무만료 시크릿을 overpriv-app=n5쪽에 붙임) → 진우와 n4/n5 확정 필요. 지금은 mock이라 정상. CLAUDE §7.1 진우 진행에 App Reg 3종 ✅ 반영`

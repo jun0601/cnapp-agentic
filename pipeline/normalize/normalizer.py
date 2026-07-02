@@ -200,6 +200,12 @@ def _parse_prowler(raw: dict, cloud_hint: str) -> List[dict]:
 def _parse_trivy(raw: dict, cloud_hint: str) -> List[dict]:
     """Trivy JSON(이미지 스캔) → finding 목록. CVE별 1건."""
     artifact = raw.get("ArtifactName", "unknown")
+    # 이미지 태그 제거: "shop/product:latest" → "shop/product"
+    # 태그는 마지막 ":"이후 "/" 없는 세그먼트. ECR URL의 ":"(포트 없음)와 구분.
+    if ":" in artifact:
+        name, maybe_tag = artifact.rsplit(":", 1)
+        if "/" not in maybe_tag:
+            artifact = name
     results = raw.get("Results", [])
     findings = []
     for result in results:
