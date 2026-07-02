@@ -32,6 +32,8 @@
 | **IAM 사용자** | `Admins` 그룹(`AdministratorAccess`) 생성. 사용자: **`jw_kim`(진우)·`jh_lee`(준형)** — 모두 그룹 소속. **각자 MFA 필수.** 장기 Access Key 미발급 원칙(CLI는 임시 자격증명만). | 진우(생성)·각자(MFA) | ✅ |
 | **CloudTrail** | 멀티 리전 트레일 생성(D2 전 리전 수집). 관리 이벤트 읽기/쓰기 활성화. 암호화 SSE-S3(기본). 로그 파일 검증 ON. SNS·CloudWatch Logs 연동 OFF. | 진우 | ✅ |
 
+> 📎 **2026-07-03 추가:** 트레일 자체는 계속 위 상태(수동 관리) 그대로 두되, `infra/monitoring`이 "트레일 → CloudWatch Logs" 배관(로그그룹 `/aws/cloudtrail/cnapp-agentic` + `cloudtrail.amazonaws.com`이 assume할 IAM 역할)을 코드로 준비해뒀다. `infra/monitoring` apply 후 출력값(`cloudtrail_log_group_arn`·`cloudtrail_cwl_role_arn`)을 CloudTrail 콘솔 → 이 트레일 편집 → "CloudWatch Logs" 섹션에 붙여넣는 **1회 수동 연결**만 남음(트레일이 Terraform state 밖이라 마지막 단계만 수동, 상세는 `infra/monitoring/README.md` §10).
+
 ---
 
 ## 2. Terraform 부트스트랩 리소스 — ✅ state 버킷 완료 (담당: 진우)
@@ -93,9 +95,13 @@
 |---|---|---|
 | **Teams 워크스페이스** | `cnapp-agentic` | ✅ |
 | **알림 채널** | `cnapp-alerts` | ✅ |
-| **웹훅 URL** | `https://default8e160ceafaa947dea7176eb01e4a26.2b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/39dbf83248914297a12849f68c1190fc/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=q2QR1HTgjZa_mo2GBEXqLJX-EGLC5a3FHBYS3E3e_Sg` | ✅ |
+| **웹훅 URL** | 🔴 **레닥션(2026-07-03) — 아래 참고, 로테이션 필요** | ⚠️ |
 
-> ⚠️ 웹훅 URL은 민감 정보 — 실제 운용 시 Secrets Manager로 이동 권장.
+> 🔴 **보안 조치 필요(긴급):** 이 표에 실제 웹훅 URL(서명값 `sig=` 포함)이 평문으로 커밋돼 있었고, 이 레포는 **GitHub 공개(public) 저장소**로 확인됨 — 즉 지금 이 URL을 아는 누구나 우리 Teams `cnapp-alerts` 채널에 임의로 워크플로를 트리거할 수 있는 상태로 인터넷에 노출돼 있었다. 조치 순서:
+> 1. **Power Automate에서 이 워크플로의 웹훅을 즉시 재생성(로테이션)** — 기존 서명(`sig=...`)은 폐기.
+> 2. 새 URL은 **git에 절대 커밋하지 말고 AWS Secrets Manager**에만 저장 — 받는 자리는 이미 준비됨: `infra/monitoring`이 만드는 시크릿 `cnapp-agentic/teams/webhook`(생성만 하고 값은 Terraform이 모름, `terraform output teams_webhook_secret_arn`으로 ARN 확인 후 `aws secretsmanager put-secret-value --secret-id <ARN> --secret-string '<새 URL>'`로 1회 수동 주입).
+> 3. git 히스토리에는 옛 URL이 과거 커밋에 남아있음 — 1번(로테이션)만 해도 그 값은 무력화되지만, 완전히 지우고 싶으면 `git filter-repo`/BFG로 히스토리 재작성(단 force-push라 준형과 리클론 조율 필요, 급하지 않으면 로테이션만으로 충분).
+> 4. SNS→Lambda(Teams notifier)가 이 값을 쓰는 부분은 **이미 구현 완료**(`infra/monitoring/lambda_src/teams_notifier.py`, 2026-07-03) — 런타임에 Secrets Manager에서 조회하고 코드·tfvars·상태 어디에도 하드코딩 안 함. `infra/monitoring` apply 후 위 2번 값 주입만 하면 알람이 실제로 Teams에 뜬다.
 
 ### 3.6 App Registration / SP
 
