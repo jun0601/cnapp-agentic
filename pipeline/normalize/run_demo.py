@@ -149,7 +149,7 @@ MOCK_ENVELOPES = [
             "cloud": "azure",
         },
     },
-    # ── Prowler Azure JSON: SP 무만료 시크릿 (f16 → INTERNAL-ENTRA-SP-CRED-001) ──
+    # ── Prowler Azure JSON: SP 장기 유효 시크릿 (f16 → INTERNAL-ENTRA-SP-CRED-001) ──
     {
         "envelope_id": "e0000001-0000-4000-8000-000000000007",
         "source": "prowler-azure",
@@ -159,7 +159,7 @@ MOCK_ENVELOPES = [
         "ingested_at": "2026-07-02T01:20:00Z",
         "raw_inline": {
             "checkID": "entra_id_sp_credential_no_expiry",
-            "checkTitle": "Service Principal credential without expiry",
+            "checkTitle": "Service Principal credential with excessive validity (24 months)",
             "status": "FAIL",
             "severity": "high",
             "service": "entraid",

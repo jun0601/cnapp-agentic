@@ -61,7 +61,7 @@
 | f5 | order / `aws:secret_plaintext:shop/order/AZURE_SP_CRED` | 평문 Azure SP 자격증명(`AZURE_CLIENT_ID/SECRET`) | INTERNAL-SECRET-PLAINTEXT-001 | Prowler/custom |
 | f6 | member / `aws:s3_bucket:member-pii-prod` | 버킷 public access | INTERNAL-S3-PUBLIC-001 | SecurityHub/Config/Prowler |
 | f7 | member / 버킷 객체 | 가짜 PII(이름+주민번호 패턴) 업로드 | INTERNAL-DATA-PII-EXPOSED-001 | Macie |
-| f16 | Azure / `azure:service_principal:…` | 만료 없는/유출 위험 SP 자격증명(노드 n4 = 탈취 자격증명) | INTERNAL-ENTRA-SP-CRED-001 | Prowler entra_id_* |
+| f16 | Azure / `azure:service_principal:…` | 장기 유효(24개월)/유출 위험 SP 자격증명(노드 n4 = 탈취 자격증명, `attackpath/correlation.py` R3가 이 control_id로 n4 고정) | INTERNAL-ENTRA-SP-CRED-001 | Prowler entra_id_* |
 | f8 | Azure / `azure:app_registration:…` | App Reg `Directory.ReadWrite.All` | INTERNAL-ENTRA-OVERPRIV-APP-001 | Prowler entra_id_* |
 | f9 | Azure / 동 App Reg | 미검증 앱에 `User.ReadWrite.All` consent | INTERNAL-ENTRA-RISKY-CONSENT-001 | Prowler entra_id_* |
 

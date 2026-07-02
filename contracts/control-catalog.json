@@ -95,7 +95,7 @@
     },
     "INTERNAL-ENTRA-SP-CRED-001": {
       "pillar": "ciem",
-      "title": "Entra Service Principal credential without expiry / leak risk",
+      "title": "Entra Service Principal credential with excessive validity (>6 months) / leak risk",
       "severity_default": 2,
       "sources": ["prowler:entra_id_sp_credential_no_expiry", "prowler:entra_id_sp_*_credential_*"],
       "isms_p": null,

@@ -172,7 +172,7 @@
       "finding_id": "f0000000-0000-4000-8000-000000000016",
       "cloud": "azure", "resource_id": "azure:service_principal:b2c3d4e5-7777-8888-9999-aaaabbbbcccc", "resource_type": "service_principal",
       "pillar": "ciem", "control_id": "INTERNAL-ENTRA-SP-CRED-001",
-      "title": "Service Principal credential without expiry (leak risk)",
+      "title": "Service Principal credential with excessive validity (24 months, leak risk)",
       "severity_id": 2, "status": "open",
       "sources": ["prowler:entra_id_sp_credential_no_expiry"],
       "dedup_key": "azure:service_principal:b2c3d4e5-7777-8888-9999-aaaabbbbcccc|INTERNAL-ENTRA-SP-CRED-001",
