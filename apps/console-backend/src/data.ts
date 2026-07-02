@@ -124,28 +124,49 @@ export function getAttackPath(id: string): AttackPath | null {
   return mockPaths().find((p) => p.attack_path_id === id) ?? null
 }
 
-// scores·audit·compliance는 MVP에선 상수/배치 산출(§15.2). 실 전환 시 scores 테이블 조회.
+// scores·audit·compliance는 MVP에선 상수/배치 산출(§15.2). 실 전환 시 scores/audit/compliance 조회.
 export function getScores() {
   return {
     aws: { secure_score: 62, label: 'AWS Security Hub' },
     azure: { secure_score: 74, label: 'Azure Defender / Entra' },
   }
 }
+
+// ⚠️ 응답 shape는 프론트 계약(apps/console/src/api/view-types.ts)과 정확히 일치해야 함.
+// (audit/compliance는 아직 contracts로 졸업 안 함 — 프론트 view-types가 사실상 SSOT. VITE_USE_MOCK=false 스왑 시 이 shape로 화면 렌더)
+// AuditEvent = {id, ts, actor, role, action, target, result}
 export function getAudit() {
   return [
-    { ts: '2026-07-02T02:03:19Z', actor: 'engine', action: 'evidence.tool_use', detail: 's3:GetBucketPolicy on member-pii-prod (confirmed)' },
-    { ts: '2026-07-02T02:03:25Z', actor: 'engine', action: 'reasoning.verdict', detail: 'CRITICAL — cross-cloud identity takeover path' },
+    { id: 'a12', ts: '2026-06-30T02:15:40Z', actor: 'jh_lee@demo', role: 'approver', action: 'approve', target: 'aws:s3_bucket:member-pii-prod', result: 'S3 Public Access Block 적용 → SFn 실행 시작' },
+    { id: 'a09', ts: '2026-06-30T02:05:11Z', actor: 'engine', role: 'system', action: 'verdict', target: 'case c0000000-…-0001', result: 'Reasoning confirmed (신뢰도 0.93) — 골든 경로 Critical 정당' },
+    { id: 'a07', ts: '2026-06-30T02:03:10Z', actor: 'engine', role: 'system', action: 'verdict', target: 'aws:s3_bucket:member-pii-prod', result: 'Evidence: s3:GetBucketPolicy — 공개 버킷 확인' },
+    { id: 'a05', ts: '2026-06-30T02:00:30Z', actor: 'scanner:macie', role: 'system', action: 'scan', target: 'aws:s3_bucket:member-pii-prod', result: 'SensitiveData:PII 탐지 → f…0007' },
+    { id: 'a02', ts: '2026-06-30T01:58:40Z', actor: 'jh_lee@demo', role: 'approver', action: 'login', target: 'console', result: 'Entra SSO 로그인 (approver)' },
   ]
 }
+// ComplianceReport = {framework, generated_at, score, domains:[{code, name, controls:[{code, title, status, mapped_control?, findings}]}]}
 export function getCompliance() {
-  return {
-    framework: 'ISMS-P',
-    coverage: 0.72,
-    items: [
-      { control: 'ISMS-P 2.9.1', title: '개인정보 처리', status: 'fail', finding_control: 'INTERNAL-DATA-PII-EXPOSED-001' },
-      { control: 'ISMS-P 2.7.1', title: '암호화 적용', status: 'fail', finding_control: 'INTERNAL-S3-NOENCRYPT-001' },
-    ],
-  }
+  const domains = [
+    { code: '2.5', name: '인증 및 권한관리', controls: [
+      { code: '2.5.3', title: 'IAM/IRSA 최소권한', status: 'fail', mapped_control: 'INTERNAL-IAM-OVERPRIV-001', findings: 1 },
+      { code: '2.5.6', title: 'Entra 앱 과도권한 금지', status: 'fail', mapped_control: 'INTERNAL-ENTRA-OVERPRIV-APP-001', findings: 1 },
+    ] },
+    { code: '2.6', name: '접근통제', controls: [
+      { code: '2.6.1', title: '인터넷 노출 최소화(SG)', status: 'fail', mapped_control: 'INTERNAL-SG-OPEN-INGRESS-001', findings: 1 },
+      { code: '2.6.4', title: 'S3 공개 접근 차단', status: 'fail', mapped_control: 'INTERNAL-S3-PUBLIC-001', findings: 1 },
+    ] },
+    { code: '2.7', name: '암호화', controls: [
+      { code: '2.7.3', title: '시크릿 평문 저장 금지', status: 'fail', mapped_control: 'INTERNAL-SECRET-PLAINTEXT-001', findings: 1 },
+    ] },
+    { code: '3.2', name: '개인정보 보호', controls: [
+      { code: '3.2.2', title: '개인정보 공개노출 금지', status: 'fail', mapped_control: 'INTERNAL-DATA-PII-EXPOSED-001', findings: 1 },
+    ] },
+  ]
+  const all = domains.flatMap((d) => d.controls)
+  const pass = all.filter((c) => c.status === 'pass').length
+  const fail = all.filter((c) => c.status === 'fail').length
+  const score = Math.round((pass / Math.max(1, pass + fail)) * 100)
+  return { framework: 'ISMS-P (요약 매핑)', generated_at: '2026-06-30T02:20:00Z', score, domains }
 }
 
 // ── 실 pgvector 경로(스텁) — USE_MOCK=false + PG_DSN 후 활성화 ──

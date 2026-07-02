@@ -258,6 +258,9 @@ resource "random_password" "db" {
 resource "aws_secretsmanager_secret" "db" {
   name        = "${var.project}/rds/master"
   description = "RDS pgvector master credential (shared)"
+  # ⚠️ 기본 30일 복구창 → destroy 시 이름이 30일 '삭제 예약'으로 점유되어 재-apply의 CreateSecret이
+  #    'scheduled for deletion'으로 실패. apply→destroy→재apply 규율이 근간이라 즉시 삭제(0)로.
+  recovery_window_in_days = 0
 }
 
 resource "aws_secretsmanager_secret_version" "db" {

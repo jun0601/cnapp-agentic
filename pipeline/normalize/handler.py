@@ -39,11 +39,28 @@ def handler(event: dict, context=None) -> dict:
     findings: list = []
     for rec in event.get("Records", []):
         envelope = json.loads(rec.get("body", "{}"))
+        _hydrate(envelope)  # raw_location(S3 포인터) → raw_inline (실 Prowler OCSF 경로)
         findings.extend(norm.normalize(envelope))
 
     _upsert_findings(findings)
     _emit_batch_completed(len(findings))
     return {"normalized": len(findings)}
+
+
+def _hydrate(envelope: dict) -> None:
+    """봉투에 raw_location(s3://…)만 있고 raw_inline이 없으면 S3 원본을 가져와 raw_inline에 채운다.
+    실 Prowler는 큰 OCSF 원본을 S3에 떨구고 봉투엔 포인터만 담으므로(계약⑤ from_s3_event) 정규화 전 하이드레이트 필수.
+    (이게 없으면 Normalizer가 raw_inline만 읽어 실 Prowler 경로에서 finding 0건이 됨.)"""
+    if envelope.get("raw_inline") is not None:
+        return
+    loc = envelope.get("raw_location")
+    if not loc or not loc.startswith("s3://"):
+        return
+    import boto3
+    bucket, _, key = loc[len("s3://"):].partition("/")
+    obj = boto3.client("s3", region_name=os.environ.get("AWS_REGION", "ap-northeast-2")).get_object(
+        Bucket=bucket, Key=key)
+    envelope["raw_inline"] = json.loads(obj["Body"].read())
 
 
 def _upsert_findings(findings: list) -> None:

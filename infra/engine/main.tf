@@ -335,16 +335,21 @@ data "aws_iam_policy_document" "remediation" {
     actions   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
     resources = ["arn:aws:logs:${var.region}:${local.account_id}:*"]
   }
+  # 조치 3종을 '타깃(shop) 리소스'로 스코프 — 특히 iam:PutRolePolicy를 임의 역할(admin 포함) 재작성 못 하게 제한(권한상승 차단).
   statement {
-    sid = "RemediateActions"
-    actions = [
-      "s3:PutBucketPublicAccessBlock", # S3 public block
-      "s3:PutBucketPolicy",
-      "ec2:RevokeSecurityGroupIngress", # open SG 제거
-      "iam:GetRolePolicy",              # IAM diff(읽기)
-      "iam:PutRolePolicy"               # IAM 최소권한 적용
-    ]
-    resources = ["*"] # TODO: 태그/ARN 조건으로 타깃 리소스만
+    sid       = "RemediateS3"
+    actions   = ["s3:PutBucketPublicAccessBlock", "s3:PutBucketPolicy"]
+    resources = ["arn:aws:s3:::${var.project}-*", "arn:aws:s3:::member-pii-*"] # 타깃 버킷만
+  }
+  statement {
+    sid       = "RemediateSG"
+    actions   = ["ec2:RevokeSecurityGroupIngress"]
+    resources = ["arn:aws:ec2:${var.region}:${local.account_id}:security-group/*"] # 계정 내 SG(revoke는 비-상승)
+  }
+  statement {
+    sid       = "RemediateIAM"
+    actions   = ["iam:GetRolePolicy", "iam:PutRolePolicy"]
+    resources = ["arn:aws:iam::${local.account_id}:role/${var.project}-target-*"] # 타깃 IRSA 역할만 — admin 재작성 차단
   }
   statement {
     sid       = "AuditWrite" # 불변 감사 기록(Object Lock 버킷)

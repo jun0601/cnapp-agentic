@@ -41,9 +41,12 @@ variable "nat_ami_owner" {
 }
 
 # --- EKS ---
+# ⚠️ 반드시 STANDARD_SUPPORT 버전 사용 — EXTENDED_SUPPORT(1.32 이하, 2026-07 기준)는
+#    컨트롤플레인이 $0.10/h → $0.60/h(6배)로 과금됨. 표준지원=1.33~1.36(2026-07-02 aws eks describe-cluster-versions 확인).
+#    1.34 표준지원 종료 2026-12-02 → 데모 여유. apply 전 재확인 권장.
 variable "eks_version" {
   type    = string
-  default = "1.30"
+  default = "1.34"
 }
 
 variable "node_instance_types" {
@@ -75,9 +78,11 @@ variable "db_instance_class" {
 }
 
 variable "db_engine_version" {
-  description = "pgvector 지원(>=15.2). PG16 사용"
+  # ⚠️ 16.4는 서울에서 이미 제거됨(apply 시 "Cannot find version 16.4"). 2026-07-02 가용=16.9~16.14(pgvector OK).
+  # engine_version 검증은 plan이 아니라 apply 때 발생 → plan 클린이어도 apply 실패하던 버그. apply 전 재확인 권장.
+  description = "pgvector 지원 PG16 (family=postgres16). 가용 minor는 apply 전 확인."
   type        = string
-  default     = "16.4"
+  default     = "16.9"
 }
 
 variable "db_name" {
