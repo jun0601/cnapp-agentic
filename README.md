@@ -132,19 +132,26 @@ cnapp-agentic/
 ## 👥 역할 분담 (2인)
 
 > 원칙 — 일을 나누되 **둘 다 상대 영역까지 이해**한다. 각 영역을 반반 갈라 양쪽이 핵심을 다 만진다. 상시 협의로 조정되는 살아있는 분담이며, 상세 SSOT는 [CLAUDE.md §5](CLAUDE.md) · [project-draft §4.1](docs/project-draft.md).
-> **영역 순서 = 대략의 진행 순서**(앱·환경 → 인프라 → 스캐너 → 수집·정규화 → RAG → 엔진 → attack-path). 정확한 순서는 아니고 "이 느낌으로 쌓아간다". 진행상황은 대강(✅ 됨 / 🔨 스캐폴드 / 🔄 진행중 / ⬜ 예정).
+> **영역 순서 = 대략의 진행 순서**(앱·환경 → 인프라 → 스캐너 → 수집·정규화 → RAG → 엔진 → attack-path). 정확한 순서는 아니고 "이 느낌으로 쌓아간다".
+>
+> **⚠️ 상태는 2축 — 각 칸은 `⬜ 없음 → 🔨 목업/스캐폴드 → ✅ 완성`을 두 번(목업 축·실 축) 거친다:**
+> - **진행(목업)** = 인프라·AI 0원, 로직만(`contracts/mock-*.json` 기반). `⬜`/`🔨`/`✅`.
+> - **실(real) 전환** = 진짜 클라우드·Bedrock 동작. `⬜ 미착수` / `🔨 코드·검증전` / `✅ 실동작`.
+> - 👉 **표의 '진행(목업)' ✅는 로직만 완성**이라는 뜻이고, 진짜 동작 여부는 마지막 **'실(real) 전환'** 컬럼이다. **실동작(✅)에 도달한 칸은 아직 없음** — Phase1(엔진 실 tool-use)이 그 첫 칸을 뚫는 중.
 
-| 영역 | 준형 | 준형 진행 | 진우 | 진우 진행 |
-|---|---|---|---|---|
-| **앱 & 환경 세팅** | 타깃 앱 · 관제 앱 **2개 개발** | ✅ 목업 동작(콘솔 8화면 · 타깃 member+포털) | **AWS/Azure 환경**(M365·Entra 데모 테넌트·계정 초기) | 🔄 AWS 계정 ✅ / Azure 테넌트 진행중 |
-| **공유 인프라 · 토대** | `infra/shared`·`infra/target` 주도 · CI/CD · Shift-Left | 🔨 스캐폴드(apply 전) | 모니터링·운영관제(Grafana·CloudTrail) | ⬜ 예정 |
-| **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ⬜ 예정 | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM | ⬜ 예정 |
-| **수집 · 정규화** | 수집부 (EventBridge→SQS) | ⬜ 예정 | 정규화부 (Lambda→OCSF) | ✅ 목업 동작(`pipeline/normalize`) |
-| **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ⬜ 예정 | 검색 · LLM 답변 생성 | ⬜ 예정 |
-| **엔진 (Bedrock)** | Evidence(tool use) · Triage | ✅ 목업 능동조사 + 🔨 Bedrock 실 플래너 코드(`engine/`, 실 검증 전) | Hypothesis · Reasoning · Orchestrator | ✅ 목업 동작(전체 루프) |
-| **attack-path** | 그래프 데이터 모델 | ✅ 모델·불변식 검증(`attackpath/model`) | 상관 로직(R1~R5) · 내러티브 | ✅ R1~R5 상관·2-pass backfill |
+| 영역 | 준형 | 준형 진행(목업) | 진우 | 진우 진행(목업) | 실(real) 전환 |
+|---|---|---|---|---|---|
+| **앱 & 환경 세팅** | 타깃 앱 · 관제 앱 **2개 개발** | ✅ 목업 동작(콘솔 8화면 · 타깃 member+포털) | **AWS/Azure 환경**(M365·Entra 데모 테넌트·계정 초기) | 🔄 AWS 계정 ✅ / Azure 테넌트 진행중 | ⬜ apply 시 배포(Phase2~) · Azure 테넌트는 실물 ✅ |
+| **공유 인프라 · 토대** | `infra/shared`·`infra/target` 주도 · CI/CD · Shift-Left | 🔨 스캐폴드(apply 전) | 모니터링·운영관제(Grafana·CloudTrail) | ⬜ 예정 | ⬜ apply 전(TF state 버킷만 실물 ✅) |
+| **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ⬜ 예정 | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM | 🔨 Trivy 스캐너(`scanners/workload`, scan_from_json 목업 동작) | ⬜ Phase2 첫 실스캐너(trivy `scan_image` 실 이미지 스캔) → Phase3 확장 |
+| **수집 · 정규화** | 수집부 (EventBridge→SQS) | ⬜ 예정 | 정규화부 (Lambda→OCSF) | ✅ 목업 동작(`pipeline/normalize`) | ⬜ Phase2(Lambda 배포 + 실 finding) |
+| **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ⬜ 예정 | 검색 · LLM 답변 생성 | ⬜ 예정 | ⬜ Phase3 |
+| **엔진 (Bedrock)** | Evidence(tool use) · Triage | ✅ 목업 능동조사(`engine/`) | Hypothesis · Reasoning · Orchestrator | ✅ 목업 동작(전체 루프) | **🔨 Phase1 ← 지금** — 준형 Evidence 실 tool-use(`BedrockEvidenceAgent`) 코드 완료·오프라인 검증 OK, **Bedrock 실검증만 남음**(apply 세션) |
+| **attack-path** | 그래프 데이터 모델 | ✅ 모델·불변식 검증(`attackpath/model`) | 상관 로직(R1~R5) · 내러티브 | ✅ R1~R5 상관·2-pass backfill | ⬜ Phase2에 엮임(실 finding 상관) |
 
 > ⚠️ "관제"는 두 가지 — **관제 "앱"**(CNAPP 보안 대시보드 제품) = 준형 / **운영 "관제"**(Grafana·CloudTrail 플랫폼 관측) = 진우. 애플리케이션 2개는 모두 준형이 개발한다.
+>
+> **진행 순서(내가 뚫는 순서) = 표 위→아래가 아니라 위험 순:** **Phase1** 엔진 행을 목업→실(엔진 실 tool-use, ← 지금) · **Phase2** 세로 한 줄을 실로 연결(스캐너 1개→수집·정규화→엔진→attack-path→콘솔) · **Phase3** 나머지 칸 폭 채우기(스캐너 다수·RAG·CI/CD·ISMS-P).
 
 ---
 
