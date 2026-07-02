@@ -1,234 +1,211 @@
-<svg viewBox="0 0 1400 1200" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', 'Malgun Gothic', sans-serif">
+<svg viewBox="0 0 2240 1110" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI','Malgun Gothic',sans-serif">
   <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L8,3 L0,6 Z" fill="#475569"/>
-    </marker>
-    <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L8,3 L0,6 Z" fill="#dc2626"/>
-    </marker>
-    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L8,3 L0,6 Z" fill="#2563eb"/>
-    </marker>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#475569"/></marker>
+    <marker id="ar" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#dc2626"/></marker>
+    <marker id="ab" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#2563eb"/></marker>
+    <marker id="ag" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#0e9f6e"/></marker>
   </defs>
 
-  <rect x="0" y="0" width="1400" height="1130" fill="#f8fafc"/>
+  <rect x="0" y="0" width="2240" height="1110" fill="#f8fafc"/>
 
-  <!-- Title -->
-  <text x="700" y="38" text-anchor="middle" font-size="26" font-weight="700" fill="#0f172a">멀티클라우드 CNAPP + 에이전틱 AI</text>
-  <text x="700" y="62" text-anchor="middle" font-size="14" fill="#64748b">AWS = 워크로드의 주인 · Azure = 신원의 주인 — 공격이 두 클라우드를 넘는 경로를 추적하는 에이전틱 CNAPP</text>
-  <!-- ================= 목적 띠 (왜 만드나 / 뭘 파악하나 / 최종 목적) ================= -->
-  <rect x="40" y="80" width="1320" height="118" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+  <!-- ===== Title ===== -->
+  <text x="1120" y="40" text-anchor="middle" font-size="27" font-weight="800" fill="#0f172a">멀티클라우드 CNAPP · 에이전틱 AI 보안 플랫폼</text>
+  <text x="1120" y="66" text-anchor="middle" font-size="13.5" fill="#64748b">AWS = 워크로드의 주인 · Azure = 신원(Entra ID)의 주인 — 크로스클라우드 attack-path를 AI가 <tspan font-weight="700" fill="#0e9f6e">스스로 read-only API 호출(tool use)</tspan>해 추적 | Seoul ap-northeast-2 · 단일 계정 · Organizations 미사용</text>
 
-  <rect x="58" y="96" width="300" height="86" rx="8" fill="#fff" stroke="#a5b4fc"/>
-  <text x="208" y="118" text-anchor="middle" font-size="12" font-weight="700" fill="#4338ca">무엇을 점검 대상으로</text>
-  <text x="208" y="140" text-anchor="middle" font-size="10.5" fill="#3730a3">고객사 워크로드</text>
-  <text x="208" y="157" text-anchor="middle" font-size="10.5" fill="#3730a3">AWS 커머스 + Azure</text>
-  <text x="208" y="174" text-anchor="middle" font-size="10.5" fill="#3730a3">신원(Entra) — 분산 환경</text>
+  <!-- ============================================================ LEFT: CI/CD ============================================================ -->
+  <rect x="24" y="88" width="296" height="298" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="24" y="88" width="296" height="26" rx="10" fill="#e2e8f0"/>
+  <text x="40" y="106" font-size="13" font-weight="700" fill="#334155">⚙️ CI / CD  (키리스 · GitOps)</text>
 
-  <text x="372" y="143" font-size="20" fill="#6366f1">→</text>
+  <g><rect x="38" y="126" width="268" height="42" rx="7" fill="#fff" stroke="#cbd5e1"/><rect x="38" y="126" width="5" height="42" rx="2" fill="#24292e"/><text x="52" y="145" font-size="12" font-weight="700" fill="#0f172a">🐙 GitHub Actions</text><text x="52" y="160" font-size="9.5" fill="#64748b">CI: 회귀 10 + Shift-Left(Trivy·Checkov) · $0</text></g>
+  <g><rect x="38" y="186" width="268" height="42" rx="7" fill="#fff" stroke="#cbd5e1"/><rect x="38" y="186" width="5" height="42" rx="2" fill="#ed7100"/><text x="52" y="205" font-size="12" font-weight="700" fill="#0f172a">📦 ECR ×4</text><text x="52" y="220" font-size="9.5" fill="#64748b">product·order·member·console-backend</text></g>
+  <g><rect x="38" y="246" width="268" height="42" rx="7" fill="#fff" stroke="#cbd5e1"/><rect x="38" y="246" width="5" height="42" rx="2" fill="#ef7b4d"/><text x="52" y="265" font-size="12" font-weight="700" fill="#0f172a">🚢 ArgoCD (CD)</text><text x="52" y="280" font-size="9.5" fill="#64748b">GitOps pull-sync · self-heal · prune</text></g>
+  <g><rect x="38" y="306" width="268" height="42" rx="7" fill="#fff" stroke="#cbd5e1"/><rect x="38" y="306" width="5" height="42" rx="2" fill="#ed7100"/><text x="52" y="325" font-size="12" font-weight="700" fill="#0f172a">☸️ EKS</text><text x="52" y="340" font-size="9.5" fill="#64748b">Karpenter(spot·consolidation) + HPA</text></g>
+  <path d="M172,168 L172,186" stroke="#475569" stroke-width="1.4" marker-end="url(#a)"/>
+  <path d="M172,228 L172,246" stroke="#475569" stroke-width="1.4" marker-end="url(#a)"/>
+  <path d="M172,288 L172,306" stroke="#475569" stroke-width="1.4" marker-end="url(#a)"/>
+  <text x="40" y="372" font-size="9.5" fill="#94a3b8">키리스: GitHub OIDC→IAM Role · 파드 IRSA (D4)</text>
 
-  <rect x="392" y="96" width="330" height="86" rx="8" fill="#fff" stroke="#a5b4fc"/>
-  <text x="557" y="116" text-anchor="middle" font-size="12" font-weight="700" fill="#4338ca">무엇을 파악하나 (6가지)</text>
-  <text x="557" y="137" text-anchor="middle" font-size="10" fill="#3730a3">설정(CSPM) · 권한(CIEM) · 취약점</text>
-  <text x="557" y="153" text-anchor="middle" font-size="10" fill="#3730a3">쿠버네티스(KSPM) · 데이터(노출)</text>
-  <text x="557" y="172" text-anchor="middle" font-size="10.5" font-weight="700" fill="#4338ca">+ 공격 경로(attack-path)</text>
+  <!-- ============================================================ LEFT: AI ============================================================ -->
+  <rect x="24" y="404" width="296" height="300" rx="10" fill="#ecfdf5" stroke="#0e9f6e" stroke-width="1.5"/>
+  <rect x="24" y="404" width="296" height="26" rx="10" fill="#d1fae5"/>
+  <text x="40" y="422" font-size="13" font-weight="700" fill="#047857">🧠 에이전틱 AI  (Amazon Bedrock + RAG)</text>
 
-  <text x="736" y="143" font-size="20" fill="#6366f1">→</text>
+  <g><rect x="38" y="442" width="268" height="42" rx="7" fill="#fff" stroke="#a7f3d0"/><rect x="38" y="442" width="5" height="42" rx="2" fill="#01a88d"/><text x="52" y="461" font-size="12" font-weight="700" fill="#0f172a">Claude Haiku 4.5</text><text x="52" y="476" font-size="9.5" fill="#64748b">Evidence(tool-use)·Triage 게이트</text></g>
+  <g><rect x="38" y="494" width="268" height="42" rx="7" fill="#fff" stroke="#a7f3d0"/><rect x="38" y="494" width="5" height="42" rx="2" fill="#01a88d"/><text x="52" y="513" font-size="12" font-weight="700" fill="#0f172a">Claude Sonnet</text><text x="52" y="528" font-size="9.5" fill="#64748b">Reasoning — 한국어 내러티브·권고</text></g>
+  <g><rect x="38" y="546" width="268" height="42" rx="7" fill="#fff" stroke="#a7f3d0"/><rect x="38" y="546" width="5" height="42" rx="2" fill="#01a88d"/><text x="52" y="565" font-size="12" font-weight="700" fill="#0f172a">Titan Embed v2</text><text x="52" y="580" font-size="9.5" fill="#64748b">RAG 임베딩(1024) → pgvector</text></g>
+  <g><rect x="38" y="598" width="268" height="42" rx="7" fill="#fff" stroke="#c7d2fe"/><rect x="38" y="598" width="5" height="42" rx="2" fill="#3334b9"/><text x="52" y="617" font-size="12" font-weight="700" fill="#0f172a">🔎 RAG 검색 (pgvector)</text><text x="52" y="632" font-size="9.5" fill="#64748b">control↔코퍼스 cosine · 설명 근거</text></g>
+  <text x="38" y="662" font-size="9.5" fill="#059669">❝챗봇 아님❞ — LLM이 규칙 아닌 스스로 툴 선택</text>
+  <text x="38" y="678" font-size="9.5" fill="#94a3b8">Phase1 실검증 완료: 실 S3 → CONFIRMED(100%)</text>
 
-  <rect x="756" y="96" width="300" height="86" rx="8" fill="#fff" stroke="#a5b4fc"/>
-  <text x="906" y="116" text-anchor="middle" font-size="12" font-weight="700" fill="#4338ca">왜 관제 앱을 구축</text>
-  <text x="906" y="137" text-anchor="middle" font-size="10.5" fill="#3730a3">흩어진 위험을 한 화면 통합</text>
-  <text x="906" y="154" text-anchor="middle" font-size="10.5" fill="#3730a3">+ AI가 설명·우선순위·조치</text>
-  <text x="906" y="173" text-anchor="middle" font-size="10" fill="#6366f1">(사람이 일일이 못 보니까)</text>
+  <!-- ============================================================ TOP: 관제 앱 진입(SSO) ============================================================ -->
+  <text x="365" y="120" font-size="24">👤</text>
+  <text x="360" y="150" font-size="11.5" font-weight="700" fill="#334155">보안 분석가</text>
+  <text x="360" y="165" font-size="9.5" fill="#94a3b8">viewer / approver</text>
 
-  <text x="1070" y="143" font-size="20" fill="#dc2626">→</text>
+  <g><rect x="470" y="96" width="176" height="40" rx="7" fill="#fff" stroke="#c4b5fd"/><rect x="470" y="96" width="5" height="40" rx="2" fill="#8c4fff"/><text x="484" y="112" font-size="11" font-weight="700" fill="#0f172a">🌐 CloudFront + S3</text><text x="484" y="127" font-size="9" fill="#64748b">관제 앱 SPA (정적 호스팅)</text></g>
+  <g><rect x="470" y="144" width="176" height="40" rx="7" fill="#fff" stroke="#fca5a5"/><rect x="470" y="144" width="5" height="40" rx="2" fill="#dd344c"/><text x="484" y="160" font-size="11" font-weight="700" fill="#0f172a">🔐 Cognito (SP 허브)</text><text x="484" y="175" font-size="9" fill="#64748b">custom:groups → 역할 · ← Entra SAML</text></g>
+  <path d="M418,120 L470,116" stroke="#475569" stroke-width="1.4" marker-end="url(#a)"/><text x="404" y="98" font-size="9" fill="#64748b">정적</text>
+  <path d="M418,140 C440,175 620,205 720,300" stroke="#475569" stroke-width="1.4" fill="none" marker-end="url(#a)"/><text x="470" y="212" font-size="9" fill="#64748b">동적/API → ALB</text>
+  <path d="M646,164 C700,170 700,230 700,296" stroke="#dc2626" stroke-width="1.3" fill="none" stroke-dasharray="4 3" marker-end="url(#ar)"/>
 
-  <rect x="1090" y="96" width="252" height="86" rx="8" fill="#fef2f2" stroke="#fca5a5"/>
-  <text x="1216" y="118" text-anchor="middle" font-size="12" font-weight="700" fill="#b91c1c">최종 목적</text>
-  <text x="1216" y="141" text-anchor="middle" font-size="10.5" fill="#991b1b">단일 도구로 안 보이는</text>
-  <text x="1216" y="158" text-anchor="middle" font-size="10.5" fill="#991b1b">크로스클라우드 공격 경로를</text>
-  <text x="1216" y="176" text-anchor="middle" font-size="11" font-weight="700" fill="#b91c1c">터지기 전에 찾아 막는다</text>
+  <!-- ============================================================ CENTER: Seoul Region ============================================================ -->
+  <rect x="336" y="206" width="1260" height="666" rx="12" fill="none" stroke="#8c4fff" stroke-width="1.6" stroke-dasharray="7 5"/>
+  <text x="352" y="228" font-size="13" font-weight="700" fill="#7c3aed">☁️ Seoul Region  (ap-northeast-2)  ·  단일 계정 066107819776</text>
 
+  <!-- VPC -->
+  <rect x="356" y="242" width="1220" height="392" rx="10" fill="#faf5ff" stroke="#a855f7" stroke-width="1.4"/>
+  <text x="372" y="262" font-size="12" font-weight="700" fill="#9333ea">Seoul VPC 10.20.0.0/16  ·  2 AZ  ·  NAT Instance(NAT GW 대신, 비용)  ·  S3/DynamoDB Gateway Endpoint(무료)</text>
 
-  <!-- ================= ROW 1: 시나리오 + 앱 2개 ================= -->
-  <text x="40" y="230" font-size="15" font-weight="700" fill="#0f172a">① 시나리오 · 앱 2개 (둘은 직접 통신 안 함 = agentless)</text>
+  <!-- Public subnet -->
+  <rect x="372" y="274" width="1188" height="76" rx="8" fill="#f0fdf4" stroke="#84cc16" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="386" y="291" font-size="10.5" font-weight="700" fill="#4d7c0f">🟢 Public subnets  10.20.0.0/24 · 10.20.1.0/24</text>
+  <g><rect x="386" y="300" width="120" height="42" rx="6" fill="#fff" stroke="#ddd6fe"/><rect x="386" y="300" width="5" height="42" rx="2" fill="#8c4fff"/><text x="399" y="318" font-size="10.5" font-weight="700" fill="#0f172a">🌐 IGW</text><text x="399" y="333" font-size="9" fill="#64748b">인터넷 게이트웨이</text></g>
+  <g><rect x="516" y="300" width="150" height="42" rx="6" fill="#fff" stroke="#fed7aa"/><rect x="516" y="300" width="5" height="42" rx="2" fill="#ed7100"/><text x="529" y="318" font-size="10.5" font-weight="700" fill="#0f172a">↔ NAT Instance</text><text x="529" y="333" font-size="9" fill="#64748b">t4g.nano · IMDSv2</text></g>
+  <g><rect x="676" y="300" width="230" height="42" rx="6" fill="#fff" stroke="#ddd6fe"/><rect x="676" y="300" width="5" height="42" rx="2" fill="#8c4fff"/><text x="689" y="318" font-size="10.5" font-weight="700" fill="#0f172a">⚖️ ALB · authenticate-cognito</text><text x="689" y="333" font-size="9" fill="#64748b">HTTPS → console-backend λ (SSO 게이트)</text></g>
+  <g><rect x="916" y="300" width="180" height="42" rx="6" fill="#fff" stroke="#ddd6fe"/><rect x="916" y="300" width="5" height="42" rx="2" fill="#8c4fff"/><text x="929" y="318" font-size="10.5" font-weight="700" fill="#0f172a">🔌 Gateway Endpoint</text><text x="929" y="333" font-size="9" fill="#64748b">S3 · DynamoDB (무료 egress)</text></g>
 
-  <!-- 타깃 앱 -->
-  <rect x="40" y="245" width="600" height="150" rx="10" fill="#fff" stroke="#f59e0b" stroke-width="2"/>
-  <rect x="40" y="245" width="600" height="28" rx="10" fill="#f59e0b"/>
-  <rect x="40" y="259" width="600" height="14" fill="#f59e0b"/>
-  <text x="56" y="264" font-size="14" font-weight="700" fill="#fff">타깃 앱 — 고객사 워크로드 (일부러 취약 · findings 소스)</text>
+  <!-- Private subnet: workload (EKS) -->
+  <rect x="372" y="360" width="742" height="160" rx="8" fill="#eff6ff" stroke="#38bdf8" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="386" y="377" font-size="10.5" font-weight="700" fill="#0369a1">🔒 Private (workload)  10.20.10/11.0/24  ·  취약 타깃 앱(격리·휘발성)</text>
+  <rect x="386" y="384" width="714" height="128" rx="7" fill="#fff7ed" stroke="#fb923c" stroke-width="1.2"/>
+  <text x="398" y="401" font-size="10.5" font-weight="700" fill="#c2410c">☸️ EKS  ·  spot t3.small · IRSA · Karpenter</text>
+  <g><rect x="398" y="410" width="222" height="94" rx="6" fill="#fff" stroke="#fdba74"/><rect x="398" y="410" width="5" height="94" rx="2" fill="#ed7100"/><text x="411" y="428" font-size="11" font-weight="700" fill="#0f172a">🛒 product pod</text><text x="411" y="446" font-size="9" fill="#b91c1c">f1 KEV 취약 이미지</text><text x="411" y="461" font-size="9" fill="#b91c1c">f2 privileged 컨테이너</text><text x="411" y="479" font-size="8.5" fill="#94a3b8">catalog 서비스</text></g>
+  <g><rect x="632" y="410" width="222" height="94" rx="6" fill="#fff" stroke="#fdba74"/><rect x="632" y="410" width="5" height="94" rx="2" fill="#ed7100"/><text x="645" y="428" font-size="11" font-weight="700" fill="#0f172a">📦 order pod</text><text x="645" y="446" font-size="9" fill="#b91c1c">f4 과도권한 IRSA(s3:*)</text><text x="645" y="461" font-size="9" fill="#b91c1c">f5 평문 Azure SP cred</text><text x="645" y="479" font-size="8.5" fill="#94a3b8">orders 서비스</text></g>
+  <g><rect x="866" y="410" width="226" height="94" rx="6" fill="#fff" stroke="#fdba74"/><rect x="866" y="410" width="5" height="94" rx="2" fill="#ed7100"/><text x="879" y="428" font-size="11" font-weight="700" fill="#0f172a">👤 member pod</text><text x="879" y="446" font-size="9" fill="#b91c1c">f6 공개 S3 버킷</text><text x="879" y="461" font-size="9" fill="#b91c1c">PII seeder(faker→S3)</text><text x="879" y="479" font-size="8.5" fill="#94a3b8">member(FastAPI)</text></g>
 
-  <rect x="58" y="285" width="180" height="95" rx="7" fill="#fff7ed" stroke="#fdba74"/>
-  <text x="148" y="304" text-anchor="middle" font-size="12" font-weight="700" fill="#9a3412">AWS — 커머스 3서비스</text>
-  <text x="148" y="326" text-anchor="middle" font-size="11" fill="#7c2d12">product (취약 이미지)</text>
-  <text x="148" y="344" text-anchor="middle" font-size="11" fill="#7c2d12">order (과도 IRSA 권한)</text>
-  <text x="148" y="362" text-anchor="middle" font-size="11" fill="#7c2d12">member (공개 S3 · PII)</text>
+  <!-- Private subnet: serverless (Lambda) -->
+  <rect x="1128" y="360" width="440" height="160" rx="8" fill="#eff6ff" stroke="#38bdf8" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="1142" y="377" font-size="10.5" font-weight="700" fill="#0369a1">🔒 Private (serverless) · λ (VPC→RDS)</text>
+  <g><rect x="1142" y="386" width="205" height="38" rx="6" fill="#fff" stroke="#fed7aa"/><rect x="1142" y="386" width="5" height="38" rx="2" fill="#fa7e14"/><text x="1155" y="403" font-size="10" font-weight="700" fill="#0f172a">λ ingest</text><text x="1155" y="417" font-size="8.5" fill="#64748b">이벤트→계약⑤ 봉투→SQS</text></g>
+  <g><rect x="1355" y="386" width="205" height="38" rx="6" fill="#fff" stroke="#fed7aa"/><rect x="1355" y="386" width="5" height="38" rx="2" fill="#fa7e14"/><text x="1368" y="403" font-size="10" font-weight="700" fill="#0f172a">λ normalize</text><text x="1368" y="417" font-size="8.5" fill="#64748b">ASFF/OCSF→OCSF-lite→RDS</text></g>
+  <g><rect x="1142" y="430" width="205" height="38" rx="6" fill="#fff" stroke="#fed7aa"/><rect x="1142" y="430" width="5" height="38" rx="2" fill="#fa7e14"/><text x="1155" y="447" font-size="10" font-weight="700" fill="#0f172a">λ correlation</text><text x="1155" y="461" font-size="8.5" fill="#64748b">R1~R5 → attack-path</text></g>
+  <g><rect x="1355" y="430" width="205" height="38" rx="6" fill="#fff" stroke="#a7f3d0"/><rect x="1355" y="430" width="5" height="38" rx="2" fill="#01a88d"/><text x="1368" y="447" font-size="10" font-weight="700" fill="#0f172a">λ orchestrator 🧠</text><text x="1368" y="461" font-size="8.5" fill="#64748b">Triage→Evidence→Reasoning</text></g>
+  <g><rect x="1142" y="474" width="205" height="38" rx="6" fill="#fff" stroke="#fed7aa"/><rect x="1142" y="474" width="5" height="38" rx="2" fill="#fa7e14"/><text x="1155" y="491" font-size="10" font-weight="700" fill="#0f172a">λ console-backend</text><text x="1155" y="505" font-size="8.5" fill="#64748b">읽기 API(TS) · read-only</text></g>
+  <g><rect x="1355" y="474" width="205" height="38" rx="6" fill="#fff" stroke="#fecaca"/><rect x="1355" y="474" width="5" height="38" rx="2" fill="#dd344c"/><text x="1368" y="491" font-size="10" font-weight="700" fill="#0f172a">λ remediation ⚡</text><text x="1368" y="505" font-size="8.5" fill="#64748b">격상 역할 · 변경 API(HITL)</text></g>
 
-  <rect x="252" y="285" width="170" height="95" rx="7" fill="#eff6ff" stroke="#93c5fd"/>
-  <text x="337" y="304" text-anchor="middle" font-size="12" font-weight="700" fill="#1e40af">Azure — 신원</text>
-  <text x="337" y="330" text-anchor="middle" font-size="11" fill="#1e3a8a">Entra ID (직원 신원)</text>
-  <text x="337" y="348" text-anchor="middle" font-size="11" fill="#1e3a8a">과도권한 앱 (공격 종착지)</text>
+  <!-- Private subnet: data -->
+  <rect x="372" y="530" width="1188" height="96" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="386" y="547" font-size="10.5" font-weight="700" fill="#4338ca">🔒 Private (data)  10.20.20/21.0/24  ·  데이터는 AWS 전용</text>
+  <g><rect x="386" y="556" width="330" height="60" rx="6" fill="#fff" stroke="#c7d2fe"/><rect x="386" y="556" width="5" height="60" rx="2" fill="#3334b9"/><text x="399" y="575" font-size="11" font-weight="700" fill="#0f172a">🗄️ RDS PostgreSQL t3.micro + pgvector</text><text x="399" y="592" font-size="9" fill="#64748b">findings · cases · attack_paths</text><text x="399" y="606" font-size="9" fill="#64748b">finding_explanations · rag_chunks (db/schema.sql)</text></g>
+  <g><rect x="726" y="556" width="160" height="60" rx="6" fill="#fff" stroke="#fecaca"/><rect x="726" y="556" width="5" height="60" rx="2" fill="#dd344c"/><text x="739" y="580" font-size="10.5" font-weight="700" fill="#0f172a">🔑 Secrets Mgr</text><text x="739" y="597" font-size="9" fill="#64748b">RDS·Azure cred</text></g>
+  <g><rect x="896" y="556" width="200" height="60" rx="6" fill="#fff" stroke="#bbf7d0"/><rect x="896" y="556" width="5" height="60" rx="2" fill="#569a31"/><text x="909" y="580" font-size="10.5" font-weight="700" fill="#0f172a">🪣 S3 member-pii</text><text x="909" y="597" font-size="9" fill="#b91c1c">f6 공개 · f7 회원 PII (Macie 미끼)</text></g>
+  <g><rect x="1106" y="556" width="200" height="60" rx="6" fill="#fff" stroke="#bbf7d0"/><rect x="1106" y="556" width="5" height="60" rx="2" fill="#569a31"/><text x="1119" y="580" font-size="10.5" font-weight="700" fill="#0f172a">🔒 S3 감사(Object Lock)</text><text x="1119" y="597" font-size="9" fill="#64748b">조치 불변 감사로그(§17)</text></g>
 
-  <rect x="436" y="285" width="188" height="95" rx="7" fill="#f1f5f9" stroke="#cbd5e1"/>
-  <text x="530" y="308" text-anchor="middle" font-size="11" fill="#475569">자기가 점검당하는 줄</text>
-  <text x="530" y="326" text-anchor="middle" font-size="11" fill="#475569">모름. 그냥 클라우드에</text>
-  <text x="530" y="344" text-anchor="middle" font-size="11" fill="#475569">배포되어 돌아갈 뿐.</text>
-  <text x="530" y="366" text-anchor="middle" font-size="11" font-weight="700" fill="#475569">결함은 IaC(설정)에 심음</text>
+  <!-- Pipeline band (regional, inside region below VPC) -->
+  <rect x="356" y="646" width="1220" height="212" rx="10" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.3"/>
+  <text x="372" y="666" font-size="12" font-weight="700" fill="#be185d">🔁 이벤트 수집·정규화 파이프라인  &amp;  2-pass 에이전틱 루프  (agentless · EventBridge 기본 버스)</text>
+  <!-- row 1 -->
+  <g><rect x="372" y="678" width="118" height="46" rx="6" fill="#fff" stroke="#fbcfe8"/><rect x="372" y="678" width="5" height="46" rx="2" fill="#e7157b"/><text x="385" y="697" font-size="10" font-weight="700" fill="#0f172a">🔔 EventBridge</text><text x="385" y="713" font-size="8.5" fill="#64748b">findings 이벤트</text></g>
+  <g><rect x="510" y="678" width="118" height="46" rx="6" fill="#fff" stroke="#fbcfe8"/><rect x="510" y="678" width="5" height="46" rx="2" fill="#e7157b"/><text x="523" y="697" font-size="10" font-weight="700" fill="#0f172a">📨 SQS + DLQ</text><text x="523" y="713" font-size="8.5" fill="#64748b">버퍼·재시도</text></g>
+  <g><rect x="648" y="678" width="150" height="46" rx="6" fill="#fff7ed" stroke="#fed7aa"/><rect x="648" y="678" width="5" height="46" rx="2" fill="#fa7e14"/><text x="661" y="697" font-size="10" font-weight="700" fill="#0f172a">λ ingest → normalize</text><text x="661" y="713" font-size="8.5" fill="#64748b">계약⑤ → OCSF-lite</text></g>
+  <g><rect x="818" y="678" width="118" height="46" rx="6" fill="#eef2ff" stroke="#c7d2fe"/><rect x="818" y="678" width="5" height="46" rx="2" fill="#3334b9"/><text x="831" y="697" font-size="10" font-weight="700" fill="#0f172a">🗄️ RDS 적재</text><text x="831" y="713" font-size="8.5" fill="#64748b">findings upsert</text></g>
+  <g><rect x="956" y="678" width="150" height="46" rx="6" fill="#fff" stroke="#fbcfe8"/><rect x="956" y="678" width="5" height="46" rx="2" fill="#fa7e14"/><text x="969" y="697" font-size="10" font-weight="700" fill="#0f172a">λ correlation</text><text x="969" y="713" font-size="8.5" fill="#64748b">batch.completed → R1~R5</text></g>
+  <g><rect x="1126" y="678" width="180" height="46" rx="6" fill="#ecfdf5" stroke="#a7f3d0"/><rect x="1126" y="678" width="5" height="46" rx="2" fill="#01a88d"/><text x="1139" y="697" font-size="10" font-weight="700" fill="#0f172a">🧠 λ orchestrator</text><text x="1139" y="713" font-size="8.5" fill="#64748b">correlation.completed → tool-use</text></g>
+  <g><rect x="1326" y="678" width="118" height="46" rx="6" fill="#eef2ff" stroke="#c7d2fe"/><rect x="1326" y="678" width="5" height="46" rx="2" fill="#3334b9"/><text x="1339" y="697" font-size="10" font-weight="700" fill="#0f172a">📁 cases</text><text x="1339" y="713" font-size="8.5" fill="#64748b">판정·증거·내러티브</text></g>
+  <path d="M490,701 L510,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
+  <path d="M628,701 L648,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
+  <path d="M798,701 L818,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
+  <path d="M936,701 L956,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
+  <path d="M1106,701 L1126,701" stroke="#0e9f6e" stroke-width="1.5" marker-end="url(#ag)"/>
+  <path d="M1306,701 L1326,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
+  <!-- row 2: HITL -->
+  <text x="372" y="756" font-size="10.5" font-weight="700" fill="#be185d">조치(HITL · §17):</text>
+  <g><rect x="470" y="738" width="168" height="40" rx="6" fill="#fff" stroke="#fbcfe8"/><rect x="470" y="738" width="5" height="40" rx="2" fill="#e7157b"/><text x="483" y="755" font-size="10" font-weight="700" fill="#0f172a">🔀 Step Functions</text><text x="483" y="770" font-size="8.5" fill="#64748b">approver 승인 → StartExecution</text></g>
+  <g><rect x="658" y="738" width="168" height="40" rx="6" fill="#fff" stroke="#fecaca"/><rect x="658" y="738" width="5" height="40" rx="2" fill="#dd344c"/><text x="671" y="755" font-size="10" font-weight="700" fill="#0f172a">⚡ remediation λ</text><text x="671" y="770" font-size="8.5" fill="#64748b">S3 block·SG·IAM (dry-run→apply)</text></g>
+  <g><rect x="846" y="738" width="168" height="40" rx="6" fill="#fff" stroke="#bbf7d0"/><rect x="846" y="738" width="5" height="40" rx="2" fill="#569a31"/><text x="859" y="755" font-size="10" font-weight="700" fill="#0f172a">🔒 감사(Object Lock)</text><text x="859" y="770" font-size="8.5" fill="#64748b">불변 기록 + 수정→소멸</text></g>
+  <path d="M638,758 L658,758" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
+  <path d="M826,758 L846,758" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
+  <text x="1050" y="762" font-size="10" fill="#94a3b8">read-only first · 최소권한 · 변경은 분리된 승인 경로로만</text>
+  <!-- 스캐너 → EventBridge 연결 -->
+  <path d="M1610,300 C1420,300 470,560 431,676" stroke="#dc2626" stroke-width="1.3" fill="none" stroke-dasharray="5 4" opacity="0.55" marker-end="url(#ar)"/>
 
-  <!-- 관제 앱 -->
-  <rect x="760" y="245" width="600" height="150" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="2"/>
-  <rect x="760" y="245" width="600" height="28" rx="10" fill="#0ea5e9"/>
-  <rect x="760" y="259" width="600" height="14" fill="#0ea5e9"/>
-  <text x="776" y="264" font-size="14" font-weight="700" fill="#fff">관제 앱 — 우리 플랫폼 (얼굴 · HALO의 NOVA 대응)</text>
+  <!-- ============================================================ RIGHT: Scanners ============================================================ -->
+  <rect x="1612" y="88" width="604" height="238" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+  <rect x="1612" y="88" width="604" height="26" rx="10" fill="#fee2e2"/>
+  <text x="1628" y="106" font-size="13" font-weight="700" fill="#b91c1c">🔍 스캐너 — CNAPP 6기둥  (계정을 read-only로 스캔 · agentless)</text>
+  <g><rect x="1628" y="124" width="284" height="44" rx="6" fill="#fff" stroke="#fecaca"/><rect x="1628" y="124" width="5" height="44" rx="2" fill="#dd344c"/><text x="1641" y="142" font-size="10.5" font-weight="700" fill="#0f172a">CSPM (설정)</text><text x="1641" y="159" font-size="9" fill="#64748b">Config · Security Hub · Prowler</text></g>
+  <g><rect x="1920" y="124" width="284" height="44" rx="6" fill="#fff" stroke="#fecaca"/><rect x="1920" y="124" width="5" height="44" rx="2" fill="#dd344c"/><text x="1933" y="142" font-size="10.5" font-weight="700" fill="#0f172a">취약점 (CVE)</text><text x="1933" y="159" font-size="9" fill="#64748b">Inspector · Trivy(이미지)</text></g>
+  <g><rect x="1628" y="176" width="284" height="44" rx="6" fill="#fff" stroke="#fecaca"/><rect x="1628" y="176" width="5" height="44" rx="2" fill="#dd344c"/><text x="1641" y="194" font-size="10.5" font-weight="700" fill="#0f172a">CIEM (권한)</text><text x="1641" y="211" font-size="9" fill="#64748b">IAM Access Analyzer · Entra CIEM</text></g>
+  <g><rect x="1920" y="176" width="284" height="44" rx="6" fill="#fff" stroke="#fecaca"/><rect x="1920" y="176" width="5" height="44" rx="2" fill="#dd344c"/><text x="1933" y="194" font-size="10.5" font-weight="700" fill="#0f172a">KSPM (K8s)</text><text x="1933" y="211" font-size="9" fill="#64748b">kube-bench</text></g>
+  <g><rect x="1628" y="228" width="284" height="44" rx="6" fill="#fff" stroke="#fecaca"/><rect x="1628" y="228" width="5" height="44" rx="2" fill="#dd344c"/><text x="1641" y="246" font-size="10.5" font-weight="700" fill="#0f172a">데이터 (DSPM 맛)</text><text x="1641" y="263" font-size="9" fill="#64748b">Macie — AWS S3 전용</text></g>
+  <g><rect x="1920" y="228" width="284" height="44" rx="6" fill="#fff" stroke="#fbcfe8"/><rect x="1920" y="228" width="5" height="44" rx="2" fill="#e7157b"/><text x="1933" y="246" font-size="10.5" font-weight="700" fill="#0f172a">attack-path (상관)</text><text x="1933" y="263" font-size="9" fill="#64748b">커스텀 엔진 R1~R5 · 2-pass</text></g>
+  <text x="1628" y="296" font-size="9.5" fill="#94a3b8">Shift-Left: CI에서 Checkov/OPA(IaC) · Trivy(이미지) — 빌드 단계 차단</text>
+  <text x="1628" y="313" font-size="9.5" fill="#dc2626">→ 모든 finding은 EventBridge로 흘러 정규화 파이프라인에 합류</text>
 
-  <rect x="778" y="285" width="270" height="95" rx="7" fill="#f0f9ff" stroke="#7dd3fc"/>
-  <text x="913" y="306" text-anchor="middle" font-size="12" font-weight="700" fill="#0369a1">통합 관제 대시보드</text>
-  <text x="913" y="328" text-anchor="middle" font-size="11" fill="#075985">AWS+Azure 점수 나란히</text>
-  <text x="913" y="346" text-anchor="middle" font-size="11" fill="#075985">findings · attack-path</text>
-  <text x="913" y="364" text-anchor="middle" font-size="11" fill="#075985">AI 설명 · 우선순위 · 조치</text>
+  <!-- ============================================================ RIGHT: Azure ============================================================ -->
+  <rect x="1612" y="340" width="296" height="300" rx="10" fill="#eff6ff" stroke="#0078d4" stroke-width="1.5"/>
+  <rect x="1612" y="340" width="296" height="26" rx="10" fill="#dbeafe"/>
+  <text x="1628" y="358" font-size="13" font-weight="700" fill="#075985">☁️ Azure = 신원의 주인 (Entra ID)</text>
+  <g><rect x="1626" y="376" width="268" height="40" rx="6" fill="#fff" stroke="#bae6fd"/><rect x="1626" y="376" width="5" height="40" rx="2" fill="#0078d4"/><text x="1639" y="392" font-size="10.5" font-weight="700" fill="#0f172a">🆔 Entra ID 테넌트</text><text x="1639" y="407" font-size="9" fill="#64748b">cnappagentic.onmicrosoft.com</text></g>
+  <g><rect x="1626" y="422" width="268" height="40" rx="6" fill="#fff" stroke="#bae6fd"/><rect x="1626" y="422" width="5" height="40" rx="2" fill="#0078d4"/><text x="1639" y="438" font-size="10.5" font-weight="700" fill="#0f172a">🧩 App Reg: overpriv-app</text><text x="1639" y="453" font-size="9" fill="#b91c1c">f8 과도권한 · f16 장기 cred</text></g>
+  <g><rect x="1626" y="468" width="268" height="40" rx="6" fill="#fff" stroke="#bae6fd"/><rect x="1626" y="468" width="5" height="40" rx="2" fill="#0078d4"/><text x="1639" y="484" font-size="10.5" font-weight="700" fill="#0f172a">🔑 order-sp (SP)</text><text x="1639" y="499" font-size="9" fill="#b91c1c">f5: 평문으로 AWS에 유출될 cred</text></g>
+  <g><rect x="1626" y="514" width="268" height="40" rx="6" fill="#fff" stroke="#bae6fd"/><rect x="1626" y="514" width="5" height="40" rx="2" fill="#0078d4"/><text x="1639" y="530" font-size="10.5" font-weight="700" fill="#0f172a">🎫 SAML IdP → Cognito</text><text x="1639" y="545" font-size="9" fill="#64748b">SSO 페더레이션(그룹 GUID 클레임)</text></g>
+  <g><rect x="1626" y="560" width="268" height="40" rx="6" fill="#fff" stroke="#bae6fd"/><rect x="1626" y="560" width="5" height="40" rx="2" fill="#0078d4"/><text x="1639" y="576" font-size="10.5" font-weight="700" fill="#0f172a">🛡️ Defender for Cloud</text><text x="1639" y="591" font-size="9" fill="#64748b">리소스 secure score(멀티클라우드 뷰)</text></g>
+  <text x="1626" y="622" font-size="9" fill="#94a3b8">데이터는 Azure에 두지 않음 — 신원만. Prowler entra_id_* + SP는 키리스(OIDC)</text>
+  <!-- Entra SAML → Cognito(top) -->
+  <path d="M1760,514 C1500,470 900,300 806,158" stroke="#2563eb" stroke-width="1.3" fill="none" stroke-dasharray="5 4" opacity="0.6" marker-end="url(#ab)"/>
 
-  <rect x="1062" y="285" width="280" height="95" rx="7" fill="#f0f9ff" stroke="#7dd3fc"/>
-  <text x="1202" y="306" text-anchor="middle" font-size="12" font-weight="700" fill="#0369a1">여기에 들어가는 것</text>
-  <text x="1202" y="328" text-anchor="middle" font-size="11" fill="#075985">Bedrock 에이전틱 AI</text>
-  <text x="1202" y="346" text-anchor="middle" font-size="11" fill="#075985">SSO (Entra→Cognito)</text>
-  <text x="1202" y="364" text-anchor="middle" font-size="11" fill="#075985">findings 저장소 "읽기만"</text>
+  <!-- ============================================================ RIGHT: Governance ============================================================ -->
+  <rect x="1612" y="656" width="604" height="200" rx="10" fill="#f8fafc" stroke="#475569" stroke-width="1.4"/>
+  <rect x="1612" y="656" width="604" height="26" rx="10" fill="#e2e8f0"/>
+  <text x="1628" y="674" font-size="13" font-weight="700" fill="#334155">🔒 거버넌스 · 키리스 · 무료티어 가드레일 (§17 · D4)</text>
+  <g><rect x="1628" y="692" width="284" height="34" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1640" y="713" font-size="10" fill="#0f172a">✅ read-only first — Evidence allowlist(계약④) 2중 강제</text></g>
+  <g><rect x="1920" y="692" width="284" height="34" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1932" y="713" font-size="10" fill="#0f172a">✅ HITL — 변경은 Step Functions 승인 경로만</text></g>
+  <g><rect x="1628" y="732" width="284" height="34" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1640" y="753" font-size="10" fill="#0f172a">✅ 불변 감사 — S3 Object Lock</text></g>
+  <g><rect x="1920" y="732" width="284" height="34" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1932" y="753" font-size="10" fill="#0f172a">✅ CloudTrail — 에이전트 API 전량 감사</text></g>
+  <g><rect x="1628" y="772" width="284" height="34" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1640" y="793" font-size="10" fill="#0f172a">✅ 최소권한 — IRSA · 격상 역할 분리</text></g>
+  <g><rect x="1920" y="772" width="284" height="34" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1932" y="793" font-size="10" fill="#0f172a">🚫 Organizations/IdentityCenter/ControlTower 미사용</text></g>
+  <text x="1628" y="828" font-size="9.5" fill="#94a3b8">종량제(Config·SecHub·Inspector·Macie·Defender)는 데모 기간만 켜고 destroy · Budgets 알림 유지</text>
+  <text x="1628" y="845" font-size="9.5" fill="#94a3b8">비용: mock-first(빌드 $0) · apply→검증→destroy · NAT Instance · RDS t3.micro · Bedrock 티어링(Haiku↔Sonnet)</text>
 
-  <!-- agentless 경계 화살표 -->
-  <line x1="640" y1="435" x2="760" y2="435" stroke="#dc2626" stroke-width="2" stroke-dasharray="6 4"/>
-  <text x="700" y="425" text-anchor="middle" font-size="11" font-weight="700" fill="#dc2626">★ 직접 API 없음</text>
-  <text x="700" y="452" text-anchor="middle" font-size="10" fill="#dc2626">(agentless · read-only 스캔)</text>
+  <!-- ============================================================ BOTTOM: Golden cross-cloud attack-path ============================================================ -->
+  <rect x="24" y="884" width="2192" height="150" rx="12" fill="#fff1f2" stroke="#e11d48" stroke-width="2"/>
+  <text x="40" y="910" font-size="15" font-weight="800" fill="#be123c">❤️ 골든 크로스클라우드 attack-path  —  핵심 차별점</text>
+  <text x="500" y="910" font-size="11" fill="#9f1239">개별로는 중위험인 finding들이 하나의 '신원 탈취' 경로로 엮임 (독성 조합). MVP=분석·시각화, 실제 횡단은 보너스.</text>
+  <text x="1470" y="910" font-size="10.5" font-weight="700" fill="#2563eb">⚡ ③→④ = 크로스클라우드 경계 (credential_theft)</text>
 
-  <!-- ================= ROW 2: 데이터 흐름 ================= -->
-  <text x="40" y="490" font-size="15" font-weight="700" fill="#0f172a">② 데이터 흐름 — 스캐너가 계정을 read-only 스캔 → 정규화 → 에이전틱 엔진(RAG) → 관제 앱</text>
+  <rect x="40" y="924" width="470" height="92" rx="8" fill="#fff7ed" stroke="#f59e0b" stroke-width="1.3"/>
+  <text x="54" y="946" font-size="11.5" font-weight="700" fill="#c2410c">① 워크로드 침투 (AWS)</text>
+  <text x="54" y="966" font-size="10" fill="#7c2d12">product 취약 이미지(f1 KEV) → 컨테이너 장악</text>
+  <text x="54" y="983" font-size="10" fill="#7c2d12">f2 privileged 로 노드 측면 이동</text>
+  <text x="54" y="1002" font-size="9" fill="#a16207">n1: aws:eks_pod:shop/product</text>
 
-  <!-- 입력: 스캐너 -->
-  <rect x="40" y="508" width="300" height="180" rx="10" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.5"/>
-  <text x="56" y="530" font-size="12" font-weight="700" fill="#92400e">입력 · 스캐너 (read-only)</text>
-  <text x="56" y="552" font-size="10.5" fill="#78350f">설정/데이터: Config · Security Hub · Prowler · Macie(S3전용)</text>
-  <text x="56" y="572" font-size="10.5" fill="#78350f">워크로드: Inspector · Trivy · kube-bench</text>
-  <text x="56" y="592" font-size="10.5" fill="#78350f">권한(CIEM): IAM Access Analyzer</text>
-  <text x="56" y="612" font-size="10.5" fill="#1e40af">Azure: Prowler 모드(Entra CIEM · Defender)</text>
-  <line x1="56" y1="625" x2="324" y2="625" stroke="#fcd34d" stroke-dasharray="3 3"/>
-  <text x="56" y="644" font-size="10.5" font-weight="700" fill="#92400e">빌드게이트(Shift-Left):</text>
-  <text x="56" y="662" font-size="10.5" fill="#78350f">CI에서 Checkov/OPA(IaC) · Trivy(이미지)</text>
-  <text x="56" y="680" font-size="10" fill="#a16207">→ 배포 전 차단</text>
+  <rect x="546" y="924" width="470" height="92" rx="8" fill="#fff7ed" stroke="#f59e0b" stroke-width="1.3"/>
+  <text x="560" y="946" font-size="11.5" font-weight="700" fill="#c2410c">② 자격증명 발견 (AWS)</text>
+  <text x="560" y="966" font-size="10" fill="#7c2d12">order 과도 IRSA(f4) + 평문 Azure SP</text>
+  <text x="560" y="983" font-size="10" fill="#7c2d12">cred(f5) 를 코드/시크릿에서 획득</text>
+  <text x="560" y="1002" font-size="9" fill="#a16207">n2·n3: iam_role · secret_plaintext</text>
 
-  <line x1="340" y1="578" x2="392" y2="578" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="1052" y="924" width="470" height="92" rx="8" fill="#fff7ed" stroke="#f59e0b" stroke-width="1.3"/>
+  <text x="1066" y="946" font-size="11.5" font-weight="700" fill="#c2410c">③ 데이터 탈취 (AWS)</text>
+  <text x="1066" y="966" font-size="10" fill="#7c2d12">member 공개 S3(f6)에서 회원 PII(f7)</text>
+  <text x="1066" y="983" font-size="10" fill="#7c2d12">탈취 — Macie가 미리 탐지한 미끼</text>
+  <text x="1066" y="1002" font-size="9" fill="#a16207">n1' : aws:s3_bucket:member-pii</text>
 
-  <!-- 정규화 -->
-  <rect x="394" y="538" width="150" height="80" rx="8" fill="#fff" stroke="#94a3b8"/>
-  <text x="469" y="568" text-anchor="middle" font-size="11" font-weight="700" fill="#334155">정규화</text>
-  <text x="469" y="586" text-anchor="middle" font-size="10" fill="#64748b">OCSF-lite (계약①)</text>
-  <text x="469" y="602" text-anchor="middle" font-size="9.5" fill="#94a3b8">이질적 데이터 → 한 포맷</text>
-  <text x="469" y="635" text-anchor="middle" font-size="9.5" fill="#64748b">EventBridge→SQS→Lambda</text>
+  <rect x="1596" y="924" width="620" height="92" rx="8" fill="#eff6ff" stroke="#0078d4" stroke-width="1.5"/>
+  <text x="1610" y="946" font-size="11.5" font-weight="700" fill="#075985">④ 신원 장악 (Azure Entra) — 디렉터리 전체 통제</text>
+  <text x="1610" y="966" font-size="10" fill="#0c4a6e">탈취한 Azure SP cred 로 Entra 과도권한 App(f8) 장악 →</text>
+  <text x="1610" y="983" font-size="10" fill="#0c4a6e">Directory.ReadWrite.All 로 테넌트 신원 통제권 획득</text>
+  <text x="1610" y="1002" font-size="9" fill="#2563eb">n4·n5: azure service_principal · app_registration</text>
 
-  <line x1="544" y1="578" x2="596" y2="578" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M510,970 L546,970" stroke="#e11d48" stroke-width="2" marker-end="url(#ar)"/>
+  <path d="M1016,970 L1052,970" stroke="#e11d48" stroke-width="2" marker-end="url(#ar)"/>
+  <path d="M1522,970 L1596,970" stroke="#2563eb" stroke-width="2.5" marker-end="url(#ab)"/>
 
-  <!-- 에이전틱 엔진 -->
-  <rect x="598" y="518" width="420" height="170" rx="10" fill="#faf5ff" stroke="#a855f7" stroke-width="2"/>
-  <text x="614" y="540" font-size="12" font-weight="700" fill="#7e22ce">공유 에이전틱 엔진 (Bedrock 멀티에이전트)</text>
-  <text x="1002" y="540" text-anchor="end" font-size="10" font-weight="700" fill="#9333ea">Triage 게이트 · Haiku/Sonnet 배분</text>
-  <rect x="614" y="552" width="388" height="40" rx="6" fill="#fff" stroke="#d8b4fe"/>
-  <text x="808" y="577" text-anchor="middle" font-size="11" fill="#6b21a8">Orchestrator → Triage → Hypothesis → Evidence → Reasoning</text>
-
-  <!-- RAG 루프 -->
-  <rect x="614" y="602" width="184" height="76" rx="7" fill="#fff" stroke="#c084fc"/>
-  <text x="706" y="621" text-anchor="middle" font-size="10.5" font-weight="700" fill="#7e22ce">RAG 루프</text>
-  <text x="706" y="639" text-anchor="middle" font-size="9.5" fill="#6b21a8">finding → 임베딩 →</text>
-  <text x="706" y="654" text-anchor="middle" font-size="9.5" fill="#6b21a8">pgvector 검색 → 근거</text>
-  <text x="706" y="669" text-anchor="middle" font-size="9.5" fill="#6b21a8">+ finding → LLM 답변</text>
-
-  <rect x="812" y="602" width="190" height="76" rx="7" fill="#ecfdf5" stroke="#6ee7b7"/>
-  <text x="907" y="621" text-anchor="middle" font-size="10.5" font-weight="700" fill="#047857">pgvector (RDS t3.micro)</text>
-  <text x="907" y="639" text-anchor="middle" font-size="9.5" fill="#065f46">CIS·ISMS-P·플레이북</text>
-  <text x="907" y="654" text-anchor="middle" font-size="9.5" fill="#065f46">(미리 임베딩해 저장)</text>
-  <text x="907" y="669" text-anchor="middle" font-size="9.5" fill="#065f46">+ findings 데이터 동거</text>
-
-  <line x1="798" y1="640" x2="810" y2="640" stroke="#059669" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="810" y1="654" x2="800" y2="654" stroke="#059669" stroke-width="1.5" marker-end="url(#arrow)"/>
-
-  <!-- 엔진 → 출력 -->
-  <line x1="808" y1="688" x2="808" y2="715" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
-
-  <!-- attack-path + HITL -->
-  <rect x="1042" y="518" width="318" height="170" rx="10" fill="#fef2f2" stroke="#f87171" stroke-width="1.5"/>
-  <text x="1058" y="540" font-size="12" font-weight="700" fill="#b91c1c">attack-path + 조치</text>
-  <text x="1058" y="562" font-size="10.5" fill="#991b1b">AWS 권한+취약점+설정 → Azure 신원</text>
-  <text x="1058" y="579" font-size="10.5" fill="#991b1b">→ 크로스클라우드 탈취 경로</text>
-  <line x1="1058" y1="592" x2="1344" y2="592" stroke="#fca5a5" stroke-dasharray="3 3"/>
-  <text x="1058" y="613" font-size="10.5" font-weight="700" fill="#b91c1c">위험 → AI 개선 제안</text>
-  <text x="1058" y="631" font-size="10.5" fill="#991b1b">→ 사람 승인(HITL)</text>
-  <text x="1058" y="649" font-size="10.5" fill="#991b1b">→ Step Functions 실행</text>
-  <text x="1058" y="667" font-size="10.5" fill="#991b1b">→ 불변 감사로그(Object Lock)</text>
-
-  <!-- 출력: 관제앱 연결 -->
-  <rect x="598" y="715" width="420" height="40" rx="8" fill="#e0f2fe" stroke="#0ea5e9"/>
-  <text x="808" y="740" text-anchor="middle" font-size="11" font-weight="700" fill="#0369a1">→ 관제 앱이 findings 저장소를 "읽어서" 화면에 표시 (위 ① 관제 앱)</text>
-  <line x1="808" y1="395" x2="808" y2="410" stroke="#0ea5e9" stroke-width="1.5"/>
-
-  <!-- ================= ROW 3: 골든 attack-path ================= -->
-  <text x="40" y="798" font-size="15" font-weight="700" fill="#0f172a">③ 골든 시나리오 — 단일 finding은 "중간 위험", 묶으면 "Critical 탈취 경로"</text>
-
-  <!-- step 1 -->
-  <rect x="40" y="815" width="250" height="80" rx="9" fill="#fff7ed" stroke="#fb923c" stroke-width="1.5"/>
-  <text x="56" y="838" font-size="12" font-weight="700" fill="#9a3412">[1] product 침투</text>
-  <text x="56" y="858" font-size="10.5" fill="#7c2d12">취약 이미지(KEV CVE)로 진입</text>
-  <text x="56" y="876" font-size="10.5" fill="#7c2d12">Pod Security 위반 → 권한 확대</text>
-  <line x1="290" y1="855" x2="328" y2="855" stroke="#dc2626" stroke-width="2.5" marker-end="url(#arrowRed)"/>
-
-  <!-- step 2 -->
-  <rect x="330" y="815" width="250" height="80" rx="9" fill="#fff7ed" stroke="#fb923c" stroke-width="1.5"/>
-  <text x="346" y="838" font-size="12" font-weight="700" fill="#9a3412">[2] order 권한+자격증명</text>
-  <text x="346" y="858" font-size="10.5" fill="#7c2d12">과도 IRSA 권한(s3:*) 탈취</text>
-  <text x="346" y="876" font-size="10.5" fill="#7c2d12">+ 평문 시크릿서 Azure 키 발견</text>
-  <line x1="580" y1="855" x2="618" y2="855" stroke="#dc2626" stroke-width="2.5" marker-end="url(#arrowRed)"/>
-
-  <!-- step 3 -->
-  <rect x="620" y="815" width="250" height="80" rx="9" fill="#fff7ed" stroke="#fb923c" stroke-width="1.5"/>
-  <text x="636" y="838" font-size="12" font-weight="700" fill="#9a3412">[3] member 데이터 탈취</text>
-  <text x="636" y="858" font-size="10.5" fill="#7c2d12">공개 S3 버킷 접근</text>
-  <text x="636" y="876" font-size="10.5" fill="#7c2d12">→ AWS PII 탈취 (Macie가 탐지)</text>
-  <line x1="870" y1="855" x2="908" y2="855" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
-
-  <!-- step 4 -->
-  <rect x="910" y="815" width="270" height="80" rx="9" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.5"/>
-  <text x="926" y="838" font-size="12" font-weight="700" fill="#1e40af">[4] Azure 신원 장악</text>
-  <text x="926" y="858" font-size="10.5" fill="#1e3a8a">탈취한 자격증명으로 Entra ID</text>
-  <text x="926" y="876" font-size="10.5" fill="#1e3a8a">→ 신원 시스템 장악 (Entra CIEM)</text>
-
-  <rect x="1200" y="815" width="160" height="80" rx="9" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
-  <text x="1280" y="842" text-anchor="middle" font-size="11" font-weight="700" fill="#b91c1c">= Critical</text>
-  <text x="1280" y="862" text-anchor="middle" font-size="10" fill="#991b1b">AWS→Azure</text>
-  <text x="1280" y="879" text-anchor="middle" font-size="10" fill="#991b1b">전체 통제권 탈취</text>
-
-  <!-- ================= ROW 4: 차별점 + 원칙 ================= -->
-  <rect x="40" y="920" width="660" height="175" rx="10" fill="#fff" stroke="#a855f7" stroke-width="1.5"/>
-  <text x="56" y="943" font-size="14" font-weight="700" fill="#7e22ce">핵심 차별점</text>
-
-  <rect x="56" y="954" width="628" height="48" rx="7" fill="#faf5ff"/>
-  <text x="66" y="973" font-size="11.5" font-weight="700" fill="#6b21a8">★★★ 에이전틱 AI 능동 조사</text>
-  <text x="66" y="992" font-size="10.5" fill="#7e22ce">챗봇 아님. LLM이 read-only API를 스스로 호출해 증거 수집(tool use). 일반 CNAPP AI는 설명만.</text>
-
-  <rect x="56" y="1008" width="628" height="40" rx="7" fill="#faf5ff"/>
-  <text x="66" y="1033" font-size="11.5" font-weight="700" fill="#6b21a8">★★★ 크로스클라우드 attack-path</text>
-  <text x="430" y="1033" font-size="10.5" fill="#7e22ce">— AWS 워크로드 침해가 Azure 신원 장악으로 번지는 경로</text>
-
-  <text x="66" y="1070" font-size="10.5" fill="#64748b">★★☆ 한국 규제 네이티브(ISMS-P/CSAP) · 오픈소스 투명성(Prowler/Trivy) · Code-to-Cloud(Shift-Left)</text>
-  <text x="66" y="1088" font-size="9.5" fill="#94a3b8">HALO를 레퍼런스로 출발 — "더 낫다"가 아니라 HALO가 약한 영역(능동조사·크로스클라우드·Shift-Left)을 다른 관점으로</text>
-
-  <rect x="720" y="920" width="640" height="175" rx="10" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
-  <text x="736" y="943" font-size="14" font-weight="700" fill="#047857">안전 · 비용 원칙</text>
-  <text x="736" y="970" font-size="11" fill="#065f46">● Read-only first + HITL — 에이전트는 조회만, 변경은 사람 승인 후 분리된 경로</text>
-  <text x="736" y="994" font-size="11" fill="#065f46">● 불변 감사로그 — 모든 판정을 S3 Object Lock에 기록</text>
-  <text x="736" y="1018" font-size="11" fill="#065f46">● 키 없는 인증 — CI/CD는 GitHub OIDC, 파드는 IRSA (장기 키 없음)</text>
-  <text x="736" y="1042" font-size="11" fill="#065f46">● 무료 티어 가드레일 — Organizations/Identity Center 안 켬(크레딧 소멸 방지)</text>
-  <text x="736" y="1066" font-size="11" fill="#065f46">   종량제 서비스는 데모만 켜고 destroy · Budgets $50/$100 알림</text>
-
-  <!-- 구현 현황 푸터 (2026-07) -->
-  <rect x="40" y="1122" width="1320" height="62" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
-  <text x="60" y="1143" font-size="13" font-weight="700" fill="#334155">구현 현황 (2026-07)</text>
-  <text x="60" y="1162" font-size="11" fill="#334155">✅ 공통 계약(INTERNAL control 14종·골든 목업·CI 게이트)   ✅ infra/shared·infra/target 스캐폴드   ✅ 관제 앱 8화면 목업 동작(대시보드·Findings·Evidence·attack-path 등)</text>
-  <text x="60" y="1178" font-size="11" fill="#334155">✅ 타깃 앱 member(Python) 실행 + shop 포털(product·order·member 소개)   ⬜ 스캐너·수집·정규화·엔진·RAG(다음 = Phase 3~, 실데이터 파이프라인)</text>
-
+  <!-- ===== Legend ===== -->
+  <g font-size="10" fill="#475569">
+    <rect x="40" y="1054" width="14" height="14" rx="3" fill="#ed7100"/><text x="60" y="1065">컴퓨트(EKS·λ·EC2)</text>
+    <rect x="200" y="1054" width="14" height="14" rx="3" fill="#3334b9"/><text x="220" y="1065">데이터베이스(RDS·pgvector)</text>
+    <rect x="420" y="1054" width="14" height="14" rx="3" fill="#569a31"/><text x="440" y="1065">스토리지(S3)</text>
+    <rect x="560" y="1054" width="14" height="14" rx="3" fill="#8c4fff"/><text x="580" y="1065">네트워크(VPC·ALB·CF)</text>
+    <rect x="750" y="1054" width="14" height="14" rx="3" fill="#dd344c"/><text x="770" y="1065">보안(스캐너·IAM·Cognito)</text>
+    <rect x="960" y="1054" width="14" height="14" rx="3" fill="#e7157b"/><text x="980" y="1065">통합(EventBridge·SQS·SFn)</text>
+    <rect x="1160" y="1054" width="14" height="14" rx="3" fill="#01a88d"/><text x="1180" y="1065">AI(Bedrock·RAG)</text>
+    <rect x="1310" y="1054" width="14" height="14" rx="3" fill="#0078d4"/><text x="1330" y="1065">Azure(Entra)</text>
+    <rect x="1440" y="1054" width="14" height="14" rx="3" fill="#475569"/><text x="1460" y="1065">거버넌스</text>
+    <text x="1560" y="1065" fill="#dc2626">━ 결함/공격 흐름</text>
+    <text x="1710" y="1065" fill="#0e9f6e">━ 에이전틱(tool-use)</text>
+    <text x="1900" y="1065" fill="#94a3b8">f1~f8 = 의도적 결함(target-app-design)</text>
+  </g>
 </svg>
