@@ -19,7 +19,7 @@
 
 ---
 
-## 핵심 키워드
+## 🔑 핵심 키워드
 
 - **Multi-Cloud** — AWS(워크로드의 주인)와 Azure(신원의 주인, Entra ID)의 흩어진 보안 상태를 OCSF로 정규화해 단일 뷰로 통합하고, **AWS 워크로드 침해가 Azure 신원 장악으로 번지는** 클라우드 경계를 넘는 위험 경로를 추적한다. *각 클라우드의 장점대로 — 컨테이너·클라우드 네이티브 워크로드는 AWS, Microsoft 생태계 신원은 Azure.* (데이터 중복 저장은 명분이 약해, 데이터는 AWS S3에만 둔다.)
 - **CNAPP** — CSPM·CIEM·취약점·KSPM·데이터 보안·attack-path를 하나의 그래프로 묶어, 단일 도구로는 못 잡는 **독성 조합(toxic combination)**을 탐지한다.
@@ -27,7 +27,7 @@
 
 ---
 
-## 주요 기능
+## ✨ 주요 기능
 
 - **6기둥 CNAPP 점검** — CSPM(설정), CIEM(권한), 취약점, KSPM(쿠버네티스), 데이터 보안(DSPM 맛), attack-path를 통합 점검.
 - **에이전틱 AI 분석** — finding 자동 설명(근거·조치법 카드), 위험 우선순위 자동 정렬, attack-path 내러티브 생성, 그리고 read-only tool use로 증거를 능동 수집.
@@ -64,7 +64,7 @@
 
 ---
 
-## 기술 스택
+## 🧰 기술 스택
 
 영역별로 사용하는 주요 기술은 다음과 같다.
 
@@ -139,15 +139,15 @@ cnapp-agentic/
 > - **실(real) 전환** = 진짜 클라우드·Bedrock 동작. `⬜ 미착수` / `🔨 코드·검증전` / `✅ 실동작`.
 > - 👉 **표의 '진행(목업)' ✅는 로직만 완성**이라는 뜻이고, 진짜 동작 여부는 마지막 **'실(real) 전환'** 컬럼이다. **실동작(✅)에 도달한 칸은 아직 없음** — Phase1(엔진 실 tool-use)이 그 첫 칸을 뚫는 중.
 
-| 영역 | 준형 | 준형 진행 | 진우 | 진우 진행 |
-|---|---|---|---|---|
-| **앱 & 환경 세팅** | 타깃 앱 · 관제 앱 **2개 개발** | ✅ 목업 동작(콘솔 8화면 · 타깃 member+포털) | **AWS/Azure 환경**(M365·Entra 데모 테넌트·계정 초기) | 🔄 AWS 계정 ✅ / Azure 테넌트 진행중 |
-| **공유 인프라 · 토대** | `infra/shared`·`infra/target` 주도 · CI/CD · Shift-Left | 🔨 스캐폴드(apply 전) | 모니터링·운영관제(Grafana·CloudTrail) | ⬜ 예정 |
-| **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ⬜ 예정 | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM | 🔨 Trivy ✅ · 나머지 ⬜ |
-| **수집 · 정규화** | 수집부 (EventBridge→SQS) | ⬜ 예정 | 정규화부 (Lambda→OCSF) | ✅ 목업 동작(`pipeline/normalize`) |
-| **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ⬜ 예정 | 검색 · LLM 답변 생성 | ⬜ 예정 |
-| **엔진 (Bedrock)** | Evidence(tool use) · Triage | ✅ 목업 능동조사 + 🔨 Bedrock 실 플래너 코드(`engine/`, 실 검증 전) | Hypothesis · Reasoning · Orchestrator | ✅ 목업 동작(전체 루프) |
-| **attack-path** | 그래프 데이터 모델 | ✅ 모델·불변식 검증(`attackpath/model`) | 상관 로직(R1~R5) · 내러티브 | ✅ R1~R5 상관·2-pass backfill |
+| 영역 | 준형 | 준형 진행(목업) | 진우 | 진우 진행(목업) | 🚀 실(real) 전환 |
+|---|---|---|---|---|---|
+| 🖥️ **앱 & 환경 세팅** | 타깃 앱 · 관제 앱 **2개 개발** | ✅ 목업 동작(콘솔 8화면 · 타깃 member+포털) | **AWS/Azure 환경**(M365·Entra 데모 테넌트·계정 초기) | 🔄 AWS 계정 ✅ / Azure 테넌트 진행중 | ⬜ apply 시 배포(Phase2~) · Azure 테넌트·AWS 계정은 실물 ✅ |
+| 🏗️ **공유 인프라 · 토대** | `infra/shared`·`infra/target` 주도 · CI/CD · Shift-Left | 🔨 스캐폴드(apply 전) | 모니터링·운영관제(Grafana·CloudTrail) | ⬜ 예정 | ⬜ apply 전(TF state 버킷만 실물 ✅) |
+| 🔍 **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ⬜ 예정 | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM | 🔨 Trivy(`scanners/workload`) ✅ · 나머지 ⬜ | ⬜ Phase2 첫 실스캐너(trivy `scan_image` 실 이미지) → Phase3 확장 |
+| 📥 **수집 · 정규화** | 수집부 (EventBridge→SQS) | ⬜ 예정 | 정규화부 (Lambda→OCSF) | ✅ 목업 동작(`pipeline/normalize`) | ⬜ Phase2(Lambda 배포 + 실 finding) |
+| 📚 **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ⬜ 예정 | 검색 · LLM 답변 생성 | ✅ 목업 동작(`rag/retrieval`) | ⬜ Phase3(pgvector 적재 + Bedrock 임베딩) |
+| 🧠 **엔진 (Bedrock)** | Evidence(tool use) · Triage | ✅ 목업 능동조사(`engine/`) | Hypothesis · Reasoning · Orchestrator | ✅ 목업 동작(전체 루프) | **🔨 Phase1 ← 지금** — 뇌+배관 코드 ✅ · Bedrock 액세스·model ID·creds ✅ · **실 end-to-end(slice apply)만 남음** |
+| 🕸️ **attack-path** | 그래프 데이터 모델 | ✅ 모델·불변식 검증(`attackpath/model`) | 상관 로직(R1~R5) · 내러티브 | ✅ R1~R5 상관·2-pass backfill | ⬜ Phase2에 엮임(실 finding 상관) |
 
 > ⚠️ "관제"는 두 가지 — **관제 "앱"**(CNAPP 보안 대시보드 제품) = 준형 / **운영 "관제"**(Grafana·CloudTrail 플랫폼 관측) = 진우. 애플리케이션 2개는 모두 준형이 개발한다.
 >
@@ -159,23 +159,20 @@ cnapp-agentic/
 
 | 영역 | 상태 |
 |---|---|
-| **공통 계약 (`contracts/`)** | ✅ **졸업** — 계약 7종 JSON Schema + INTERNAL control 카탈로그(14종) + 골든 시나리오 mock(findings·attack-path·case). `validate.py` 4-assert + GitHub Actions CI 게이트로 정합 보장 |
-| **공유 인프라 (`infra/shared`)** | ✅ **스캐폴드** — VPC·NAT Instance·EKS(spot·IRSA)·ECR·RDS pgvector·GitHub OIDC·Evidence/Bedrock IAM. `terraform validate` 통과. apply는 게이트(state 버킷·Bedrock 모델 액세스·Azure 테넌트) 후 |
-| **앱 2개 구현 청사진** | ✅ **완료** — 관제 앱(console §15: 스택·API 표면·화면↔mock)·타깃 앱(target §7: 결함↔IaC 토글) 청사진 확정. **앱 2개 모두 준형 전담** |
-| **관제 콘솔 (`apps/console`)** | ✅ **8화면 목업 동작** — Vite+React+TS+Tailwind+TanStack+React Flow+MSW. 대시보드·Findings·Finding상세(Evidence 탭)·Attack-path + 조치·컴플라이언스·감사로그·로그인. MSW가 `contracts/mock-*.json` 서빙 → 백엔드·AWS 0으로 동작. `tsc`·`vite build` 통과. 다음 = (엔진 나오면) 실데이터 스왑 |
-| **타깃 앱 (`apps/target`)** | ✅ **member 서비스 실행 + shop 포털** — member(Python/FastAPI) 회원 REST + **PII seeder**(faker→S3, Macie 미끼) + `/` 포털(product·order·member 소개). product/order는 결함 매니페스트(f1·f2·f5). 모든 PII/시크릿 가짜 |
-| **결함 IaC (`infra/target`)** | ✅ **스캐폴드** — 공개 S3(f6)·열린 SG(f3)·과도 IRSA(f4) `var.enable_*` 토글(기본 off), remote_state로 infra/shared 참조. `terraform fmt` 통과 |
-| TF state 부트스트랩 | ✅ `cnapp-agentic-tfstate` 버킷(manual-infra §2) |
-| **엔진 · attack-path · 정규화부 (목업)** | ✅ **동작** — 엔진 5단계 능동조사(`engine`, read-only 툴 4회·confirmed)·attack-path R1~R5 상관 + 그래프 모델(`attackpath`)·정규화부 ASFF/prowler/trivy→OCSF-lite(`pipeline/normalize`). 전부 `contracts/mock-*.json` 기반 |
-| **엔진 실 tool-use (Phase1)** | 🔨 **뇌+배관 코드 작성** — `BedrockEvidenceAgent`(Converse tool-use 플래너, LLM이 read-only API 자가 선택)·`RealToolExecutor`(boto3 S3)·`infra/slice`(공개 S3 표적)·`engine/run_real.py`. 가짜 Bedrock으로 **에이전틱 루프 오프라인 검증 OK**. ⬜ 실 Bedrock 검증(apply 세션: 모델 액세스·서울 model ID·slice apply→destroy) |
-| **워크로드 스캐너 (`scanners/workload`)** | 🔨 **Trivy 완료** — `TrivyScanner`(scan_image · scan_from_json), 계약⑤ ingest-envelope 봉투화, 정규화부 직접 연결(run_demo OK ✅). Inspector · kube-bench · Defender는 infra apply 후 |
-| 수집부(ingest) · RAG · console-backend · **실데이터 전환** | ⬜ **예정** — 엔진 실 tool-use → 스캐너 실 finding → 수집 파이프라인 순 |
+| 📜 **공통 계약 (`contracts/`)** | ✅ **졸업** — 계약 7종 JSON Schema + INTERNAL control 카탈로그(14종) + 골든 시나리오 mock(findings·attack-path·case). `validate.py` 4-assert + GitHub Actions CI 게이트로 정합 보장 |
+| 🖥️ **관제 콘솔 (`apps/console`)** | ✅ **8화면 목업 동작** — Vite+React+TS+Tailwind+TanStack+React Flow+MSW. 대시보드·Findings·Finding상세(Evidence 탭)·Attack-path + 조치·컴플라이언스·감사로그·로그인. MSW가 `contracts/mock-*.json` 서빙 → 백엔드·AWS 0으로 동작. `tsc`·`vite build` 통과 |
+| 🛒 **타깃 앱 (`apps/target`)** | ✅ **member 실행 + shop 포털** — member(Python/FastAPI) 회원 REST + **PII seeder**(faker→S3, Macie 미끼) + 포털. product/order는 결함 매니페스트(f1·f2·f5). 모든 PII/시크릿 가짜 |
+| 🧩 **로직 계층 (전부 목업 동작 · exit 0)** | ✅ 엔진 5단계 능동조사(`engine`)·attack-path R1~R5 상관+그래프(`attackpath`)·정규화부(`pipeline/normalize`)·RAG 검색·답변(`rag/retrieval`)·Trivy 스캐너(`scanners/workload`). 전부 `contracts/mock-*.json` 기반 |
+| ❤️ **엔진 실 tool-use (Phase1 — 심장)** | 🔨 **거의 다 됨** — 뇌(`BedrockEvidenceAgent`, LLM이 read-only API 자가 선택)+배관(`RealToolExecutor`·`infra/slice`·`run_real.py`) 코드 ✅(오프라인 루프 검증). **Bedrock 모델 액세스 ✅ · model ID ✅(`global.anthropic.claude-haiku-4-5-…` ACTIVE) · AWS creds ✅.** ⬜ **남은 것 = `infra/slice` apply → `run_real` 실 end-to-end 1회**(<$1) |
+| 🏗️ **공유 인프라 (`infra/shared`·`infra/target`)** | ✅ **스캐폴드** — VPC·NAT Instance·EKS(spot·IRSA)·ECR·RDS pgvector·OIDC·Evidence/Bedrock IAM + 결함 IaC 토글(f3·f4·f6). `terraform validate`/`fmt` 통과. apply는 게이트 후 |
+| 📦 **TF state 부트스트랩** | ✅ `cnapp-agentic-tfstate` 버킷(manual-infra §2) · **Bedrock 모델 액세스 ✅**(manual-infra §4) |
+| ⬜ **수집부(ingest) · console-backend · 실데이터 전환** | ⬜ **예정** — Phase1(실 tool-use) → 스캐너 실 finding → 수집 파이프라인 순 |
 
 > **전략 = 계약·목업 우선.** 실제 스캐너/엔진을 기다리지 않고 `contracts/mock-*.json`으로 관제 콘솔·엔진을 끝까지 만든 뒤 실데이터로 교체 — 직렬 의존을 두 병렬 트랙으로 분리한다.
 
 ---
 
-## 상세 설계
+## 📖 상세 설계
 
 설계의 배경·결정 근거·로드맵 등 상세 내용은 상단 [📂 docs 안내](#-이-레포는-무엇인가--docs-안내) 표의 문서를 참고한다. (project-draft → target-app-design → console-app-design 순)
 
