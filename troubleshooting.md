@@ -13,6 +13,7 @@
 
 ## 1. 트러블슈팅 로그 (문제 → 해결)
 
+- `2026-07-02 / 준형 / [engine] hypothesis.py _has_cross_cloud가 edge.get("edge_type")=="cross_cloud" 검사 → 계약③ 엣지는 type(credential_theft…)+cross_cloud(불리언) 구조라 edge_type 키·"cross_cloud" type 값이 없음 → 항상 False → _CROSS_CLOUD_HYPOTHESIS(크로스클라우드 체인 가설)가 절대 추가 안 됨(데모 Hypothesis 출력에도 누락). 골든 검증이 가설 목록을 안 봐 CI 미탐. edge.get("cross_cloud")로 수정 → 데모에 크로스클라우드 체인 가설 출력 + 골든 정합·case 스키마 유지(exit 0). 진우 reasoning 영역 코드라 CLAUDE 변경로그 [PULL 필요]로 알림`
 - `2026-07-01 / 준형 / [apps-console] 외부 리뷰: Evidence 탭 데이터 소스 이중(§5 finding_explanations.evidence_json ↔ §15.4 mock-cases) 발견 → UC0=case단위/UC1=finding단위로 확정, finding_explanations에 case_id FK + cases 테이블 신설, 상세는 finding_id∈case.finding_ids 조인. ai_status placeholder·정합 3건·스택 확정(RF/MSW/TS)+폴리글랏 반영`
 - `2026-07-01 / 준형 / [contracts] §2.1 계약 정합 4건 수정 중 attack-path 노드 n4(azure SP)에 대응 finding 부재 발견(assert c 위반) → f16을 골든 경로 편입(control도 ENTRA-SP-CRED-001 신규). validate.py로 4-assert 자동화, CI 게이트(.github/workflows) 추가. validate 통과`
 - `2026-07-01 / 준형 / [infra] infra/shared terraform init provider 버전 충돌(fck-nat 모듈 aws>=6.0 vs vpc/eks 5.x <6.0) → fck-nat 모듈을 raw NAT instance(fck-nat 공개 AMI + source_dest_check=false + private route)로 교체해 충돌·모듈 변수 불확실성 동시 제거. fmt·validate 통과`

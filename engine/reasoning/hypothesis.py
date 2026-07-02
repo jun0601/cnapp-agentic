@@ -38,9 +38,11 @@ _CROSS_CLOUD_HYPOTHESIS = (
 
 
 def _has_cross_cloud(paths: List[dict]) -> bool:
+    # 계약③ 엣지는 type(lateral_move·credential_theft…) + cross_cloud(불리언) 구조.
+    # "cross_cloud" 라는 edge type은 없음 → 경계 횡단 여부는 cross_cloud 플래그로 판정.
     for p in paths:
         for edge in p.get("edges", []):
-            if edge.get("edge_type") == "cross_cloud":
+            if edge.get("cross_cloud"):
                 return True
     return False
 

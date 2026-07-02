@@ -1,2 +1,2 @@
-pipeline/__pycache__/
-pipeline/normalize/__pycache__/
+__pycache__/
+*.py[cod]

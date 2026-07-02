@@ -2,7 +2,7 @@
 
 > 멀티클라우드(**AWS = 워크로드의 주인 / Azure = 신원의 주인(Entra ID)**) 환경의 설정부터 워크로드·IaC 코드까지 **code-to-cloud 보안 위험을 점검·통합·상관분석**하고, 그 위에 **에이전틱 AI(Bedrock 멀티에이전트 + RAG)**로 발견 항목을 설명·우선순위화·자동 개선하는 CNAPP형 보안 플랫폼.
 >
-> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 문서·공통 계약 정합 완료 · **구현 진행 중** — 공통 계약(INTERNAL control 14종·골든 목업·CI 게이트) + 공유 인프라 스캐폴드 + TF state 부트스트랩 + **관제 앱(`apps/console`) 8화면 목업 동작** + **타깃 앱(`apps/target`) shop 포털·member 서비스 실행** + 결함 IaC(`infra/target`).
+> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 문서·공통 계약 정합 완료 · **구현 진행 중** — 공통 계약(INTERNAL control 14종·골든 목업·CI 게이트) + 공유 인프라 스캐폴드 + TF state 부트스트랩 + **관제 앱(`apps/console`) 8화면 목업 동작** + **타깃 앱(`apps/target`) shop 포털·member 서비스 실행** + 결함 IaC(`infra/target`) + **엔진 5단계 능동조사·attack-path 상관·정규화부(전부 목업 동작)**. 다음 = 실데이터 전환(엔진 실 tool-use 우선).
 
 ### 📂 이 레포는 무엇인가 / docs 안내
 
@@ -108,9 +108,9 @@ cnapp-agentic/
 ├── scanners/                 ⬜ 스캐너 연동 — 하위폴더는 가제(계획)
 │   ├── cspm/                 (준형) Config · Prowler · Security Hub · Macie
 │   └── workload/             (진우) Inspector · Trivy · kube-bench · Defender
-├── pipeline/                 ⬜ 수집·정규화 — 가제
-│   ├── ingest/               (준형) EventBridge→SQS
-│   └── normalize/            (진우) Lambda→OCSF
+├── pipeline/                 🔨 수집·정규화 (normalize ✅ / ingest ⬜)
+│   ├── ingest/               (준형) EventBridge→SQS  ⬜ 예정
+│   └── normalize/            (진우) Lambda→OCSF  ✅ ASFF·prowler·trivy→OCSF-lite(dedup·역인덱스)
 ├── rag/                      ⬜ RAG — 가제
 │   ├── corpus/               (준형) 코퍼스·임베딩 적재
 │   └── retrieval/            (진우) 검색·LLM 답변
@@ -139,7 +139,7 @@ cnapp-agentic/
 | **앱 & 환경 세팅** | 타깃 앱 · 관제 앱 **2개 개발** | ✅ 목업 동작(콘솔 8화면 · 타깃 member+포털) | **AWS/Azure 환경**(M365·Entra 데모 테넌트·계정 초기) | 🔄 AWS 계정 ✅ / Azure 테넌트 진행중 |
 | **공유 인프라 · 토대** | `infra/shared`·`infra/target` 주도 · CI/CD · Shift-Left | 🔨 스캐폴드(apply 전) | 모니터링·운영관제(Grafana·CloudTrail) | ⬜ 예정 |
 | **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ⬜ 예정 | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM | ⬜ 예정 |
-| **수집 · 정규화** | 수집부 (EventBridge→SQS) | ⬜ 예정 | 정규화부 (Lambda→OCSF) | ⬜ 예정 |
+| **수집 · 정규화** | 수집부 (EventBridge→SQS) | ⬜ 예정 | 정규화부 (Lambda→OCSF) | ✅ 목업 동작(`pipeline/normalize`) |
 | **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ⬜ 예정 | 검색 · LLM 답변 생성 | ⬜ 예정 |
 | **엔진 (Bedrock)** | Evidence(tool use) · Triage | ✅ 목업 능동조사(`engine/`) | Hypothesis · Reasoning · Orchestrator | ✅ 목업 동작(전체 루프) |
 | **attack-path** | 그래프 데이터 모델 | ✅ 모델·불변식 검증(`attackpath/model`) | 상관 로직(R1~R5) · 내러티브 | ✅ R1~R5 상관·2-pass backfill |
@@ -159,7 +159,8 @@ cnapp-agentic/
 | **타깃 앱 (`apps/target`)** | ✅ **member 서비스 실행 + shop 포털** — member(Python/FastAPI) 회원 REST + **PII seeder**(faker→S3, Macie 미끼) + `/` 포털(product·order·member 소개). product/order는 결함 매니페스트(f1·f2·f5). 모든 PII/시크릿 가짜 |
 | **결함 IaC (`infra/target`)** | ✅ **스캐폴드** — 공개 S3(f6)·열린 SG(f3)·과도 IRSA(f4) `var.enable_*` 토글(기본 off), remote_state로 infra/shared 참조. `terraform fmt` 통과 |
 | TF state 부트스트랩 | ✅ `cnapp-agentic-tfstate` 버킷(manual-infra §2) |
-| 스캐너 · 수집/정규화 · 엔진 · RAG · console-backend | ⬜ **예정** — 실데이터 파이프라인(Phase 3~) |
+| **엔진 · attack-path · 정규화부 (목업)** | ✅ **동작** — 엔진 5단계 능동조사(`engine`, read-only 툴 4회·confirmed)·attack-path R1~R5 상관 + 그래프 모델(`attackpath`)·정규화부 ASFF/prowler/trivy→OCSF-lite(`pipeline/normalize`). 전부 `contracts/mock-*.json` 기반. 엔진 실 tool-use 배관(`RealToolExecutor`·`infra/slice`)은 apply 전 |
+| 스캐너 · 수집부(ingest) · RAG · console-backend · **실데이터 전환** | ⬜ **예정** — 엔진 실 tool-use → 스캐너 finding → 수집 파이프라인 순 |
 
 > **전략 = 계약·목업 우선.** 실제 스캐너/엔진을 기다리지 않고 `contracts/mock-*.json`으로 관제 콘솔·엔진을 끝까지 만든 뒤 실데이터로 교체 — 직렬 의존을 두 병렬 트랙으로 분리한다.
 
