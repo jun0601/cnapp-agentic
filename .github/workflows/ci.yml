@@ -19,8 +19,8 @@ jobs:
     name: 로직 회귀 (run_demo · run_e2e · contracts)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       # 목업 데모는 순수 stdlib(Bedrock/boto3는 지연 import) — 별도 설치 불필요, $0.
@@ -50,10 +50,12 @@ jobs:
     name: Shift-Left 보안 스캔 (report — 의도적 취약 포함)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # Trivy — IaC/Dockerfile 미스컨피그 + 의존성 CVE. 의도적 취약 데모라 report(soft-fail).
+      # @master: 특정 버전 태그가 자주 바뀌어(0.24.0 미존재) resolve 실패 방지. continue-on-error로 report 잡이 CI를 red로 만들지 않음.
       - name: Trivy config scan
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
         with:
           scan-type: config
           scan-ref: .
@@ -61,7 +63,8 @@ jobs:
           severity: CRITICAL,HIGH
       # Checkov — Terraform 미스컨피그. 마찬가지로 report(soft_fail).
       - name: Checkov (Terraform)
-        uses: bridgecrewio/checkov-action@v12
+        uses: bridgecrewio/checkov-action@master
+        continue-on-error: true
         with:
           directory: infra
           soft_fail: true
