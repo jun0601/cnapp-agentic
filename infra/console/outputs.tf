@@ -13,6 +13,11 @@ output "alb_dns_name" {
   value       = aws_lb.this.dns_name
 }
 
+output "alb_arn_suffix" {
+  description = "CloudWatch ALB 지표 dimension용(예: app/cnapp-agentic-console/xxxx) — infra/monitoring 대시보드 참조"
+  value       = aws_lb.this.arn_suffix
+}
+
 output "cognito_user_pool_id" {
   value = aws_cognito_user_pool.this.id
 }
