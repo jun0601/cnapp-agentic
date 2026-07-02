@@ -35,12 +35,15 @@ IaC   (Shift-Left — CI 단계)
 
 ```
 scanners/
-└── workload/               (진우 — 워크로드 취약점)
-    ├── trivy.py   ★ TrivyScanner — 컨테이너 이미지 CVE 스캔 (완료 ✅)
-    └── run_demo.py   데모 + 골든 정합 검증
+├── workload/               (진우 — 워크로드 취약점)
+│   ├── trivy.py   ★ TrivyScanner — 컨테이너 이미지 CVE 스캔 (완료 ✅)
+│   └── run_demo.py   데모 + 골든 정합 검증
+└── ciem/                   (진우 — 신원·권한 — 다음 착수 ▶)
+    ├── entra.py      Prowler entra_id_* 결과 → 계약⑤ envelope (미착수)
+    └── run_demo.py   데모 + 골든 정합 검증 (미착수)
 ```
 
-> **미착수:** cspm/(준형 — Security Hub·Prowler·Macie), CIEM 스캐너(진우 — Prowler entra_id_*).  
+> **미착수:** cspm/(준형 — Security Hub·Prowler·Macie), ciem/(진우 — Prowler entra_id_*).  
 > Inspector·kube-bench — infra apply 후 구현 예정.
 
 ---
@@ -139,7 +142,7 @@ envelope = scanner.scan_from_json(trivy_json_dict, image="shop/product:latest")
 | Prowler (AWS) | cspm·ciem | AWS | 준형 | 미착수 |
 | Macie (S3 PII) | cspm(data) | AWS | 준형 | 미착수 |
 | IAM Access Analyzer | ciem | AWS | 준형 | 미착수 |
-| Prowler entra_id_* | ciem | Azure | 진우 | 미착수 (2순위) |
+| Prowler entra_id_* | ciem | Azure | 진우 | 미착수 (`scanners/ciem/` 신설, 다음 착수) |
 | Inspector | vuln | AWS | 진우 | infra apply 후 |
 | kube-bench | kspm | AWS/EKS | 진우 | infra apply 후 |
 | Defender for Cloud | cspm·vuln | Azure | 진우 | 데모 때만 |

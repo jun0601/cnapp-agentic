@@ -314,7 +314,7 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 | `infra/target` | 준형 | ✅ | 휘발성·격리 |
 | `infra/console` | 준형 | ✅ | 준형 apply(콘솔 앱 소유). SSO는 진우 Entra App Reg(manual-infra §3) 연동 |
 | `infra/{scanners,pipeline,engine,rag,attackpath}` | 영역 주인 | ✅ 영역 단위 | 영역 안 반반은 같은 state 공유 |
-| `scanners/` | cspm 준형 / workload 진우 | ❌ 코드 | 병렬(둘 다 finding 뱉음) |
+| `scanners/` | cspm 준형 / workload·ciem 진우 | ❌ 코드 | 병렬(둘 다 finding 뱉음). ciem/ 신설(Prowler entra_id_*) |
 | `pipeline/` | ingest 준형 / normalize 진우 | ❌ 코드 | 이음새=계약⑤ |
 | `engine/` | core 공유 / triage·evidence 준형 / hypothesis·reasoning 진우 | ❌ 코드 | 핸드오프=계약⑦ |
 | `rag/` | corpus 준형 / retrieval 진우 | ❌ 코드 | 이음새=계약⑥ |

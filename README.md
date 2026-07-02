@@ -107,7 +107,8 @@ cnapp-agentic/
 │   └── reasoning/            (진우) hypothesis · reasoning · orchestrator
 ├── scanners/                 🔨 스캐너 연동
 │   ├── cspm/                 (준형) Config · Prowler · Security Hub · Macie  ⬜ 예정
-│   └── workload/             ✅ Trivy ✅ · Inspector·kube-bench·Defender ⬜ (진우)
+│   ├── workload/             ✅ Trivy ✅ · Inspector·kube-bench·Defender ⬜ (진우)
+│   └── ciem/                 (진우) Prowler entra_id_* · Entra CIEM  ⬜ 다음 착수
 ├── pipeline/                 🔨 수집·정규화 (normalize ✅ / ingest ⬜)
 │   ├── ingest/               (준형) EventBridge→SQS  ⬜ 예정
 │   └── normalize/            (진우) Lambda→OCSF  ✅ ASFF·prowler·trivy→OCSF-lite(dedup·역인덱스)
@@ -143,7 +144,7 @@ cnapp-agentic/
 |---|---|---|---|---|---|
 | 🖥️ **앱 & 환경 세팅** | 타깃 앱 · 관제 앱 **2개 개발** | ✅ 목업 동작(콘솔 8화면 · 타깃 member+포털) | **AWS/Azure 환경**(M365·Entra 데모 테넌트·계정 초기) | 🔄 AWS 계정 ✅ / Azure 테넌트 진행중 | ⬜ apply 시 배포(Phase2~) · Azure 테넌트·AWS 계정은 실물 ✅ |
 | 🏗️ **공유 인프라 · 토대** | `infra/shared`·`infra/target` 주도 · CI/CD · Shift-Left | 🔨 스캐폴드(apply 전) | 모니터링·운영관제(Grafana·CloudTrail) | ⬜ 예정 | ⬜ apply 전(TF state 버킷만 실물 ✅) |
-| 🔍 **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ⬜ 예정 | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM | 🔨 Trivy(`scanners/workload`) ✅ · 나머지 ⬜ | ⬜ Phase2 첫 실스캐너(trivy `scan_image` 실 이미지) → Phase3 확장 |
+| 🔍 **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ⬜ 예정 | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM(`scanners/ciem/` 신설) | 🔨 Trivy(`scanners/workload`) ✅ · ciem/ 다음 착수 ⬜ · 나머지 ⬜ | ⬜ Phase2 첫 실스캐너(trivy `scan_image` 실 이미지) → Phase3 확장 |
 | 📥 **수집 · 정규화** | 수집부 (EventBridge→SQS) | ⬜ 예정 | 정규화부 (Lambda→OCSF) | ✅ 목업 동작(`pipeline/normalize`) | ⬜ Phase2(Lambda 배포 + 실 finding) |
 | 📚 **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ⬜ 예정 | 검색 · LLM 답변 생성 | ✅ 목업 동작(`rag/retrieval`) | ⬜ Phase3(pgvector 적재 + Bedrock 임베딩) |
 | 🧠 **엔진 (Bedrock)** | Evidence(tool use) · Triage | ✅ 목업 능동조사(`engine/`) | Hypothesis · Reasoning · Orchestrator | ✅ 목업 동작(전체 루프) | **✅ Phase1 완료(2026-07-02)** — 실 Bedrock(Haiku)이 실 S3를 read-only **자가 조사 → CONFIRMED**(apply→`run_real`→destroy) |
