@@ -7,6 +7,7 @@ Evidence 에이전트가 '스스로 호출'하는 read-only API. 핵심 = 챗봇
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
@@ -113,3 +114,100 @@ class MockToolExecutor(ToolExecutor):
             raw=raw,
             ts=self._next_ts(),
         )
+
+
+def _principal_is_public(principal) -> bool:
+    """S3 버킷 정책 statement의 Principal이 공개(*)인지."""
+    if principal == "*":
+        return True
+    if isinstance(principal, dict):
+        aws = principal.get("AWS")
+        if aws == "*":
+            return True
+        if isinstance(aws, list) and "*" in aws:
+            return True
+    return False
+
+
+class RealToolExecutor(ToolExecutor):
+    """실 AWS read-only 실행기 — MockToolExecutor와 '동일 인터페이스', boto3로 실제 호출.
+
+    vertical slice(엔진 실 tool-use 증명)용. Orchestrator/Evidence에서 Mock 대신 이걸 주입하면
+    조사 로직 무변으로 실 AWS를 조사한다(계약이 SSOT라 스왑 매끄러움). allowlist 강제는
+    base(ToolExecutor._check)가 담당 — read-only first 거버넌스가 실 호출에도 그대로 적용.
+
+    slice 범위 = **무료 S3 read-only만 실구현**(`s3:GetBucketPolicy`·`s3:GetPublicAccessBlock`).
+    macie2/iam/ec2는 비용·범위상 미구현(NotImplementedError) — 필요 시 핸들러 추가로 확장.
+
+    boto3/botocore는 **지연 import** — 미설치 환경에서도 MockToolExecutor·run_demo가 안 깨지게.
+    """
+
+    def __init__(self, region: str = "ap-northeast-2", profile: Optional[str] = None) -> None:
+        super().__init__()  # allowlist 로드(계약④)
+        try:
+            import boto3
+            from botocore.exceptions import ClientError
+        except ImportError as e:  # pragma: no cover
+            raise RuntimeError("RealToolExecutor는 boto3 필요 — pip install boto3") from e
+        self._ClientError = ClientError
+        session = boto3.Session(profile_name=profile, region_name=region)
+        self._s3 = session.client("s3")
+
+    @staticmethod
+    def _bucket_name(resource_id: str) -> str:
+        # resource_id 캐논(4.4.1a): {cloud}:{type}:{native_id} — s3_bucket이면 native_id=버킷명
+        parts = resource_id.split(":", 2)
+        if len(parts) != 3 or parts[1] != "s3_bucket":
+            raise ValueError("S3 버킷 resource_id 아님: %s" % resource_id)
+        return parts[2]
+
+    @staticmethod
+    def _now() -> str:
+        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def execute(self, tool: str, resource_id: str) -> ToolResult:
+        self._check(tool)  # ★ allowlist 강제(base) — 변경/쓰기 API면 여기서 차단
+        handler = {
+            "s3:GetBucketPolicy": self._get_bucket_policy,
+            "s3:GetPublicAccessBlock": self._get_public_access_block,
+        }.get(tool)
+        if handler is None:
+            raise NotImplementedError(
+                "'%s'는 실 slice 미구현(무료 S3 read-only만 구현) — 핸들러 추가로 확장." % tool
+            )
+        return handler(tool, resource_id)
+
+    def _get_bucket_policy(self, tool: str, resource_id: str) -> ToolResult:
+        bucket = self._bucket_name(resource_id)
+        try:
+            resp = self._s3.get_bucket_policy(Bucket=bucket)
+            policy = json.loads(resp["Policy"])
+        except self._ClientError as e:
+            if e.response["Error"]["Code"] == "NoSuchBucketPolicy":
+                return ToolResult(tool, resource_id, "버킷 정책 없음 — 공개 statement 미발견",
+                                  False, {}, self._now())
+            raise
+        public = any(
+            s.get("Effect") == "Allow" and _principal_is_public(s.get("Principal"))
+            for s in policy.get("Statement", [])
+        )
+        summary = ('Principal:"*" 허용 statement 확인 — 공개 버킷'
+                   if public else "공개 Principal statement 없음")
+        return ToolResult(tool, resource_id, summary, public, policy, self._now())
+
+    def _get_public_access_block(self, tool: str, resource_id: str) -> ToolResult:
+        bucket = self._bucket_name(resource_id)
+        try:
+            resp = self._s3.get_public_access_block(Bucket=bucket)
+            cfg = resp["PublicAccessBlockConfiguration"]
+        except self._ClientError as e:
+            if e.response["Error"]["Code"] == "NoSuchPublicAccessBlockConfiguration":
+                # PAB 미설정 = 공개 차단이 아예 없음(위험)
+                return ToolResult(tool, resource_id, "public access block 미설정(차단 없음)",
+                                  True, {}, self._now())
+            raise
+        blocked = bool(cfg.get("BlockPublicAcls")) and bool(cfg.get("RestrictPublicBuckets"))
+        summary = ("BlockPublicAcls=%s, RestrictPublicBuckets=%s — %s"
+                   % (cfg.get("BlockPublicAcls"), cfg.get("RestrictPublicBuckets"),
+                      "차단됨" if blocked else "public access block 미설정"))
+        return ToolResult(tool, resource_id, summary, not blocked, cfg, self._now())

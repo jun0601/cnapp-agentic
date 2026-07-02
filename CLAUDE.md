@@ -185,7 +185,7 @@ cnapp-agentic/
 
 *준형*
 - ✅ 한 것: 관제 앱 **8화면 목업 동작** · 타깃 앱 **member 실행 + shop 포털** · **엔진 Evidence·Triage 능동조사(목업, `python -m engine.run_demo`)** · **attack-path 그래프 데이터 모델(`attackpath/model`, correlation이 이 모델로 조립)** · 공통 계약(14 control·목업·CI) · `infra/shared`·`infra/target` 스캐폴드(apply 전)
-- ▶ 다음: console-backend(TS Lambda) → *(실검증)* 엔진 `RealToolExecutor`로 실 read-only API tool-use
+- ▶ 다음: **Phase1 = 엔진 실 tool-use** — 배관 작성 완료(`RealToolExecutor`·`infra/slice` 미니 버킷, apply 전), **남은 것: Bedrock LLM tool-use 플래너(핵심) + apply→test→destroy(준형과 함께)** → 이후 console-backend(TS Lambda)
 
 *진우*
 - ✅ 한 것: TF state 버킷 · Cognito SSO 설계(authenticate-cognito·그룹 클레임) · 2-pass 트리거 이벤트 · Azure/Entra 테넌트 · **엔진 Hypothesis·Reasoning·Orchestrator** · **Azure App Registration 3종(과도권한 overpriv-app·order-sp·prowler-sp) + Prowler SP GitHub Federated Credential**(manual-infra §3.6)
