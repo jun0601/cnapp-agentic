@@ -135,6 +135,16 @@ resource "aws_instance" "nat" {
   source_dest_check           = false # NAT 핵심 — 자기 IP 아닌 트래픽 포워딩
   vpc_security_group_ids      = [aws_security_group.nat.id]
 
+  # 하드닝(Checkov CKV_AWS_79) — IMDSv2 강제(v1 토큰리스 차단, SSRF 자격증명 탈취 표면 축소)
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
+  # 하드닝(CKV_AWS_8) — 루트 EBS 암호화
+  root_block_device {
+    encrypted = true
+  }
+
   tags = { Name = "${var.project}-nat" }
 }
 
@@ -186,6 +196,25 @@ module "eks" {
       min_size       = var.node_min
       max_size       = var.node_max
       desired_size   = var.node_desired
+
+      # 하드닝(Checkov CKV_AWS_79) — IMDSv2 강제 + hop_limit=1(파드의 노드 IMDS 접근 차단 → IRSA 강제)
+      metadata_options = {
+        http_endpoint               = "enabled"
+        http_tokens                 = "required"
+        http_put_response_hop_limit = 1
+      }
+      # 하드닝(CKV_AWS_8) — 노드 EBS 암호화
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size           = 20
+            volume_type           = "gp3"
+            encrypted             = true
+            delete_on_termination = true
+          }
+        }
+      }
     }
   }
 

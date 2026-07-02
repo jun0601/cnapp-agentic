@@ -22,8 +22,12 @@ spec:
     targetRevision: main
     path: apps/target
     directory:
-      recurse: true # apps/target/**/k8s 의 매니페스트(namespace·product·order·member)를 모두 sync
-      include: "{k8s/*.yaml,k8s/*.yml}"
+      recurse: true
+      # ⚠️ ArgoCD 글롭은 *가 /를 못 건너뜀(Go path.Match) → depth 명시 필요.
+      #   namespace = apps/target/k8s/namespace.yaml (depth1) = k8s/*.yaml
+      #   앱 매니페스트 = apps/target/{member,order,product}/k8s/*.yaml (depth2) = */k8s/*.yaml
+      #   (진우 리뷰 발견: 기존 k8s/*.yaml만 두면 namespace만 잡히고 앱은 0개 배포)
+      include: "{k8s/*.yaml,*/k8s/*.yaml}"
   destination:
     server: https://kubernetes.default.svc
     namespace: shop

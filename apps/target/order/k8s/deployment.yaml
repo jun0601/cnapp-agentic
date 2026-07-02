@@ -13,7 +13,7 @@ metadata:
   namespace: shop
   annotations:
     # f4: 과도권한 IRSA(infra/target에서 s3:* 등 부여) — 측면이동 발판
-    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/cnapp-target-order-irsa" # TODO infra/target
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/cnapp-agentic-target-order-irsa" # infra/target = ${var.project}-target-order-irsa (project=cnapp-agentic)
 ---
 apiVersion: apps/v1
 kind: Deployment

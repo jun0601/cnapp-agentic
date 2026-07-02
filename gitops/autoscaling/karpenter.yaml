@@ -10,7 +10,8 @@
 #   - Karpenter 컨트롤러(helm) + IRSA + spot 중단 SQS는 terraform으로 설치.
 #   - 컨트롤러/시스템 파드는 '작은 관리형 노드그룹(또는 Fargate)' 1개 위에서 돌고,
 #     Karpenter가 그 위에서 workload용 spot 노드를 provisioning.
-#   - subnet/SG는 karpenter.sh/discovery=cnapp-eks 태그로 발견(terraform이 태깅).
+#   - subnet/SG는 karpenter.sh/discovery=cnapp-agentic-shared(=클러스터명) 태그로 발견 → infra/shared가
+#     subnet/SG에 이 태그를 달고 KarpenterNodeRole 역할을 만들어야 함(현재 미생성 — apply 세션 TODO).
 # API: Karpenter v1 (karpenter.sh/v1 · karpenter.k8s.aws/v1). 적용은 kubectl/ArgoCD.
 ---
 apiVersion: karpenter.sh/v1
@@ -59,7 +60,7 @@ spec:
   role: "KarpenterNodeRole-cnapp"
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: cnapp-eks
+        karpenter.sh/discovery: cnapp-agentic-shared
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: cnapp-eks
+        karpenter.sh/discovery: cnapp-agentic-shared

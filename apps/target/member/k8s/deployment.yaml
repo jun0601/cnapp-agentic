@@ -8,7 +8,7 @@ metadata:
   namespace: shop
   annotations:
     # infra/target의 member IRSA 역할(최소권한: 이 버킷 PutObject/HeadObject만)
-    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/cnapp-target-member-irsa" # TODO infra/target 출력
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/cnapp-agentic-target-member-irsa" # infra/target = ${var.project}-target-member-irsa (project=cnapp-agentic)
 ---
 apiVersion: apps/v1
 kind: Deployment

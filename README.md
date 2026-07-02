@@ -97,7 +97,7 @@ cnapp-agentic/
 ├── troubleshooting.md        ✅ 작업 로그 (트러블슈팅 + 진행, [영역] 태그)
 ├── cnapp-architecture.svg    ✅ 아키텍처 다이어그램
 ├── run_e2e.py                ✅ Phase2 end-to-end 러너(스캐너→정규화→상관→엔진→RAG 한 줄 관통)
-├── .github/workflows/        ✅ CI — ci.yml(9개 데모·run_e2e·validate 회귀 + Trivy/Checkov Shift-Left) · contracts-validate.yml
+├── .github/workflows/        ✅ CI — ci.yml(9개 데모·run_e2e·validate 회귀 + Trivy/Checkov Shift-Left)
 ├── gitops/                   ✅ CD(ArgoCD Application) + 오토스케일링(Karpenter·HPA) 선언형 — apply는 EKS 세션
 ├── contracts/                ✅ ★공유 이음새 계약(7종 JSON Schema) + control-catalog(14종) + 골든 mock 3종 + validate.py
 ├── docs/                     ✅ 설계 SSOT — project-draft · target/console-app-design · manual-infra · cost-strategy
