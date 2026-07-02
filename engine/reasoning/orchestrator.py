@@ -28,8 +28,13 @@ _INVESTIGATION_ORDER = [
 
 def _emit_case_metrics(case: dict, findings_n: int, escalated_n: int, elapsed_ms: float) -> None:
     """EMF(Embedded Metric Format) 한 줄 — infra/monitoring 대시보드·알람(CnappAgentic/Engine
-    네임스페이스, Verdict×RiskLevel 디멘션)이 이 로그 라인을 파싱한다. 별도 의존성·비용 없음
-    (infra/monitoring/README.md §2③.1 스켈레톤 그대로).
+    네임스페이스)이 이 로그 라인을 파싱한다. 별도 의존성·비용 없음(infra/monitoring/README.md
+    §2③.1 스켈레톤 그대로).
+
+    Dimensions에 빈 세트([])와 ["Verdict","RiskLevel"]를 함께 선언 — 한 줄로 ① 무디멘션 집계
+    시계열(대시보드 총계 위젯·알람이 SEARCH 없이 직접 조회 가능 — CloudWatch 알람은 SEARCH를
+    지원하지 않음) ② Verdict×RiskLevel 세부분해 시계열을 동시에 발행한다(EMF 표준 기능, 추가
+    print 불필요).
     """
     if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
         return  # Lambda 밖(run_demo/run_e2e 로컬 실행)에선 콘솔 스팸 방지 위해 미발행
@@ -40,7 +45,7 @@ def _emit_case_metrics(case: dict, findings_n: int, escalated_n: int, elapsed_ms
             "Timestamp": int(time.time() * 1000),
             "CloudWatchMetrics": [{
                 "Namespace": "CnappAgentic/Engine",
-                "Dimensions": [["Verdict", "RiskLevel"]],
+                "Dimensions": [[], ["Verdict", "RiskLevel"]],
                 "Metrics": [
                     {"Name": "FindingsEvaluated", "Unit": "Count"},
                     {"Name": "FindingsEscalated", "Unit": "Count"},

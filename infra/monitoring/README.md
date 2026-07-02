@@ -66,16 +66,18 @@
 |---|---|---|---|---|
 | Bedrock 호출(모델별) | Invocations·InvocationLatency·InvocationClientErrors/ServerErrors·InputTokenCount/OutputTokenCount | CloudWatch(`AWS/Bedrock`, 자동 발행) | 아니오 — 코드 변경 없이 바로 대시보드화 가능 | ✅ 완료(2026-07-03) |
 | case당 추정 비용 | 위 InputTokenCount/OutputTokenCount에 단가를 곱하는 **metric math**(단가는 변수화) | CloudWatch(파생 위젯, `AWS/Bedrock` 그대로 사용) | 아니오 — 새 지표 만들 필요 없이 기존 native 지표로 계산 | ✅ 완료(2026-07-03) |
-| 에이전트 행동(tool-use 횟수·확신도) | case당 tool_calls_count·confidence_score | EMF 커스텀 메트릭 | **예** — `engine/reasoning/orchestrator.py`(★**진우 단독 소유 파일이지만 물리적으로 `infra/monitoring` 밖** — 이번엔 안 건드림, §12.4) | 🔶 위젯은 완료, 계측 전까지 No data |
-| 트리아지 게이트 | FindingsEvaluated / FindingsEscalated(카운터 2개, 비율은 대시보드에서 계산) | EMF 커스텀 메트릭 | **예** — 동일 파일(`orchestrator.run()`은 이미 `escalated`·`findings` 둘 다 갖고 있음) | 🔶 위젯·알람 완료, 계측 전까지 No data/INSUFFICIENT_DATA |
-| 판정 분포·위험도 | Verdict(confirmed/inconclusive)·RiskLevel(CRITICAL 등) 디멘션별 카운트 | EMF 커스텀 메트릭 | **예** — 동일 파일(`case["evidence_meta"]["verdict"]`·`case["reasoning"]["risk_level"]`) | 🔶 위젯 완료, 계측 전까지 No data |
-| 판정까지 걸린 시간 | TimeToVerdictMs | EMF 커스텀 메트릭 | **예** — `run()` 시작에 `time.time()` 한 줄만 추가 | 🔶 위젯 완료, 계측 전까지 No data |
+| 에이전트 행동(tool-use 횟수·확신도) | case당 tool_calls_count·confidence_score | EMF 커스텀 메트릭 | **완료(2026-07-03)** — `engine/reasoning/orchestrator.py`의 `run()`에 `_emit_case_metrics` 추가됨 | ✅ 위젯·계측 둘 다 완료(Lambda apply 후 실데이터 유입) |
+| 트리아지 게이트 | FindingsEvaluated / FindingsEscalated(카운터 2개, 비율은 대시보드에서 계산) | EMF 커스텀 메트릭 | **완료(2026-07-03)** — 동일 파일 | ✅ 위젯·알람·계측 전부 완료 |
+| 판정 분포·위험도 | Verdict(confirmed/inconclusive)·RiskLevel(CRITICAL 등) 디멘션별 카운트 | EMF 커스텀 메트릭 | **완료(2026-07-03)** — 동일 파일(`case["evidence_meta"]["verdict"]`·`case["reasoning"]["risk_level"]`) | ✅ 위젯·계측 완료 |
+| 판정까지 걸린 시간 | TimeToVerdictMs | EMF 커스텀 메트릭 | **완료(2026-07-03)** — `run()` 시작 `t0=time.time()` + return 직전 계측 | ✅ 위젯·계측 완료 |
 | (보너스) 판단 근거 리플레이 | 프롬프트·응답 전문 | Bedrock model invocation logging → S3 | 아니오(AWS 기능 on/off만) — **상시 X, 데모 캡처 구간만** | ⬜ 미착수(보너스) |
 | (보너스) 분산 트레이싱 | ingest→normalize→correlation→orchestrator 요청 1건의 전체 경로 | AWS X-Ray | 각 Lambda에 X-Ray SDK 계측 필요(선택) | ⬜ 미착수(보너스) |
 
 > EMF(Embedded Metric Format)는 Lambda가 이미 찍는 CloudWatch Logs에 특정 JSON 형식 한 줄만 추가하면 CloudWatch가 알아서 커스텀 메트릭으로 파싱한다 — 별도 서비스·의존성·비용 없음(`print(json.dumps(...))` 한 줄). **핵심 발견: case-level 지표는 전부 `Orchestrator.run()`(진우 소유, `engine/reasoning/orchestrator.py`) 안에서 뽑아낼 수 있다** — 이 메서드가 `findings`·`escalated`·완성된 `case`(evidence_meta·reasoning 포함)를 전부 쥐고 있는 유일한 지점이라, 이전 정리에서 "engine/core 조율 필요"라고 했던 건 정정 — **`engine/core`·`engine/evidence`(준형 파일)는 한 줄도 안 건드려도 된다.** 유일하게 준형 파일을 만져야 하는 경우는 "모델별 실제 토큰 사용량을 case 안에 남기고 싶을 때"뿐인데, 그건 위처럼 Bedrock native 지표로 대체 가능해서 필요 없음.
 
-#### 3.1 계측 스켈레톤 (`engine/reasoning/orchestrator.py`, `run()` 안에 추가)
+#### 3.1 계측 — `engine/reasoning/orchestrator.py`에 구현 완료(2026-07-03)
+
+당초 스켈레톤에서 **한 가지 수정** 후 실제 반영됨: `Dimensions`를 `[["Verdict","RiskLevel"]]` 하나가 아니라 **`[[], ["Verdict","RiskLevel"]]`(빈 세트 포함 2개)로 발행**한다. 이유 — CloudWatch **알람은 metric math에서 `SEARCH()`를 지원하지 않는다**(동적 시계열 개수라 단일 임계값과 안 맞음). Dimensions가 `["Verdict","RiskLevel"]`뿐이면 무디멘션 "총계" 시계열이 없어서, 총계를 보려면 대시보드에서만 되는 `SEARCH()+SUM()`에 의존해야 하고 **알람(§4의 트리아지 게이트 알람)에서는 그 총계를 아예 조회할 방법이 없다.** 빈 세트를 함께 선언하면 한 번의 `print(json.dumps(...))`로 ① 무디멘션 총계 시계열(대시보드 총계 위젯·알람이 SEARCH 없이 직접 참조) ② Verdict×RiskLevel 세부분해 시계열(대시보드 분포 위젯만 SEARCH로 펼침)을 **동시에** 얻는다 — 이게 EMF의 표준 기능이라 추가 코드·비용 없음.
 
 ```python
 import json, os, time
@@ -91,7 +93,7 @@ def _emit_case_metrics(case: dict, findings_n: int, escalated_n: int, elapsed_ms
             "Timestamp": int(time.time() * 1000),
             "CloudWatchMetrics": [{
                 "Namespace": "CnappAgentic/Engine",
-                "Dimensions": [["Verdict", "RiskLevel"]],
+                "Dimensions": [[], ["Verdict", "RiskLevel"]],  # 빈 세트 = 무디멘션 총계(알람용)
                 "Metrics": [
                     {"Name": "FindingsEvaluated", "Unit": "Count"},
                     {"Name": "FindingsEscalated", "Unit": "Count"},
@@ -113,7 +115,7 @@ def _emit_case_metrics(case: dict, findings_n: int, escalated_n: int, elapsed_ms
     print(json.dumps(emf))
 ```
 
-`run()` 맨 앞에 `t0 = time.time()`, `return` 직전에 `_emit_case_metrics(c, len(findings), len(escalated), (time.time()-t0)*1000)` 한 줄씩만 추가하면 끝 — 새 pip 의존성·Lambda 레이어 변경 없음(EMF는 stdout 규약일 뿐).
+`run()` 맨 앞에 `t0 = time.time()`, `return` 직전에 `_emit_case_metrics(c, len(findings), len(escalated), (time.time()-t0)*1000)` — 실제로 이렇게 두 줄만 추가됨(`engine/reasoning/orchestrator.py`). 새 pip 의존성·Lambda 레이어 변경 없음(EMF는 stdout 규약일 뿐). `run_demo`·`run_e2e` 무회귀 확인(Lambda 밖이라 미발행).
 
 #### 3.2 비용 위젯 (metric math, 코드 계측 없이 대시보드에서만)
 
@@ -128,7 +130,7 @@ Bedrock native `InputTokenCount`·`OutputTokenCount`(모델별)에 단가를 곱
 | `aws_iam_role.grafana` + policy | Grafana ServiceAccount(IRSA) → CloudWatch/Logs read-only | ✅ 있음 |
 | `aws_cloudwatch_dashboard.platform` | ①②③ 전 축 시각화(17개 위젯) | ✅ 완료(2026-07-03) |
 | Bedrock 지표 위젯(모델별) + 비용 metric math | 축③ 1단 | ✅ 완료(2026-07-03) |
-| EMF 커스텀 메트릭 위젯(SEARCH 기반) | 축③ 2단 | ✅ 위젯 완료 — 계측(`engine/`, 다른 폴더)은 §12.4 기록만 |
+| EMF 커스텀 메트릭 위젯 4종(3종 무디멘션 총계·1종 SEARCH 기반 분포) | 축③ 2단 | ✅ 위젯·계측 둘 다 완료(§13) |
 | Step Functions·감사 S3·remediation Lambda 위젯 | ②의 누락 3종 | ✅ 완료(2026-07-03) |
 | CloudTrail→CWLogs 배관(로그그룹·IAM 역할) | §10 | ✅ 완료(2026-07-03) |
 | Teams 알림(SNS·Lambda·시크릿·알람 6종) | §11 | ✅ 완료(2026-07-03) |
@@ -183,7 +185,7 @@ gitops/
 - [x] S3 감사 버킷(Object Lock) 위젯 추가
 - [x] RDS FreeStorageSpace·SQS ApproximateAgeOfOldestMessage 위젯 추가
 - [x] Bedrock(`AWS/Bedrock`, ModelId 디멘션) 위젯 신규 추가 + 비용 metric math 위젯(§2③.2)
-- [x] `CnappAgentic/Engine` 네임스페이스 CloudWatch 위젯 4종(SEARCH 기반, Verdict·RiskLevel 디멘션) 대시보드에 추가 — 계측 전까진 No data(정상)
+- [x] `CnappAgentic/Engine` 네임스페이스 CloudWatch 위젯 4종(무디멘션 총계 3종 + SEARCH 기반 분포 1종, §13 수정 반영) 대시보드에 추가 — 계측 전까진 No data(정상)
 - [x] CloudTrail → CloudWatch Logs 배관(§10) — 로그그룹·IAM 역할·output 2종
 - [x] Teams 알림 전체 스택(§11) — SNS·Lambda(실코드)·시크릿·구독·알람 6종
 - [x] `terraform fmt`/`init -backend=false`/`validate` 3종 전부 통과(§12)
@@ -379,8 +381,20 @@ python -m py_compile lambda_src/teams_notifier.py → 통과
 
 ### 12.4 외부 폴더 후속 작업 (기록만 — 이번 세션에서 구현 안 함)
 
-1. **`engine/reasoning/orchestrator.py`**(§2③.1 계측 스켈레톤 그대로 적용) — 진우 소유 파일이지만 물리적으로 `engine/` 폴더라 이번엔 안 건드림. EMF 위젯·트리아지 알람이 이 계측을 기다리는 중.
+1. ~~`engine/reasoning/orchestrator.py` EMF 계측~~ → **완료(2026-07-03, 같은 날 후속 작업)**. §3.1·§13 참고.
 2. **`gitops/argocd/app-monitoring.yaml` + `gitops/monitoring/kube-prometheus-stack-values.yaml`**(§4) — Grafana SA에 `grafana_irsa_role_arn` output 주입하는 Helm values + ArgoCD Application. `infra/monitoring` apply 후 이 값을 받아서 작성.
 3. **`infra/console/outputs.tf`**에 `cloudfront_distribution_id` output 1줄 추가 — 추가되면 `variables.tf`의 `cloudfront_distribution_id` 기본값을 `data.terraform_remote_state.console.outputs.cloudfront_distribution_id`로 바꾸기만 하면 CloudFront 위젯 활성화(대시보드 코드는 이미 완성, gate만 열면 됨).
 4. **(선택) `infra/shared/db/schema.sql`**에 `grafana_ro` 롤 추가 — §12.2 사유로 이번엔 보류.
 5. **`docs/manual-infra.md`** — apply 후 실제로 완료되면: ① CloudTrail→CWLogs 수동 연결 완료 기록(§10 마지막 단계) ② Teams 웹훅 로테이션·Secrets Manager 주입 완료 기록(이미 §3.5에 레닥션·조치안내는 있음, "완료" 체크만 남음). 사소한 참고: 이번에 만든 시크릿 이름은 `${project}/teams/webhook`(슬래시, RDS 시크릿과 동일 컨벤션) — manual-infra.md §3.5의 예시 문구(`cnapp-agentic-teams-webhook`, 대시)와 표기가 다르니 나중에 맞추면 됨(기능엔 영향 없음).
+
+## 13. 재검증(2026-07-03) — 전체 재점검에서 발견·수정한 버그 3건
+
+배포 전 처음부터 다시 정독하며 찾은 것. **셋 다 이번에 수정 완료**, 아래는 기록.
+
+| # | 버그 | 왜 문제인가 | 수정 |
+|---|---|---|---|
+| 1 | `triage_escalate_rate_zero` 알람의 `metric_query.expression`이 `SUM(SEARCH(...))`를 씀 | **CloudWatch 알람은 metric math에서 `SEARCH()` 함수를 지원하지 않는다**(대시보드 위젯에서만 허용 — 동적으로 시계열 개수가 변하는 함수라 단일 임계값 알람과 안 맞음). `terraform validate`는 이걸 못 잡는다(HCL 스키마만 검사, AWS API 시맨틱 검증은 apply 때 발생) — 그대로 뒀으면 apply 시 이 알람 리소스 생성이 API 레벨에서 거부됐을 가능성이 큼 | `_emit_case_metrics`가 `Dimensions=[[], ["Verdict","RiskLevel"]]`로 무디멘션 총계 시계열도 같이 발행하도록 수정 → 알람은 SEARCH 없이 이 무디멘션 메트릭을 `metric_query.metric` 블록으로 직접 참조(§3.1) |
+| 2 | `bedrock_errors` 알람이 `AWS/Bedrock` 지표를 `ModelId` 디멘션 없이 조회 | Bedrock CloudWatch 지표는 ModelId별로만 발행되고 무디멘션 롤업이 없다(Lambda의 `Invocations`가 FunctionName 없이는 존재하지 않는 것과 동일) — 디멘션 없이 조회하면 데이터가 영원히 안 잡혀 알람이 계속 INSUFFICIENT_DATA(기능적으로 죽은 알람, apply는 성공하지만 절대 안 울림) | `client_err`·`server_err` 두 `metric_query.metric`에 `dimensions = { ModelId = local.bedrock_model_ids[0] }` 추가(모델 1개뿐이라 `[0]` 고정 — Sonnet 추가 시 `lambda_errors`처럼 `for_each` 전환 고려, 주석에 명시) |
+| 3 | Bedrock 모델별 위젯이 `y = 42 + j*6`로 모델 수만큼 동적으로 늘어나는데, 그 아래 비용/EMF/CloudFront 위젯 y좌표는 **하드코딩**(48·54·60·66) | "리스트에 모델만 추가하면 자동 확장"이 설계 의도였는데 실제로는 안 됨 — Sonnet이 추가되면(모델 2개) Bedrock 위젯이 y=42~54를 차지해 비용 위젯(y=48 고정)과 겹침. §7(알려진 갭)에서 "스켈레톤 완성"이라고 표시했던 것과 실제 코드가 안 맞았던 사례 | `local.bedrock_rows_end_y = 42 + length(bedrock_model_ids) * 6` 신설, 비용·EMF·CloudFront 위젯 y를 전부 이 값 기준 상대좌표로 변경 — 지금(모델 1개)은 기존과 동일한 y값(48·54·60·66)이 나오되, 모델이 늘어도 자동으로 밀림 |
+
+**재검증 방법:** `terraform fmt`+`init -backend=false`+`validate` 재통과, `python -m py_compile`+`run_demo`+`run_e2e` 무회귀 재확인(오늘 3번째 라운드). 셋 다 실제 AWS 지식(Bedrock 디멘션 스키마·CloudWatch 알람 함수 제약)에 기반한 논리 검증이라 **apply 전 라이브 재확인은 여전히 못 함**(§12.3과 동일한 구조적 한계) — 다만 SEARCH 제거는 AWS 공식 문서에 명시된 제약이라 신뢰도 높음, Bedrock 디멘션·Cognito 디멘션 키 등은 그대로 "라이브 미검증" 상태(§12.3).

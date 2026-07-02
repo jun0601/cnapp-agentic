@@ -114,6 +114,11 @@ locals {
   bedrock_model_ids = [
     "global.anthropic.claude-haiku-4-5-20251001-v1:0", # Evidence(실사용, Phase1 실증 완료)
   ]
+
+  # Bedrock 모델별 위젯(y=42부터 모델당 1행=6 차지)이 끝나는 y좌표 — 아래 비용/EMF/CloudFront
+  # 위젯이 전부 이 값 기준으로 이어 붙는다. bedrock_model_ids에 모델을 추가해도(예: Sonnet)
+  # 레이아웃이 자동으로 밀려서 겹치지 않는다(하드코딩 y였을 때의 겹침 버그 방지).
+  bedrock_rows_end_y = 42 + length(local.bedrock_model_ids) * 6
 }
 
 # =============================================================================
@@ -207,16 +212,18 @@ resource "aws_iam_role_policy" "grafana_cloudwatch" {
 #   Prometheus/Grafana(EKS 안)와 상호보완 — 이 대시보드는 콘솔에서도 바로 보임(Grafana 없이도 유효).
 #
 #   레이아웃(2열 그리드, 행당 height=6) — 위젯 추가 시 다음 y만 이어서 쓰면 됨:
-#     y=0~18  : Lambda 6종(3행, 자동 배치)
-#     y=18    : SQS 큐 깊이/DLQ         | RDS CPU/연결수
-#     y=24    : ALB                    | SQS 백로그 나이(오래된 메시지)
-#     y=30    : RDS 스토리지/IOPS       | Step Functions(remediation HITL)
-#     y=36    : S3 감사버킷(Object Lock)| Cognito 로그인
-#     y=42    : Bedrock 호출/지연       | Bedrock 에러/토큰
-#     y=48    : Bedrock 추정비용(전체폭)
-#     y=54    : 엔진 트리아지 게이트    | 엔진 tool-use/확신도
-#     y=60    : 엔진 판정까지 시간      | 엔진 판정 분포(Verdict×RiskLevel)
-#     y=66    : (선택) CloudFront — var.cloudfront_distribution_id 채워지면 활성화
+#     y=0~18            : Lambda 6종(3행, 자동 배치)
+#     y=18              : SQS 큐 깊이/DLQ         | RDS CPU/연결수
+#     y=24              : ALB                    | SQS 백로그 나이(오래된 메시지)
+#     y=30              : RDS 스토리지/IOPS       | Step Functions(remediation HITL)
+#     y=36              : S3 감사버킷(Object Lock)| Cognito 로그인
+#     y=42~bedrock_rows_end_y : Bedrock 호출/지연 | Bedrock 에러/토큰 (모델 1개당 1행 — local.bedrock_rows_end_y로 자동 계산)
+#     y=bedrock_rows_end_y    : Bedrock 추정비용(전체폭)
+#     y=bedrock_rows_end_y+6  : 엔진 트리아지 게이트 | 엔진 tool-use/확신도
+#     y=bedrock_rows_end_y+12 : 엔진 판정까지 시간   | 엔진 판정 분포(Verdict×RiskLevel)
+#     y=bedrock_rows_end_y+18 : (선택) CloudFront — var.cloudfront_distribution_id 채워지면 활성화
+#   ⚠️ bedrock_model_ids에 모델을 추가하면(Sonnet 등) 이 아래 전부가 자동으로 밀려서 겹치지 않음 —
+#      과거엔 y를 하드코딩해서 모델 2개가 되면 비용/EMF 위젯과 겹치는 버그가 있었음(2026-07-03 수정).
 # =============================================================================
 resource "aws_cloudwatch_dashboard" "platform" {
   dashboard_name = "${var.project}-platform"
@@ -380,7 +387,7 @@ resource "aws_cloudwatch_dashboard" "platform" {
         {
           # 단가는 variables.tf(bedrock_*_price_*)로 변수화 — 가격 바뀌면 위젯이 아니라 변수만 갱신.
           # metric math m1/m2 라벨은 dashboard 표시용이라 실제 계산엔 안 쓰임(id만 참조됨).
-          type = "metric", x = 0, y = 48, width = 24, height = 6
+          type = "metric", x = 0, y = local.bedrock_rows_end_y, width = 24, height = 6
           properties = {
             title  = "Bedrock 추정 비용(Haiku, USD) — metric math, 코드 계측 불요"
             region = var.region
@@ -393,49 +400,53 @@ resource "aws_cloudwatch_dashboard" "platform" {
           }
         },
       ],
-      # --- 축③ 2단: 에이전트 행동(EMF 커스텀, CnappAgentic/Engine) — y=54~66 ---
+      # --- 축③ 2단: 에이전트 행동(EMF 커스텀, CnappAgentic/Engine) — y=bedrock_rows_end_y+6~+18 ---
       # ⚠️ 아래 4개 위젯은 engine/reasoning/orchestrator.py(진우 소유)에 README §2③.1의
       #    _emit_case_metrics 계측이 추가되기 전까지 "No data"로 보임 — 정상(계측 코드는 이 레이어 밖).
-      #    SEARCH()는 EMF가 Dimensions=[["Verdict","RiskLevel"]]로만 발행되기 때문에 필요
-      #    (차원 조합별 시계열을 한 위젯에서 집계/분해하기 위함).
+      #    _emit_case_metrics가 Dimensions=[[], ["Verdict","RiskLevel"]] 둘 다 발행하므로,
+      #    총계 위젯은 무디멘션 메트릭을 직접 참조(SEARCH 불요 — 알람에서도 재사용 가능한 형태로 통일).
+      #    분포(판정 분포) 위젯만 SEARCH로 Verdict×RiskLevel 조합별 세부 시계열을 펼쳐서 보여준다
+      #    (SEARCH는 대시보드에선 정상 지원 — 알람에서만 금지).
       [
         {
-          type = "metric", x = 0, y = 54, width = 12, height = 6
+          type = "metric", x = 0, y = local.bedrock_rows_end_y + 6, width = 12, height = 6
           properties = {
             title  = "엔진: 트리아지 게이트(findings 평가/승급, 전체 합)"
             region = var.region
             metrics = [
-              [{ expression = "SUM(SEARCH('{CnappAgentic/Engine,Verdict,RiskLevel} MetricName=\"FindingsEvaluated\"', 'Sum', 300))", label = "FindingsEvaluated", id = "e1" }],
-              [{ expression = "SUM(SEARCH('{CnappAgentic/Engine,Verdict,RiskLevel} MetricName=\"FindingsEscalated\"', 'Sum', 300))", label = "FindingsEscalated", id = "e2" }],
+              ["CnappAgentic/Engine", "FindingsEvaluated", { stat = "Sum" }],
+              ["CnappAgentic/Engine", "FindingsEscalated", { stat = "Sum" }],
             ]
             period = 300
           }
         },
         {
-          type = "metric", x = 12, y = 54, width = 12, height = 6
+          type = "metric", x = 12, y = local.bedrock_rows_end_y + 6, width = 12, height = 6
           properties = {
-            title  = "엔진: case당 tool-use 횟수 / 확신도"
+            title  = "엔진: case당 tool-use 횟수 / 확신도(전체 평균)"
             region = var.region
             metrics = [
-              [{ expression = "SEARCH('{CnappAgentic/Engine,Verdict,RiskLevel} MetricName=\"ToolCallsPerCase\"', 'Average', 300)", label = "ToolCallsPerCase", id = "e1" }],
-              [{ expression = "SEARCH('{CnappAgentic/Engine,Verdict,RiskLevel} MetricName=\"ConfidenceScore\"', 'Average', 300)", label = "ConfidenceScore", id = "e2" }],
+              ["CnappAgentic/Engine", "ToolCallsPerCase", { stat = "Average" }],
+              ["CnappAgentic/Engine", "ConfidenceScore", { stat = "Average", yAxis = "right" }],
             ]
             period = 300
           }
         },
         {
-          type = "metric", x = 0, y = 60, width = 12, height = 6
+          type = "metric", x = 0, y = local.bedrock_rows_end_y + 12, width = 12, height = 6
           properties = {
-            title  = "엔진: 판정까지 걸린 시간(ms)"
+            title  = "엔진: 판정까지 걸린 시간(ms, 전체 평균)"
             region = var.region
             metrics = [
-              [{ expression = "SEARCH('{CnappAgentic/Engine,Verdict,RiskLevel} MetricName=\"TimeToVerdictMs\"', 'Average', 300)", label = "TimeToVerdictMs", id = "e1" }],
+              ["CnappAgentic/Engine", "TimeToVerdictMs", { stat = "Average" }],
             ]
             period = 300
           }
         },
         {
-          type = "metric", x = 12, y = 60, width = 12, height = 6
+          # 유일하게 SEARCH를 쓰는 위젯 — Verdict×RiskLevel 조합별로 선을 펼쳐 분포를 보여줌
+          # (대시보드 전용 기능, 알람엔 안 씀).
+          type = "metric", x = 12, y = local.bedrock_rows_end_y + 12, width = 12, height = 6
           properties = {
             title  = "엔진: 판정 분포(Verdict × RiskLevel 조합별 건수)"
             region = var.region
@@ -451,7 +462,7 @@ resource "aws_cloudwatch_dashboard" "platform" {
       # remote_state 참조로 바꾸면 자동 활성화(그 전엔 위젯 자체가 생성 안 됨 — 빈 리스트).
       var.cloudfront_distribution_id != "" ? [
         {
-          type = "metric", x = 0, y = 66, width = 12, height = 6
+          type = "metric", x = 0, y = local.bedrock_rows_end_y + 18, width = 12, height = 6
           properties = {
             title  = "CloudFront: 요청수 / 4xx·5xx 에러율"
             region = "us-east-1" # CloudFront 지표는 엣지 위치와 무관하게 항상 us-east-1에 발행
@@ -662,8 +673,11 @@ resource "aws_cloudwatch_metric_alarm" "bedrock_errors" {
     metric {
       namespace   = "AWS/Bedrock"
       metric_name = "InvocationClientErrors"
-      period      = 300
-      stat        = "Sum"
+      # ModelId 디멘션 필수 — Bedrock 지표는 디멘션 없이 조회하면 데이터가 안 잡힘(무디멘션 롤업 없음).
+      # 지금은 모델 1개(Haiku)뿐이라 [0] 고정 — Sonnet 추가 시 lambda_errors처럼 for_each로 전환 고려.
+      dimensions = { ModelId = local.bedrock_model_ids[0] }
+      period     = 300
+      stat       = "Sum"
     }
   }
   metric_query {
@@ -671,6 +685,7 @@ resource "aws_cloudwatch_metric_alarm" "bedrock_errors" {
     metric {
       namespace   = "AWS/Bedrock"
       metric_name = "InvocationServerErrors"
+      dimensions  = { ModelId = local.bedrock_model_ids[0] }
       period      = 300
       stat        = "Sum"
     }
@@ -696,6 +711,10 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections" {
 # ⚠️ 아래 알람은 engine/reasoning/orchestrator.py EMF 계측(README §2③.1) 전까지 데이터가 없어
 #    INSUFFICIENT_DATA에 머문다 — treat_missing_data=notBreaching이라 알림 스팸은 안 남(의도한 동작).
 #    계측 완료 후 자동으로 살아나는 "뼈대" 알람(instruction: 지금 못 하는 건 확장 쉬운 뼈대로).
+#    ⚠️ CloudWatch 알람은 metric math에서 SEARCH()를 지원하지 않는다(동적 시계열 개수라 단일
+#    임계값 알람과 안 맞음) — 그래서 _emit_case_metrics가 무디멘션(Dimensions=[[]])으로도 같이
+#    발행하는 FindingsEvaluated/FindingsEscalated를 SEARCH 없이 직접 참조한다(2026-07-03 수정,
+#    원래 SEARCH를 썼다가 알람 생성 자체가 API에서 거부될 수 있는 버그였음).
 resource "aws_cloudwatch_metric_alarm" "triage_escalate_rate_zero" {
   alarm_name          = "${var.project}-monitoring-triage-escalate-zero"
   comparison_operator = "LessThanOrEqualToThreshold"
@@ -708,13 +727,23 @@ resource "aws_cloudwatch_metric_alarm" "triage_escalate_rate_zero" {
 
   metric_query {
     id          = "evaluated"
-    expression  = "SUM(SEARCH('{CnappAgentic/Engine,Verdict,RiskLevel} MetricName=\"FindingsEvaluated\"', 'Sum', 900))"
     return_data = false
+    metric {
+      namespace   = "CnappAgentic/Engine"
+      metric_name = "FindingsEvaluated"
+      period      = 900
+      stat        = "Sum"
+    }
   }
   metric_query {
     id          = "escalated"
-    expression  = "SUM(SEARCH('{CnappAgentic/Engine,Verdict,RiskLevel} MetricName=\"FindingsEscalated\"', 'Sum', 900))"
     return_data = false
+    metric {
+      namespace   = "CnappAgentic/Engine"
+      metric_name = "FindingsEscalated"
+      period      = 900
+      stat        = "Sum"
+    }
   }
   metric_query {
     id          = "gate"
