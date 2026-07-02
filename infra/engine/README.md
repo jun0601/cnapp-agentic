@@ -18,12 +18,13 @@
 콘솔 approver 승인 → console-backend가 이 Step Functions StartExecution
    → ValidateApproval → ApplyFix(remediation Lambda, 격상 역할) → RecordAudit
 ```
-- MVP 카탈로그 3종(§24): **S3 public block · open SG(0.0.0.0) 제거 · IAM diff**.
+- MVP 카탈로그 3종(§24): **S3 public block · open SG(0.0.0.0) 제거 · IAM diff**. 실코드 = [`engine/remediation.py`](../../engine/remediation.py)(dry-run/apply).
 - **격상 권한(변경 API)은 remediation Lambda 역할에만** — 콘솔/분석 역할은 read-only(§17 최소권한 분리).
+- **불변 감사** = S3 **Object Lock** 버킷(versioning·GOVERNANCE·PAB·SSE, output `audit_bucket`). 조치 성공 시 실행기가 감사 레코드 저장 + RDS 상태 갱신(`remediation_requests=applied`·`findings=remediated` = console §6.1 수정→소멸). remediation Lambda는 RDS 접근 위해 VPC 배치.
 
 ## ⚠️ Lambda 패키지 (실 apply/CI 전)
-Lambda 3종(correlation·orchestrator·remediation) = **배포 가능한 스텁**. 로직은 `run_e2e`·`run_real`로
-로컬 검증됨. 실 전환 = `data.archive_file`의 `source`를 실코드 빌드 산출물로 교체(CI).
+Lambda 3종(correlation·orchestrator·remediation) = **배포 가능한 스텁 + 실코드 스왑 포인트**(실코드는 각각 `attackpath/correlation/handler.py`·`engine/handler.py`·`engine/remediation.py`에 이미 작성됨). 로직은 `run_e2e`·`run_real`로
+로컬 검증됨. 실 전환 = `data.archive_file`의 `source`를 실코드 빌드 산출물(패키지+psycopg2 레이어)로 교체(CI).
 
 ## apply
 ```bash

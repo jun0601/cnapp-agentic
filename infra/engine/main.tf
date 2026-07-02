@@ -289,6 +289,40 @@ resource "aws_lambda_permission" "eb_orchestrator" {
 #   MVP 카탈로그 3종(project-draft §24): S3 public block · SG 0.0.0.0 제거 · IAM diff
 #   ⚠️ 격상 역할(변경 API)은 이 경로에서만 — 콘솔/엔진 분석 역할은 read-only(§17)
 # =============================================================================
+
+# [AUDIT] 불변 감사 로그 — S3 Object Lock. 조치 실행기가 조치 레코드를 여기에 저장(§17, 사후 변조 불가).
+resource "aws_s3_bucket" "audit" {
+  bucket              = "${var.project}-audit-${local.account_id}"
+  object_lock_enabled = true
+  force_destroy       = true # 데모 편의. ⚠️ 보존기간 내 객체는 잠겨 destroy 실패 가능(GOVERNANCE 우회 필요)
+}
+resource "aws_s3_bucket_versioning" "audit" {
+  bucket = aws_s3_bucket.audit.id
+  versioning_configuration { status = "Enabled" } # Object Lock 전제
+}
+resource "aws_s3_bucket_object_lock_configuration" "audit" {
+  bucket = aws_s3_bucket.audit.id
+  rule {
+    default_retention {
+      mode = "GOVERNANCE" # 데모(특권 우회 가능). 운영이면 COMPLIANCE(우회 불가)
+      days = 1
+    }
+  }
+}
+resource "aws_s3_bucket_public_access_block" "audit" {
+  bucket                  = aws_s3_bucket.audit.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+resource "aws_s3_bucket_server_side_encryption_configuration" "audit" {
+  bucket = aws_s3_bucket.audit.id
+  rule {
+    apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
+  }
+}
+
 resource "aws_iam_role" "remediation_lambda" {
   name               = "${var.project}-remediation-executor"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
@@ -312,11 +346,26 @@ data "aws_iam_policy_document" "remediation" {
     ]
     resources = ["*"] # TODO: 태그/ARN 조건으로 타깃 리소스만
   }
+  statement {
+    sid       = "AuditWrite" # 불변 감사 기록(Object Lock 버킷)
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.audit.arn}/*"]
+  }
+  statement {
+    sid       = "ReadDbSecret" # RDS 상태 갱신용(수정→소멸 루프)
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [local.rds_secret_arn]
+  }
 }
 resource "aws_iam_role_policy" "remediation" {
   name   = "remediation"
   role   = aws_iam_role.remediation_lambda.id
   policy = data.aws_iam_policy_document.remediation.json
+}
+# RDS(VPC) 접근용 ENI 관리
+resource "aws_iam_role_policy_attachment" "remediation_vpc" {
+  role       = aws_iam_role.remediation_lambda.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
 data "archive_file" "remediation" {
@@ -325,7 +374,8 @@ data "archive_file" "remediation" {
   source {
     filename = "index.py"
     content  = <<-PY
-      # TODO(real apply): 조치 실행기(S3 block·SG revoke·IAM diff) 실코드로 교체. dry-run→apply→감사.
+      # 실코드 스왑 = handler "engine.remediation.handler"(engine 패키지 + psycopg2 레이어).
+      # 실코드는 engine/remediation.py(S3 block·SG revoke·IAM diff → dry-run/apply → 감사·RDS). 지금은 스텁.
       import json
       def handler(event, context):
           print("remediation:", json.dumps(event)[:500])
@@ -348,7 +398,19 @@ resource "aws_lambda_function" "remediation" {
   source_code_hash = data.archive_file.remediation.output_base64sha256
   timeout          = 120
   memory_size      = 256
-  depends_on       = [aws_cloudwatch_log_group.remediation]
+  # RDS 상태 갱신(수정→소멸 루프) 위해 VPC 배치. S3/EC2/IAM 변경 API는 NAT로 egress.
+  vpc_config {
+    subnet_ids         = local.private_subnets
+    security_group_ids = [aws_security_group.lambda.id]
+  }
+  environment {
+    variables = {
+      AUDIT_BUCKET  = aws_s3_bucket.audit.bucket
+      DB_HOST       = local.rds_endpoint
+      DB_SECRET_ARN = local.rds_secret_arn
+    }
+  }
+  depends_on = [aws_cloudwatch_log_group.remediation, aws_iam_role_policy_attachment.remediation_vpc]
 }
 
 # Step Functions 실행 역할(remediation Lambda 호출)
@@ -382,7 +444,7 @@ resource "aws_sfn_state_machine" "remediation" {
   name     = "${var.project}-remediation"
   role_arn = aws_iam_role.sfn.arn
   definition = jsonencode({
-    Comment = "HITL 조치(승인 후): 검증 → dry-run → 적용 → 감사. 스텁."
+    Comment = "HITL 조치(승인 후): 검증 → 적용(engine/remediation.py: dry-run/apply + Object Lock 감사 + RDS 수정→소멸) → 완료"
     StartAt = "ValidateApproval"
     States = {
       ValidateApproval = {
@@ -400,7 +462,7 @@ resource "aws_sfn_state_machine" "remediation" {
       }
       RecordAudit = {
         Type    = "Pass"
-        Comment = "TODO: S3 Object Lock 불변 감사로그 기록(§17)"
+        Comment = "감사(Object Lock)·RDS 상태 갱신은 ApplyFix(engine/remediation.py)가 수행 — 여기선 완료 마킹"
         End     = true
       }
       Failed = { Type = "Fail", Cause = "remediation failed" }

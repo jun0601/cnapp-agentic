@@ -12,3 +12,8 @@ output "remediation_state_machine_arn" {
   description = "HITL 조치 Step Functions ARN(콘솔 StartExecution 대상)"
   value       = aws_sfn_state_machine.remediation.arn
 }
+
+output "audit_bucket" {
+  description = "불변 감사 로그(S3 Object Lock) 버킷 — 조치 실행기가 기록"
+  value       = aws_s3_bucket.audit.bucket
+}

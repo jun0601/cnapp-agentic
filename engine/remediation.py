@@ -1,0 +1,182 @@
+"""조치 실행기(HITL) — Step Functions ApplyFix Task의 Lambda 진입점. ★유일한 '쓰기' 경로.
+
+read-only 조사(evidence)와 분리된 격상 역할에서만 동작(§17 최소권한 분리). 흐름:
+  콘솔 approver 승인 → console-backend가 StartExecution(입력=아래 event)
+    → SFn ValidateApproval → ApplyFix(이 핸들러) → RecordAudit
+
+MVP 카탈로그 3종(project-draft §24): S3 public block · open SG(0.0.0.0) 제거 · IAM 최소권한.
+각 액션은 dry_run=True(계획만) / False(실제 변경). 성공 시:
+  ① 감사 기록을 S3 Object Lock 버킷(AUDIT_BUCKET)에 불변 저장(§17)
+  ② RDS 상태 갱신 — remediation_requests=applied · findings=remediated (console-app-design §6.1 수정→소멸 루프)
+
+Lambda 설정(infra/engine):
+  handler = "engine.remediation.handler"
+  role    = 격상 정책(s3/ec2/iam 변경 + audit PutObject + RDS secret) — 격리된 역할
+  env     = AUDIT_BUCKET · DB_HOST · DB_SECRET_ARN  · VPC(RDS 접근)
+⚠️ 실 변경 API 호출 코드 — apply 세션에서만 라이브 검증(dry_run으로 먼저 계획 확인 권장).
+
+event 예:
+  {"remediation_id":"...","finding_id":"...","approver":"approver@...","action":"s3_block_public",
+   "target":{"bucket":"cnapp-agentic-member-pii-..."},"dry_run":false}
+"""
+from __future__ import annotations
+
+import json
+import os
+from datetime import datetime, timezone
+
+_ACTIONS = {"s3_block_public", "sg_remove_open_ingress", "iam_least_privilege"}
+
+
+def handler(event: dict, context=None) -> dict:
+    action = event.get("action")
+    if action not in _ACTIONS:
+        raise ValueError("unknown remediation action: %s (허용=%s)" % (action, sorted(_ACTIONS)))
+    dry_run = bool(event.get("dry_run", False))
+    target = event.get("target") or {}
+    region = os.environ.get("AWS_REGION", "ap-northeast-2")
+
+    result = _dispatch(action, target, dry_run, region)
+
+    record = {
+        "remediation_id": event.get("remediation_id"),
+        "finding_id": event.get("finding_id"),
+        "approver": event.get("approver"),
+        "action": action,
+        "dry_run": dry_run,
+        "result": result,
+        "ts": _now(),
+    }
+    # 실제 변경이 적용된 경우에만 불변 감사 기록 + RDS 상태 갱신(수정→소멸 루프)
+    if not dry_run and result.get("applied"):
+        _write_audit(record, region)
+        _mark_remediated(event.get("remediation_id"), event.get("finding_id"),
+                         event.get("approver"), region)
+    return record
+
+
+# ── 액션 디스패치 ──────────────────────────────────────────────────────
+def _dispatch(action: str, target: dict, dry_run: bool, region: str) -> dict:
+    if action == "s3_block_public":
+        return _s3_block_public(target["bucket"], dry_run, region)
+    if action == "sg_remove_open_ingress":
+        return _sg_remove_open_ingress(target["security_group_id"], dry_run, region)
+    if action == "iam_least_privilege":
+        return _iam_least_privilege(target["role_name"], target["policy_name"],
+                                    target.get("policy_document"), dry_run, region)
+    raise ValueError(action)  # _ACTIONS 게이트를 통과했으므로 도달 불가
+
+
+def _s3_block_public(bucket: str, dry_run: bool, region: str) -> dict:
+    """공개 S3 버킷 → Block Public Access 4종 전부 활성(f6 되돌림)."""
+    plan = {"api": "s3:PutBucketPublicAccessBlock", "bucket": bucket,
+            "change": "BlockPublicAcls/IgnorePublicAcls/BlockPublicPolicy/RestrictPublicBuckets = true"}
+    if dry_run:
+        return {"applied": False, "plan": plan}
+    import boto3
+    boto3.client("s3", region_name=region).put_public_access_block(
+        Bucket=bucket,
+        PublicAccessBlockConfiguration={
+            "BlockPublicAcls": True, "IgnorePublicAcls": True,
+            "BlockPublicPolicy": True, "RestrictPublicBuckets": True,
+        },
+    )
+    return {"applied": True, "plan": plan}
+
+
+def _sg_remove_open_ingress(sg_id: str, dry_run: bool, region: str) -> dict:
+    """보안그룹에서 0.0.0.0/0(및 ::/0) 인바운드 규칙만 골라 제거(f3 되돌림)."""
+    import boto3
+    ec2 = boto3.client("ec2", region_name=region)
+    sg = ec2.describe_security_groups(GroupIds=[sg_id])["SecurityGroups"][0]
+
+    open_perms = []
+    for perm in sg.get("IpPermissions", []):
+        v4 = [r for r in perm.get("IpRanges", []) if r.get("CidrIp") == "0.0.0.0/0"]
+        v6 = [r for r in perm.get("Ipv6Ranges", []) if r.get("CidrIpv6") == "::/0"]
+        if not (v4 or v6):
+            continue
+        p = {k: perm[k] for k in ("IpProtocol", "FromPort", "ToPort") if k in perm}
+        if v4:
+            p["IpRanges"] = v4
+        if v6:
+            p["Ipv6Ranges"] = v6
+        open_perms.append(p)
+
+    plan = {"api": "ec2:RevokeSecurityGroupIngress", "security_group_id": sg_id,
+            "revoke_count": len(open_perms), "rules": open_perms}
+    if dry_run or not open_perms:
+        return {"applied": False, "plan": plan}  # 열린 규칙 없으면 no-op
+    ec2.revoke_security_group_ingress(GroupId=sg_id, IpPermissions=open_perms)
+    return {"applied": True, "plan": plan}
+
+
+def _iam_least_privilege(role_name: str, policy_name: str,
+                         policy_document, dry_run: bool, region: str) -> dict:
+    """과도권한 인라인 정책을 최소권한 문서로 교체(f4 되돌림). 현재→제안 diff 포함."""
+    import boto3
+    iam = boto3.client("iam", region_name=region)
+    try:
+        current = iam.get_role_policy(RoleName=role_name, PolicyName=policy_name)["PolicyDocument"]
+    except Exception:  # noqa: BLE001 — 정책 없거나 조회 실패 시 diff의 current=None
+        current = None
+
+    plan = {"api": "iam:PutRolePolicy", "role": role_name, "policy": policy_name,
+            "current": current, "proposed": policy_document}
+    if dry_run or not policy_document:
+        return {"applied": False, "plan": plan}  # 제안 문서 없으면 diff만(적용 안 함)
+    iam.put_role_policy(RoleName=role_name, PolicyName=policy_name,
+                        PolicyDocument=json.dumps(policy_document))
+    return {"applied": True, "plan": plan}
+
+
+# ── 감사(불변) + RDS 상태 갱신 ─────────────────────────────────────────
+def _write_audit(record: dict, region: str) -> None:
+    """S3 Object Lock 버킷에 감사 레코드를 불변 저장(§17 — 조치 후 사후 변조 불가)."""
+    bucket = os.environ.get("AUDIT_BUCKET")
+    if not bucket:
+        return
+    import boto3
+    key = "remediation/%s-%s.json" % (record["ts"].replace(":", ""),
+                                      record.get("remediation_id") or "na")
+    boto3.client("s3", region_name=region).put_object(
+        Bucket=bucket, Key=key,
+        Body=json.dumps(record, ensure_ascii=False).encode("utf-8"),
+        ContentType="application/json",
+    )
+
+
+def _mark_remediated(remediation_id, finding_id, approver, region: str) -> None:
+    """수정→소멸 루프(console §6.1): remediation_requests=applied · findings=remediated."""
+    if not (os.environ.get("DB_HOST") and os.environ.get("DB_SECRET_ARN")):
+        return  # DB 미배선(로컬/무 VPC)면 조용히 skip
+    conn = _connect(region)
+    try:
+        with conn, conn.cursor() as cur:
+            if remediation_id:
+                cur.execute(
+                    "UPDATE remediation_requests SET status='applied', approver=%s, "
+                    "updated_at=now() WHERE id=%s;",
+                    (approver, remediation_id),
+                )
+            if finding_id:
+                cur.execute("UPDATE findings SET status='remediated' WHERE finding_id=%s;",
+                            (finding_id,))
+    finally:
+        conn.close()
+
+
+def _connect(region: str):
+    import boto3
+    import psycopg2
+    sm = boto3.client("secretsmanager", region_name=region)
+    sec = json.loads(sm.get_secret_value(SecretId=os.environ["DB_SECRET_ARN"])["SecretString"])
+    return psycopg2.connect(
+        host=os.environ["DB_HOST"], port=5432,
+        dbname=sec.get("dbname", "cnapp"), user=sec["username"], password=sec["password"],
+        connect_timeout=5,
+    )
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
