@@ -82,7 +82,8 @@ def main() -> int:
     agent = BedrockEvidenceAgent(executor, model_id=args.model, region=args.region, profile=args.profile)
     out = agent.investigate([finding])
 
-    print("LLM이 선택·호출한 툴 %d회:" % out.tool_calls_count)
+    print("LLM이 선택한 툴 %d개 (실행 성공 %d회, 미구현/차단은 성공에서 제외):"
+          % (len(out.plan), out.tool_calls_count))
     for tool, rid in out.plan:
         print("  → %s  on  %s" % (tool, rid))
     print("\n수집 증거:")
