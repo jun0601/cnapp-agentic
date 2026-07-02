@@ -618,7 +618,9 @@ CSPM(S3·SG·IAM·암호화) · CIEM(AWS 과도 권한 + **Azure Entra 과도권
 
 > 모델: Haiku 계열(고빈도 분류·파싱·라우팅), Sonnet 계열(추론·내러티브 품질 중요). 데모 finding 100건 처리 기준 예상 비용 $1~3.
 >
-> ⚠️ **모델 ID 주의(구현 시 확정):** 위 `claude-haiku-4-5`·`claude-sonnet-4-6`는 **Anthropic API의 별칭일 뿐 Bedrock invoke ID가 아니다.** Bedrock 호출은 `anthropic.claude-haiku-4-5-YYYYMMDD-v1:0` 형식의 **모델 ID 또는 서울(ap-northeast-2) 리전 inference profile ARN**을 써야 한다(bare name·date suffix 없는 ID는 **404**). 정확한 ID는 구현 시 `aws bedrock list-foundation-models`로 리전 가용 모델을 조회해 확정한다.
+> ⚠️ **모델 ID 주의:** bare name(`claude-haiku-4-5`)은 Bedrock invoke ID가 아니라 **404** — inference profile ID를 써야 한다. **✅ 확정(2026-07-02):** Evidence(Haiku 티어) = **`global.anthropic.claude-haiku-4-5-20251001-v1:0`**(Bedrock 콘솔 '추론 프로파일'에서 확인한 Global inference profile). Sonnet 티어 ID는 실제 사용 시 동일 방법으로 확정. (모델 액세스 페이지는 폐지 — 서버리스 모델 첫 호출 시 자동 활성, 단 Anthropic은 최초 1회 use-case 제출 필요 → 완료.)
+>
+> **모델 벤더 선정 근거(객관):** Bedrock에는 **GPT(프로프라이어터리)·Gemini가 없다**(각각 Azure OpenAI·Vertex 전용) — 쓰려면 타 클라우드+키라 D9(AWS 단일·키리스) 위반. Bedrock 내 실후보(Claude·Amazon Nova·Llama·Mistral·Cohere·gpt-oss) 중 **Claude 선정 이유 = ① 에이전틱 tool use 신뢰성(이 프로젝트 심장) ② 한국어 내러티브 품질 ③ Converse tool-use 성숙도.** 벤치마크가 아닌 합리적 디폴트이며, **비용 대안 = Amazon Nova Lite**(더 저렴·tool use 지원) — `--model` 스왑으로 A/B 가능하게 구현(로직 무변).
 
 ---
 

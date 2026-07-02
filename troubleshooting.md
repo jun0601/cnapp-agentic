@@ -13,6 +13,7 @@
 
 ## 1. 트러블슈팅 로그 (문제 → 해결)
 
+- `2026-07-02 / 준형 / [engine][infra] Bedrock 모델 액세스 — 콘솔 '모델 액세스' 페이지가 폐지(retired)됨(이전 안내대로 승인 요청 불가). 서버리스 모델은 첫 호출 시 자동 활성, Anthropic만 최초 1회 use-case 폼 제출 필요 → 모델 카탈로그→Claude Haiku→플레이그라운드에서 폼 제출 후 응답 확인=액세스 열림(계정당 1회). model ID는 bare name(404 함정) 대신 콘솔 '추론 프로파일'의 Global inference profile ID(global.anthropic.claude-haiku-4-5-20251001-v1:0) 사용 → DEFAULT_MODEL_ID 반영. manual-infra §4 기록`
 - `2026-07-02 / 진우 / [scanners][pipeline] normalizer _parse_trivy ArtifactName 태그 미제거 — scan_image("shop/product:latest") 시 Trivy가 ArtifactName에 ":latest" 포함해 내놓으면 resource_id="aws:eks_pod:shop/product:latest"로 생성돼 mock("aws:eks_pod:shop/product")과 불일치. 해결: _parse_trivy에서 ArtifactName rsplit(":",1) 후 태그 세그먼트("/"없는 마지막 세그먼트)를 제거`
 - `2026-07-02 / 진우 / [scanners] trivy.py scan_from_json의 image 파라미터 봉투 미반영 — _build_envelope에 image를 전달하나 실제로 사용 안 돼 봉투 어디에도 이미지명이 없었음. 해결: scan_batch_id에 이미지명 포함("trivy-{safe_img}-{timestamp}")으로 수정 → remediated 판정 스코프(4.4.1c)에서 이미지별 구분 가능`
 - `2026-07-02 / 준형 / [engine] Bedrock LLM tool-use 플래너(bedrock_planner.py) 구현 — 실 Bedrock 없이 로직 검증 필요 → 가짜 converse() 클라이언트(1턴 tool_use 2개→2턴 end_turn) 주입해 오프라인 테스트: 에이전틱 루프가 toolUse 파싱→MockToolExecutor 실행→toolResult 되먹임→종료→verdict=confirmed까지 정확. 실 boto3 client는 __init__에서 session.client("bedrock-runtime")(네트워크 없음)라 오프라인 생성 가능, _client만 가짜로 교체해 검증. 실 Bedrock 호출/서울 model ID/모델 액세스는 apply 세션에서 확정(bare name 404 함정 주석). run_real.py를 스크래치패드 아닌 repo에서 실행할 땐 PYTHONPATH=repo root 필요`

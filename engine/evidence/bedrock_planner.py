@@ -27,11 +27,10 @@ from engine.core.contracts import load_allowlist
 from engine.core.tools import ToolExecutor, ToolNotAllowed, ToolResult
 from engine.evidence.evidence import EvidenceOutput, _verdict
 
-# ⚠️ 예시 값 — 실제 서울(ap-northeast-2) 가용 model ID/inference profile ARN을
-#    `aws bedrock list-foundation-models --region ap-northeast-2` 로 확인 후 확정한다.
-#    bare name("claude-haiku-4-5")은 Bedrock에서 404 — date suffix·리전 프로파일 필요.
-#    Evidence는 고빈도 분류/tool 라우팅이라 Haiku 티어(project-draft §15).
-DEFAULT_MODEL_ID = "apac.anthropic.claude-haiku-4-5-20251001-v1:0"
+# ✅ 확정(2026-07-02) — Bedrock 콘솔 '추론 프로파일'에서 확인한 Global inference profile ID.
+#    bare name("claude-haiku-4-5")은 404 — 이 프로파일 ID를 써야 함(서울에서 이 global 프로파일 사용).
+#    Evidence는 고빈도 tool 라우팅이라 Haiku 티어(project-draft §15). 비용 대안=Amazon Nova Lite(--model 스왑 A/B).
+DEFAULT_MODEL_ID = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 # LLM tool-use 루프 안전 상한 — 폭주 방지(무한 tool 호출 차단).
 MAX_TOOL_ITERATIONS = 6
