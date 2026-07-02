@@ -300,12 +300,22 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 ```
 1) 기반 먼저:  infra/shared   (VPC·EKS·OIDC·RDS pgvector·Bedrock·ECR)  → 준형, 최초 apply, 모두가 의존
 2) 그 위 영역별 terraform (영역 주인이 apply, 의존성 순서대로):
-     infra/target     준형   취약 워크로드+의도적 결함 (휘발성 — 토글하며 apply/destroy 잦음, 격리)
-     infra/console    준형   ALB·Cognito·console Lambda·SFn·CloudFront (SSO는 진우 Entra App Reg 연동)
-     infra/scanners   각 주인  스캔 IAM 역할·서비스 활성화(Config/SecurityHub/Inspector…)
-     infra/pipeline   각 주인  EventBridge·SQS·정규화 Lambda
-     infra/engine     각 주인  에이전트 Lambda·Bedrock IAM·Step Functions
+     infra/target     준형   취약 워크로드+의도적 결함 (휘발성 — 토글하며 apply/destroy 잦음, 격리)  ✅ 코드
+     infra/console    준형   ALB·Cognito·console Lambda·SFn·CloudFront (SSO는 진우 Entra App Reg 연동)  ✅ 코드
+     infra/scanners   각 주인  스캔 IAM 역할·서비스 활성화(Config/SecurityHub/Inspector…)  (미구현)
+     infra/pipeline   각 주인  EventBridge·SQS·ingest/정규화 Lambda  ✅ 코드
+     infra/engine     각 주인  에이전트 Lambda(상관·오케스트레이터)·Bedrock IAM·조치 Step Functions  ✅ 코드
+
+  (별도) infra/slice  준형   ★아키텍처 레이어 아님 = 엔진 실 tool-use 최소비용(<$1) 검증용 '일회용 픽스처'
+                            (공개 S3 1개 + 가짜 PII 1개, EKS/RDS 무관 독립 스택). Phase1 실검증에 사용.
 ```
+
+> **infra/slice는 위 3개(target/console) + 데이터평면 2개(pipeline/engine)와 종류가 다르다.** 아키텍처 레이어가
+> 아니라 **크라운주얼("AI가 실 API 호출")을 몇 센트·2분으로 재현/회귀 검증하는 disposable 픽스처**다. target도 같은
+> 공개-S3 시나리오를 갖지만 EKS 풀스택(~20분·비용)이 딸려오므로, 저비용 재현용으로 slice를 별도 유지한다(코드로 두는
+> 비용=$0, apply 때만 과금). **"디렉터리 최소화" 원칙은 아키텍처 레이어 과분할 방지에 적용**되며 slice는 그 대상이 아니다.
+> Lambda 3영역(pipeline/engine/console-backend)은 **배포 가능한 스텁 + 실코드 스왑 포인트**(archive_file)로 구현 —
+> 로직은 `run_e2e`/`run_real`로 로컬 검증됨, 인프라는 '프로덕션 배관 모양'.
 
 | 폴더 | 쪼개기(준형/진우) | terraform | 비고 |
 |---|---|---|---|

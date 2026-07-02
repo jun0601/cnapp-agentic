@@ -147,7 +147,7 @@ cnapp-agentic/
 | 영역 | 준형 | 준형 진행(목업) | 진우 | 진우 진행(목업) | 🚀 실(real) 전환 |
 |---|---|---|---|---|---|
 | 🖥️ **앱 & 환경 세팅** | 타깃 앱 · 관제 앱 **2개 개발** | ✅ 목업 동작(콘솔 8화면 · 타깃 member+포털) | **AWS/Azure 환경**(M365·Entra 데모 테넌트·계정 초기) | 🔄 AWS 계정 ✅ / Azure 테넌트 진행중 | ⬜ apply 시 배포(Phase2~) · Azure 테넌트·AWS 계정은 실물 ✅ |
-| 🏗️ **공유 인프라 · 토대** | `infra/shared`·`infra/target` 주도 · CI/CD · Shift-Left | 🔨 스캐폴드(apply 전) | 모니터링·운영관제(Grafana·CloudTrail) | ⬜ 예정 | ⬜ apply 전(TF state 버킷만 실물 ✅) |
+| 🏗️ **공유 인프라 · 토대** | `infra/` 5층(shared·target·console·pipeline·engine) · CI/CD · Shift-Left | 🔨 코드 완성·`validate` 통과(apply 전) | 모니터링·운영관제(Grafana·CloudTrail) | ⬜ 예정 | ⬜ apply 전(TF state 버킷만 실물 ✅) |
 | 🔍 **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ✅ 목업 동작(`scanners/cspm`, 골든 5종) | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM(`scanners/ciem`) | 🔨 Trivy ✅ · Entra CIEM ✅(f8·f9·f16·f17 골든) · Inspector·kube-bench ⬜ | ⬜ Phase2 첫 실스캐너(scan_securityhub/scan_prowler 실계정) → Phase3 확장 |
 | 📥 **수집 · 정규화** | 수집부 (EventBridge→SQS) | ✅ 목업 동작(`pipeline/ingest`) | 정규화부 (Lambda→OCSF) | ✅ 목업 동작(`pipeline/normalize`) | ⬜ Phase2(Lambda 배포 + 실 finding) |
 | 📚 **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ✅ 목업 동작(`rag/corpus`, 계약⑥ 24청크) | 검색 · LLM 답변 생성 | ✅ 목업 동작(`rag/retrieval`) | ⬜ Phase3(pgvector 적재 + Bedrock 임베딩) |
@@ -172,6 +172,7 @@ cnapp-agentic/
 | ❤️ **엔진 실 tool-use (Phase1 — 심장)** | ✅ **실검증 완료(2026-07-02)** — `infra/slice` apply → `run_real` → destroy 전 과정 실행. **실 Bedrock Claude Haiku가 스스로 `s3:GetBucketPolicy`·`GetPublicAccessBlock` 호출 → 실 S3 응답으로 판정 CONFIRMED(100%)** → 즉시 destroy(비용 ~$0). 챗봇 탈출(LLM 능동 tool use)이 목업이 아니라 **실제로 동작함을 증명** |
 | 🔗 **Phase2 end-to-end 배선 (`run_e2e.py`)** | ✅ **관통 확인(2026-07-02)** — 스캐너(Trivy) → 정규화 → 상관(attack-path) → 엔진 → RAG를 **한 러너로 연결**, 스캐너발 CVE가 파이프라인 끝(엔진 판정·RAG 설명)까지 도달(exit 0). 정규화·상관은 실 코드 관통, 스캐너는 실 trivy 출력 동일 구조 JSON(⬜ 라이브 `trivy image`는 trivy 설치/CI 대기), 엔진·RAG는 무비용 Mock(실 tool-use는 Phase1) |
 | 🏗️ **공유 인프라 (`infra/shared`·`infra/target`)** | ✅ **스캐폴드** — VPC·NAT Instance·EKS(spot·IRSA)·ECR·RDS pgvector·OIDC·Evidence/Bedrock IAM + 결함 IaC 토글(f3·f4·f6). `terraform validate`/`fmt` 통과. apply는 게이트 후 |
+| 🚚 **배포 인프라 (`infra/console`·`pipeline`·`engine`)** | ✅ **코드 완성** — console(ALB authenticate-cognito→Lambda·Cognito SAML SSO·S3+CloudFront)·pipeline(EventBridge→SQS→정규화 Lambda)·engine(상관·오케스트레이터 Lambda + evidence/bedrock 정책 + remediation Step Functions). `fmt`+`validate` 3개 통과. Lambda=배포 가능 스텁+실코드 스왑 포인트. apply 전 TODO: ACM 인증서·Entra SAML 메타데이터·SM ARN. **slice=레이어 아닌 저비용 픽스처(문서 명시)** |
 | 📦 **TF state 부트스트랩** | ✅ `cnapp-agentic-tfstate` 버킷(manual-infra §2) · **Bedrock 모델 액세스 ✅**(manual-infra §4) |
 | ⚙️ **CI/CD (`.github/workflows/ci.yml`·`gitops/`)** | ✅ **코드 세팅** — CI(GitHub Actions: 10개 데모·run_e2e·validate 회귀 + Trivy/Checkov Shift-Left, $0) · CD(ArgoCD Application) + 오토스케일링(Karpenter spot·consolidation / HPA) 선언형. ⬜ CD/오토스케일 **실적용은 EKS apply 세션**(비용 규율). 근거 = cost-strategy §2.7 |
 | ⬜ **수집부(ingest) · console-backend · 실데이터 전환** | ⬜ **예정** — Phase1(실 tool-use) → 스캐너 실 finding → 수집 파이프라인 순 |
