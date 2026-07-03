@@ -344,7 +344,14 @@ data "aws_iam_policy_document" "remediation" {
   statement {
     sid       = "RemediateSG"
     actions   = ["ec2:RevokeSecurityGroupIngress"]
-    resources = ["arn:aws:ec2:${var.region}:${local.account_id}:security-group/*"] # 계정 내 SG(revoke는 비-상승)
+    resources = ["arn:aws:ec2:${var.region}:${local.account_id}:security-group/*"]
+    # 진우 판단필요(c) 반영: Layer=target 태그 SG로만 제한 → 잘못된 SG ID로 RDS/NAT/ALB SG를 건드릴
+    # 가용성 리스크 차단. 태그 조건이라 infra/target remote_state 결합 없이 좁힘(apply 순서 무영향).
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Layer"
+      values   = ["target"]
+    }
   }
   statement {
     sid       = "RemediateIAM"

@@ -18,6 +18,11 @@ output "alb_arn_suffix" {
   value       = aws_lb.this.arn_suffix
 }
 
+output "cloudfront_distribution_id" {
+  description = "CloudFront 배포 ID — infra/monitoring CloudFront 위젯 게이트(진우 요청, monitoring README §12.4)"
+  value       = aws_cloudfront_distribution.front.id
+}
+
 output "cognito_user_pool_id" {
   value = aws_cognito_user_pool.this.id
 }
