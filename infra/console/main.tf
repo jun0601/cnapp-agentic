@@ -90,6 +90,36 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "front" {
   }
 }
 
+# ── 프론트 정적 자산 업로드 (고도화 2026-07-03) ──────────────────────────
+# 이전엔 버킷만 만들고 dist 업로드가 없어 CloudFront가 403이었음(라이브 apply에서 발견).
+# apps/console 빌드 산출물(dist/**)을 버킷에 올린다. content_type을 확장자로 매핑해야
+# 브라우저가 JS/CSS/HTML을 올바로 실행/렌더(안 하면 text/plain로 떨어져 SPA 안 뜸).
+# 선행: apps/console에서 `npm run build`(dist 생성). ⚠️ 갱신 후엔 CloudFront 무효화 필요
+#   (aws cloudfront create-invalidation --distribution-id <id> --paths "/*") — TF 네이티브 리소스 없음.
+locals {
+  front_dist = "${path.module}/../../apps/console/dist"
+  front_mime = {
+    ".html"  = "text/html"
+    ".js"    = "application/javascript"
+    ".css"   = "text/css"
+    ".svg"   = "image/svg+xml"
+    ".json"  = "application/json"
+    ".ico"   = "image/x-icon"
+    ".map"   = "application/json"
+    ".png"   = "image/png"
+    ".woff2" = "font/woff2"
+  }
+}
+
+resource "aws_s3_object" "front" {
+  for_each     = fileset(local.front_dist, "**")
+  bucket       = aws_s3_bucket.front.id
+  key          = each.value
+  source       = "${local.front_dist}/${each.value}"
+  etag         = filemd5("${local.front_dist}/${each.value}")
+  content_type = lookup(local.front_mime, try(regex("\\.[a-zA-Z0-9]+$", each.value), ""), "application/octet-stream")
+}
+
 resource "aws_cloudfront_origin_access_control" "front" {
   name                              = "${var.project}-console-oac"
   origin_access_control_origin_type = "s3"
