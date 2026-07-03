@@ -285,13 +285,20 @@ def _parse_trivy(raw: dict, cloud_hint: str) -> List[dict]:
             source_key = f"trivy:{cve}"
             control_id = lookup_control(source_key) or "INTERNAL-VULN-KEV-001"
             rid = f"aws:eks_pod:{artifact}"
-            dedup = f"{rid}|{control_id}|{cve}"
+            # 계약①: dedup_key = resource_id|control_id(2세그먼트) — 이미지에 CVE가 여러 개
+            # 있어도 같은 control(대부분 INTERNAL-VULN-KEV-001 하나뿐, control-catalog.json
+            # "trivy:CVE-*" 와일드카드)이면 finding 1건으로 합쳐지고 각 CVE는 sources에
+            # 누적된다(dedup_findings). 2026-07-03 재검증: 이전엔 |{cve} 3세그먼트를 써서
+            # CVE마다 별도 finding이 생겨 계약①·골든 mock-findings.json의 "이미지당 1건"
+            # 의도와 어긋났었음(준형 판단: 계약이 2세그먼트로 정의하므로 normalizer가 계약
+            # 위반이었음) — 2세그먼트로 수정.
+            dedup = f"{rid}|{control_id}"
             findings.append(_make_finding(
                 cloud=cloud_hint,
                 resource_id=rid,
                 resource_type="eks_pod",
                 control_id=control_id,
-                title=f"{cve} in {artifact} ({vuln.get('PkgName','')})",
+                title=f"KEV-listed CVE ({cve}) in {artifact} image",
                 severity_id=_asff_severity(sev),
                 status="open",
                 source_key=source_key,

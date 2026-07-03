@@ -89,7 +89,12 @@ def _try_golden_chain(findings: List[dict]) -> Optional[AttackPathGraph]:
         Node("n2", "aws",   r2["resource_id"],       "order 과도 IRSA 권한(s3:*)",   "ciem"),
         Node("n3", "aws",   r4_s3["resource_id"],    "member 공개 S3 + 회원 PII",     "data"),
         Node("n4", "azure", r3_azure["resource_id"], "탈취된 Azure SP 자격증명",       "ciem"),
-        Node("n5", "azure", r5["resource_id"],       "과도권한 App Registration",     "ciem"),
+        # n5 pillar는 하드코딩하지 않고 매칭된 finding에서 도출 — _R5_ENTRA_APP이 pillar가
+        # 다른 control 2종(ciem·cspm, control-catalog.json)을 매칭 대상으로 두는데, _first()가
+        # 순서 의존이라 어느 쪽이 먼저 매칭되든 그래프 노드가 항상 실제 finding의 pillar를
+        # 반영하게 함(2026-07-03 재검증 — 하드코딩 시 실 DB 쿼리 순서에 따라 그래프 pillar가
+        # 실제 finding과 불일치할 수 있었음, validate_graph는 enum만 체크해서 못 잡던 버그).
+        Node("n5", "azure", r5["resource_id"],       "과도권한 App Registration",     r5.get("pillar", "ciem")),
     ):
         graph.add_node(node)
     for edge in (

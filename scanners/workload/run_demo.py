@@ -116,8 +116,9 @@ def main() -> int:
         sev_label = {1: "CRITICAL", 2: "HIGH", 3: "MEDIUM", 4: "LOW", 5: "INFO"}.get(
             f["severity_id"], "?"
         )
+        cves = ", ".join(s.replace("trivy:", "") for s in f["sources"])
         print(f"  ✓ [{sev_label}] {f['control_id']}")
-        print(f"    cve        : {f['sources'][0].replace('trivy:', '')}")
+        print(f"    cve(s)     : {cves}")
         print(f"    resource   : {f['resource_id']}")
         print(f"    pillar     : {f['pillar']}")
         print(f"    dedup_key  : {f['dedup_key']}")
@@ -140,9 +141,9 @@ def main() -> int:
     canon_ok = all(f["resource_id"] == "aws:eks_pod:shop/product" for f in findings)
     checks.append(("resource_id 캐논 (aws:eks_pod:shop/product)", canon_ok))
 
-    # (d) CRITICAL CVE → severity_id = 1
+    # (d) CRITICAL CVE → severity_id = 1 (sources 안 어딘가에 있으면 됨 — dedup 후 순서 무보장)
     critical_ok = any(
-        f["severity_id"] == 1 and "CVE-2024-38856" in f["sources"][0]
+        f["severity_id"] == 1 and any("CVE-2024-38856" in s for s in f["sources"])
         for f in findings
     )
     checks.append(("CVE-2024-38856 CRITICAL → severity_id=1", critical_ok))
@@ -151,9 +152,11 @@ def main() -> int:
     pillar_ok = all(f["pillar"] == "vuln" for f in findings)
     checks.append(("pillar = vuln", pillar_ok))
 
-    # (f) finding 수 = CVE 수 (dedup 없음 — 같은 이미지+다른 CVE는 dedup_key가 다름)
-    count_ok = len(findings) == 3
-    checks.append(("finding 3건 (CVE 3건, dedup_key 각각 다름)", count_ok))
+    # (f) 계약① dedup: 같은 이미지+같은 control(KEV-001)이면 CVE 3건이 finding 1건으로 합쳐지고
+    # sources에 CVE 3개가 전부 누적됨(2026-07-03 — 이전엔 dedup_key에 CVE를 넣어 3건으로 안
+    # 합쳐졌던 게 계약①·골든 mock-findings.json의 "이미지당 1건" 의도와 어긋난 버그였음).
+    count_ok = len(findings) == 1 and len(findings[0]["sources"]) == 3
+    checks.append(("finding 1건으로 dedup (CVE 3건은 sources에 누적)", count_ok))
 
     all_ok = True
     for label, ok in checks:
