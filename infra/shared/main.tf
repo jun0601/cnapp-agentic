@@ -16,9 +16,11 @@ terraform {
   required_version = ">= 1.10" # S3 네이티브 락(use_lockfile) 지원
 
   required_providers {
-    aws    = { source = "hashicorp/aws", version = "~> 5.95" } # NAT은 raw 리소스(모듈 충돌 회피)
-    random = { source = "hashicorp/random", version = "~> 3.6" }
-    tls    = { source = "hashicorp/tls", version = "~> 4.0" }
+    aws     = { source = "hashicorp/aws", version = "~> 5.95" } # NAT은 raw 리소스(모듈 충돌 회피)
+    random  = { source = "hashicorp/random", version = "~> 3.6" }
+    tls     = { source = "hashicorp/tls", version = "~> 4.0" }
+    helm    = { source = "hashicorp/helm", version = "~> 2.12" }      # Karpenter 컨트롤러 설치(karpenter.tf)
+    kubectl = { source = "gavinbunney/kubectl", version = "~> 1.14" } # Karpenter CRD(NodePool·EC2NodeClass) 적용
   }
 
   backend "s3" {
@@ -69,8 +71,11 @@ module "vpc" {
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  public_subnet_tags  = { "kubernetes.io/role/elb" = 1 }          # EKS LB 디스커버리
-  private_subnet_tags = { "kubernetes.io/role/internal-elb" = 1 } # EKS 내부 LB
+  public_subnet_tags = { "kubernetes.io/role/elb" = 1 } # EKS LB 디스커버리
+  private_subnet_tags = {
+    "kubernetes.io/role/internal-elb" = 1                       # EKS 내부 LB
+    "karpenter.sh/discovery"          = "${var.project}-shared" # Karpenter가 노드 띄울 서브넷 발견(karpenter.tf)
+  }
 }
 
 resource "aws_vpc_endpoint" "s3" {
@@ -176,6 +181,9 @@ module "eks" {
 
   cluster_endpoint_public_access = true # 데모 편의. TODO: IP allowlist 또는 private 전환
   enable_irsa                    = true # 파드 키리스(D5)
+
+  # Karpenter가 노드에 붙일 SG를 태그로 발견(karpenter.tf의 EC2NodeClass securityGroupSelectorTerms)
+  node_security_group_tags = { "karpenter.sh/discovery" = "${var.project}-shared" }
 
   authentication_mode                      = "API_AND_CONFIG_MAP"
   enable_cluster_creator_admin_permissions = true
