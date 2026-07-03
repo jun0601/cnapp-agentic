@@ -159,12 +159,18 @@ resource "aws_cloudfront_distribution" "front" {
     response_page_path = "/index.html"
   }
 
+  # 커스텀 도메인(활성 시) — domain-sso.tf의 ACM 인증서(us-east-1)와 짝. 기본(off)이면 [].
+  aliases = var.enable_custom_domain ? [var.domain_name] : []
+
   restrictions {
     geo_restriction { restriction_type = "none" }
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = var.enable_custom_domain ? null : true
+    acm_certificate_arn            = var.enable_custom_domain ? aws_acm_certificate_validation.cf[0].certificate_arn : null
+    ssl_support_method             = var.enable_custom_domain ? "sni-only" : null
+    minimum_protocol_version       = var.enable_custom_domain ? "TLSv1.2_2021" : null
   }
 }
 

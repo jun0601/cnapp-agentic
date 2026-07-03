@@ -45,6 +45,19 @@ variable "acm_certificate_arn" {
   default     = ""
 }
 
+# --- 커스텀 도메인 + SSO 활성(옵션 B — SPA가 Cognito 직접 로그인, domain-sso.tf) ---
+variable "enable_custom_domain" {
+  description = "true면 커스텀 도메인+ACM(us-east-1)+SPA Cognito 앱클라이언트 활성(domain-sso.tf). 선행: 가비아 NS→Route53 위임+DNS 전파+ACM 검증. 기본 false = 도메인 준비 전 apply 무영향."
+  type        = bool
+  default     = false
+}
+
+variable "domain_name" {
+  description = "관제 앱 커스텀 도메인(CloudFront apex). Route53 호스팅영역(CLI 생성·영구, id Z063995231WAW63UT354D) 전제. manual-infra §3.7."
+  type        = string
+  default     = "cnapp-agentic.cloud"
+}
+
 # --- 조치(HITL) 연동 ---
 variable "remediation_state_machine_arn" {
   description = "infra/backend output remediation_state_machine_arn. approver 승인 시 console-backend가 StartExecution. 미정 시 빈값(권한 전체 허용 안 함)."
