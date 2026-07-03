@@ -93,6 +93,9 @@ locals {
   sqs_ingest_dlq       = "${var.project}-ingest-dlq"
   alb_arn_suffix       = data.terraform_remote_state.console.outputs.alb_arn_suffix
   cognito_user_pool_id = data.terraform_remote_state.console.outputs.cognito_user_pool_id
+  # 2026-07-03: infra/console에 output 추가됨(진우 요청 → 준형 반영) — 더는 변수 게이트 불필요,
+  # 레이어 순서(console이 monitoring보다 항상 먼저 apply)상 이 값은 항상 존재함.
+  cloudfront_distribution_id = data.terraform_remote_state.console.outputs.cloudfront_distribution_id
 
   # 계정ID가 이름에 붙어 재구성이 안 되는 리소스 2종은 engine의 실제 output을 그대로 참조.
   remediation_sfn_arn = data.terraform_remote_state.engine.outputs.remediation_state_machine_arn
@@ -221,7 +224,7 @@ resource "aws_iam_role_policy" "grafana_cloudwatch" {
 #     y=bedrock_rows_end_y    : Bedrock 추정비용(전체폭)
 #     y=bedrock_rows_end_y+6  : 엔진 트리아지 게이트 | 엔진 tool-use/확신도
 #     y=bedrock_rows_end_y+12 : 엔진 판정까지 시간   | 엔진 판정 분포(Verdict×RiskLevel)
-#     y=bedrock_rows_end_y+18 : (선택) CloudFront — var.cloudfront_distribution_id 채워지면 활성화
+#     y=bedrock_rows_end_y+18 : CloudFront 요청수/에러율(infra/console output, 2026-07-03 게이트 해제)
 #   ⚠️ bedrock_model_ids에 모델을 추가하면(Sonnet 등) 이 아래 전부가 자동으로 밀려서 겹치지 않음 —
 #      과거엔 y를 하드코딩해서 모델 2개가 되면 비용/EMF 위젯과 겹치는 버그가 있었음(2026-07-03 수정).
 # =============================================================================
@@ -457,24 +460,22 @@ resource "aws_cloudwatch_dashboard" "platform" {
           }
         },
       ],
-      # --- 선택: CloudFront(우선순위 낮음, README §7) ---
-      # infra/console/outputs.tf에 distribution ID output 추가 후 var.cloudfront_distribution_id를
-      # remote_state 참조로 바꾸면 자동 활성화(그 전엔 위젯 자체가 생성 안 됨 — 빈 리스트).
-      var.cloudfront_distribution_id != "" ? [
+      # --- CloudFront(2026-07-03: infra/console output 추가로 게이트 해제, 상시 포함) ---
+      [
         {
           type = "metric", x = 0, y = local.bedrock_rows_end_y + 18, width = 12, height = 6
           properties = {
             title  = "CloudFront: 요청수 / 4xx·5xx 에러율"
             region = "us-east-1" # CloudFront 지표는 엣지 위치와 무관하게 항상 us-east-1에 발행
             metrics = [
-              ["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum" }],
+              ["AWS/CloudFront", "Requests", "DistributionId", local.cloudfront_distribution_id, "Region", "Global", { stat = "Sum" }],
               [".", "4xxErrorRate", ".", ".", ".", ".", { stat = "Average", yAxis = "right" }],
               [".", "5xxErrorRate", ".", ".", ".", ".", { stat = "Average", yAxis = "right", color = "#d62728" }],
             ]
             period = 300
           }
         }
-      ] : []
+      ]
     )
   })
 }

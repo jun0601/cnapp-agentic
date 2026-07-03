@@ -41,7 +41,7 @@
 |---|---|---|---|
 | 타깃 앱 파드(product·order·member) | 재시작 횟수·CPU/메모리·HPA 스케일링 이벤트 | Prometheus | ⬜ `gitops/monitoring`(다른 폴더) 없이는 수집 불가 — infra/monitoring 밖 |
 | 관제 앱 백엔드(console-backend Lambda) | Invocations·Errors·Duration·Throttles | CloudWatch | ✅ 대시보드에 있음 |
-| 관제 앱 프론트(CloudFront) | 캐시 히트율·4xx/5xx | CloudWatch | 🔶 위젯 코드는 완성(gated) — `infra/console` output 추가 전까진 비활성(§7·§12.4) |
+| 관제 앱 프론트(CloudFront) | 캐시 히트율·4xx/5xx | CloudWatch | ✅ 완료(2026-07-03) — `infra/console`이 `cloudfront_distribution_id` output 추가(준형)해서 게이트 해제, 상시 위젯 |
 | 로그인(Cognito) | SignIn 성공/실패율 | CloudWatch | ✅ 완료(2026-07-03, 성공 지표만 — 기본 User Pool엔 실패 카운터 없음) |
 
 ### ② 인프라 전체
@@ -128,7 +128,7 @@ Bedrock native `InputTokenCount`·`OutputTokenCount`(모델별)에 단가를 곱
 | 리소스 | 용도 | 상태 |
 |---|---|---|
 | `aws_iam_role.grafana` + policy | Grafana ServiceAccount(IRSA) → CloudWatch/Logs read-only | ✅ 있음 |
-| `aws_cloudwatch_dashboard.platform` | ①②③ 전 축 시각화(17개 위젯) | ✅ 완료(2026-07-03) |
+| `aws_cloudwatch_dashboard.platform` | ①②③ 전 축 시각화(**22개** 위젯 — Lambda 6·인프라 8·Bedrock 2·비용 1·엔진 EMF 4·CloudFront 1, §14 재검산) | ✅ 완료(2026-07-03) |
 | Bedrock 지표 위젯(모델별) + 비용 metric math | 축③ 1단 | ✅ 완료(2026-07-03) |
 | EMF 커스텀 메트릭 위젯 4종(3종 무디멘션 총계·1종 SEARCH 기반 분포) | 축③ 2단 | ✅ 위젯·계측 둘 다 완료(§13) |
 | Step Functions·감사 S3·remediation Lambda 위젯 | ②의 누락 3종 | ✅ 완료(2026-07-03) |
@@ -353,11 +353,13 @@ SNS는 Teams webhook이 기대하는 Adaptive Card JSON 포맷을 직접 못 만
 
 | 구분 | 내용 |
 |---|---|
-| 대시보드 위젯 | 기존 4개(Lambda 5·SQS·RDS·ALB) → **17개**로 확장: Lambda 6종(remediation 추가)·SQS 깊이/백로그나이·RDS CPU연결/스토리지IOPS·ALB·SFn(remediation)·S3 감사버킷·Cognito 로그인·Bedrock 호출지연/에러토큰(모델별)·Bedrock 비용(metric math)·엔진 EMF 4종(SEARCH 기반) |
+| 대시보드 위젯 | 기존 4개(Lambda 5·SQS·RDS·ALB) → 확장: Lambda 6종(remediation 추가)·SQS 깊이/백로그나이·RDS CPU연결/스토리지IOPS·ALB·SFn(remediation)·S3 감사버킷·Cognito 로그인·Bedrock 호출지연/에러토큰(모델별)·Bedrock 비용(metric math)·엔진 EMF 4종(SEARCH 기반)[^widget-count] |
 | CloudTrail 연동 | 로그그룹(`/aws/cloudtrail/${project}`) + IAM 역할(`cloudtrail.amazonaws.com` assume) + write 정책 + output 2종(§10 A안 그대로) |
 | Teams 알림 | Secrets Manager(값 없음, 수동 주입 전제) · SNS 토픽 · Lambda(`lambda_src/teams_notifier.py`, **실코드** — SNS→Adaptive Card 변환→webhook POST, stdlib+boto3만) · SNS→Lambda 구독/권한 |
-| 알람 | SQS DLQ·Lambda 에러(6종 `for_each`)·SFn 실패·Bedrock 에러(metric math)·RDS 연결포화·트리아지 게이트 0건(SEARCH+IF, EMF 계측 전엔 INSUFFICIENT_DATA로 대기) — 전부 `alarm_actions=[sns.alerts]` |
-| 변수 | `log_retention_days`·Bedrock 단가 4종·`rds_connections_alarm_threshold`·`cloudfront_distribution_id`(확장 포인트, 기본 빈값) |
+| 알람 | SQS DLQ·Lambda 에러(6종 `for_each`)·SFn 실패·Bedrock 에러(metric math)·RDS 연결포화·트리아지 게이트 0건(2026-07-03 §13에서 SEARCH 제거, EMF 계측 전엔 INSUFFICIENT_DATA로 대기) — 전부 `alarm_actions=[sns.alerts]` |
+| 변수 | `log_retention_days`·Bedrock 단가 4종·`rds_connections_alarm_threshold` (`cloudfront_distribution_id` 변수는 2026-07-03 §14에서 삭제 — remote_state 직접 참조로 대체) |
+
+[^widget-count]: **당시 "17개"로 적었던 건 오기재.** Lambda·Bedrock 위젯은 `for` 루프 1개가 여러 개(각 6개·모델 수만큼)를 만드는데 "루프문 1줄=위젯 1개"로 잘못 세어 축소 집계했음 — 실제로는 22개(§3·§14 참고, 2026-07-03 재검산).
 
 ### 12.2 설계 대비 판단 — Grafana Postgres 데이터소스(§9)는 이번 스코프 밖으로 제외
 
@@ -383,7 +385,7 @@ python -m py_compile lambda_src/teams_notifier.py → 통과
 
 1. ~~`engine/reasoning/orchestrator.py` EMF 계측~~ → **완료(2026-07-03, 같은 날 후속 작업)**. §3.1·§13 참고.
 2. **`gitops/argocd/app-monitoring.yaml` + `gitops/monitoring/kube-prometheus-stack-values.yaml`**(§4) — Grafana SA에 `grafana_irsa_role_arn` output 주입하는 Helm values + ArgoCD Application. `infra/monitoring` apply 후 이 값을 받아서 작성.
-3. **`infra/console/outputs.tf`**에 `cloudfront_distribution_id` output 1줄 추가 — 추가되면 `variables.tf`의 `cloudfront_distribution_id` 기본값을 `data.terraform_remote_state.console.outputs.cloudfront_distribution_id`로 바꾸기만 하면 CloudFront 위젯 활성화(대시보드 코드는 이미 완성, gate만 열면 됨).
+3. ~~`infra/console/outputs.tf`에 `cloudfront_distribution_id` output 추가~~ → **완료(2026-07-03, 준형이 반영)**. `main.tf`의 `local.cloudfront_distribution_id`가 이제 이 값을 직접 참조하고, CloudFront 위젯도 변수 게이트 없이 상시 포함되도록 갱신함(`variables.tf`의 임시 게이트 변수는 삭제).
 4. **(선택) `infra/shared/db/schema.sql`**에 `grafana_ro` 롤 추가 — §12.2 사유로 이번엔 보류.
 5. **`docs/manual-infra.md`** — apply 후 실제로 완료되면: ① CloudTrail→CWLogs 수동 연결 완료 기록(§10 마지막 단계) ② Teams 웹훅 로테이션·Secrets Manager 주입 완료 기록(이미 §3.5에 레닥션·조치안내는 있음, "완료" 체크만 남음). 사소한 참고: 이번에 만든 시크릿 이름은 `${project}/teams/webhook`(슬래시, RDS 시크릿과 동일 컨벤션) — manual-infra.md §3.5의 예시 문구(`cnapp-agentic-teams-webhook`, 대시)와 표기가 다르니 나중에 맞추면 됨(기능엔 영향 없음).
 
@@ -398,3 +400,15 @@ python -m py_compile lambda_src/teams_notifier.py → 통과
 | 3 | Bedrock 모델별 위젯이 `y = 42 + j*6`로 모델 수만큼 동적으로 늘어나는데, 그 아래 비용/EMF/CloudFront 위젯 y좌표는 **하드코딩**(48·54·60·66) | "리스트에 모델만 추가하면 자동 확장"이 설계 의도였는데 실제로는 안 됨 — Sonnet이 추가되면(모델 2개) Bedrock 위젯이 y=42~54를 차지해 비용 위젯(y=48 고정)과 겹침. §7(알려진 갭)에서 "스켈레톤 완성"이라고 표시했던 것과 실제 코드가 안 맞았던 사례 | `local.bedrock_rows_end_y = 42 + length(bedrock_model_ids) * 6` 신설, 비용·EMF·CloudFront 위젯 y를 전부 이 값 기준 상대좌표로 변경 — 지금(모델 1개)은 기존과 동일한 y값(48·54·60·66)이 나오되, 모델이 늘어도 자동으로 밀림 |
 
 **재검증 방법:** `terraform fmt`+`init -backend=false`+`validate` 재통과, `python -m py_compile`+`run_demo`+`run_e2e` 무회귀 재확인(오늘 3번째 라운드). 셋 다 실제 AWS 지식(Bedrock 디멘션 스키마·CloudWatch 알람 함수 제약)에 기반한 논리 검증이라 **apply 전 라이브 재확인은 여전히 못 함**(§12.3과 동일한 구조적 한계) — 다만 SEARCH 제거는 AWS 공식 문서에 명시된 제약이라 신뢰도 높음, Bedrock 디멘션·Cognito 디멘션 키 등은 그대로 "라이브 미검증" 상태(§12.3).
+
+## 14. CloudFront 게이트 해제 (2026-07-03, 후속)
+
+§7·§12.4에서 "`infra/console`에 output이 없어 대기 중"이라 기록했던 것 — 준형이 `infra/console/outputs.tf`에 `cloudfront_distribution_id` output을 추가해줘서(`7a8c609`) 더는 대기할 이유가 없어졌다. 반영한 것:
+
+- `main.tf`의 `locals`에 `cloudfront_distribution_id = data.terraform_remote_state.console.outputs.cloudfront_distribution_id` 추가 — 다른 remote_state 참조(`alb_arn_suffix`·`cognito_user_pool_id`)와 동일한 패턴.
+- CloudFront 위젯을 감싸던 `var.cloudfront_distribution_id != "" ? [...] : []` 조건부 삼항 제거 — **레이어 순서(`infra/console`이 `infra/monitoring`보다 항상 먼저 apply, §5)상 이 값은 apply 시점에 항상 존재**하므로 더는 게이트가 필요 없다. CloudFront 위젯이 이제 상시 대시보드에 포함된다.
+- `variables.tf`의 임시 게이트 변수 `cloudfront_distribution_id`(기본값 `""`)는 삭제 — 더는 쓰이지 않음.
+
+`terraform fmt`/`init -backend=false`/`validate` 재통과(`infra/monitoring`·`infra/console` 둘 다) 확인.
+
+**부수 발견 — 위젯 개수 오기재.** 이 김에 `main.tf`의 `type = "metric"` 위젯을 실제로 다시 세어보니(Lambda 6종은 `for` 루프 1개가 6개 위젯을 만들고, Bedrock 2종도 각 `for` 루프 1개가 모델 수만큼 만드는 걸 그동안 "루프문 1줄=위젯 1개"로 착각해 계속 축소 집계했었다), §3·§12.1 등에 반복해서 적었던 "17개"(CloudFront 추가 후 "18개")가 **처음부터 잘못된 숫자**였음을 발견 — 실제로는 **22개**(Lambda 6 + 인프라 8 + Bedrock 2 + 비용 1 + 엔진 EMF 4 + CloudFront 1). §3 표는 이 문서에서 정정했고, `CLAUDE.md`·루트 `README.md`·`troubleshooting.md`에 남아있는 "17위젯" 언급은 그 시점 기록(changelog)이라 그대로 두되, 살아있는 현재상태 문서(루트 README 구현현황 표 등)는 별도로 정정이 필요하다.

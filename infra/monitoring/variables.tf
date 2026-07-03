@@ -71,14 +71,3 @@ variable "rds_connections_alarm_threshold" {
   type        = number
   default     = 80
 }
-
-# --- CloudFront(선택, 확장 포인트) ---
-# infra/console/outputs.tf에 distribution ID output(예: cloudfront_distribution_id =
-# aws_cloudfront_distribution.front.id)이 없어 remote_state로 못 당겨온다(cloudfront_domain만 있음).
-# 그 output이 추가되기 전까지는 기본값 ""로 위젯을 생략 — 추가되면 여기 default를
-# data.terraform_remote_state.console.outputs.cloudfront_distribution_id 로 바꾸면 바로 활성화.
-variable "cloudfront_distribution_id" {
-  description = "CloudFront 배포 ID(위젯 활성화용). infra/console에 output 추가 전까지 빈 값 유지 — README §7 참고"
-  type        = string
-  default     = ""
-}
