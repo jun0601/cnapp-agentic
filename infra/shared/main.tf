@@ -129,7 +129,7 @@ resource "aws_security_group" "nat" {
 
 resource "aws_instance" "nat" {
   ami                         = data.aws_ami.fck_nat.id
-  instance_type               = "t4g.nano"
+  instance_type               = "t4g.micro" # 프리티어 적격 타입만 허용되는 계정 제약 — t4g.nano는 부적격이라 RunInstances 거부됨(2026-07-03 apply 교훈). t4g.micro=적격·무료·동일 ARM.
   subnet_id                   = module.vpc.public_subnets[0]
   associate_public_ip_address = true
   source_dest_check           = false # NAT 핵심 — 자기 IP 아닌 트래픽 포워딩
@@ -163,6 +163,10 @@ resource "aws_route" "private_nat" {
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.24"
+
+  # NAT egress 라우트가 노드보다 먼저 존재하도록 강제 — 노드가 egress 없이 떠서
+  # 클러스터 조인에 실패하는 레이스 방지(2026-07-03 apply 교훈: NAT 실패→노드그룹 CREATE_FAILED)
+  depends_on = [aws_route.private_nat]
 
   cluster_name    = "${var.project}-shared"
   cluster_version = var.eks_version
