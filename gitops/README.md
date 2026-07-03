@@ -48,7 +48,9 @@
                   kubectl apply -f gitops/autoscaling/hpa.yaml         # (metrics-server 먼저)
 3. 앱 CD:        kubectl apply -f gitops/argocd/app-target.yaml       # ArgoCD가 apps/target sync
    (product 이미지는 ECR push + ACCOUNT_ID 치환 후 정상 배포)
-4. 테스트/데모 후: ArgoCD App 삭제 → infra destroy (비용 규율)
+4. 관측 CD:      kubectl apply -f gitops/argocd/app-monitoring.yaml   # ArgoCD가 kube-prometheus-stack 배포
+   (전제: infra/monitoring apply 완료 — Grafana IRSA 역할이 values 파일에 이미 반영돼 있음)
+5. 테스트/데모 후: ArgoCD App 삭제 → infra destroy (비용 규율)
 ```
 
 ## 폴더
@@ -57,8 +59,13 @@
 gitops/
 ├── README.md                     이 문서(CD·오토스케일링 개념·근거·부트스트랩)
 ├── argocd/
-│   └── app-target.yaml           ArgoCD Application — shop 타깃 앱(pull-sync·self-heal·prune)
+│   ├── app-target.yaml           ArgoCD Application — shop 타깃 앱(pull-sync·self-heal·prune)
+│   └── app-monitoring.yaml       ArgoCD Application — kube-prometheus-stack(멀티소스: 공식 차트+이 레포 values)
+├── monitoring/
+│   └── kube-prometheus-stack-values.yaml   Grafana IRSA(CloudWatch 추가 데이터소스)+리소스 축소 오버라이드
 └── autoscaling/
     ├── karpenter.yaml            NodePool + EC2NodeClass (spot·consolidation·상한)
     └── hpa.yaml                  member·product HPA (파드층)
 ```
+
+**app-monitoring.yaml은 app-target.yaml과 소스 구조가 다르다** — app-target은 "이 레포 = 원본 K8s 매니페스트"이지만, app-monitoring은 "이 레포 = Helm values만, 차트 본체는 공식 `prometheus-community` 리포"인 **멀티소스 Application**(ArgoCD 2.6+ 기능, `$values` 참조로 두 소스를 묶음). `grafana_irsa_role_arn`(IAM 역할 이름이 고정값이라 apply→destroy를 반복해도 안 바뀜, `infra/monitoring/README.md` §참고)이 values 파일에 이미 하드코딩돼 있어 재apply 때마다 값을 다시 쓸 필요가 없다.

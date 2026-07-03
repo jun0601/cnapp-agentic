@@ -1,0 +1,44 @@
+# ArgoCD Application — kube-prometheus-stack(Grafana+Prometheus) GitOps 배포.
+# infra/monitoring/README.md §1 "EKS 안" 절반. Helm 차트(공식 리포)를 이 레포의
+# gitops/monitoring/kube-prometheus-stack-values.yaml로 오버라이드하는 멀티소스 Application
+# (app-target.yaml과 달리 "우리 레포=원본 매니페스트"가 아니라 "우리 레포=values만" 구조).
+#
+# 전제: infra/monitoring apply 완료(grafana_irsa_role_arn이 values 파일에 이미 반영돼 있음 —
+#       IAM 역할 이름이 고정값이라 apply→destroy를 반복해도 값을 다시 쓸 필요 없음).
+#
+# 적용(EKS 살아있을 때, gitops/README 부트스트랩 후):
+#   kubectl apply -f gitops/argocd/app-monitoring.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+  # destroy(App 삭제) 시 배포 리소스도 같이 정리 — apply→destroy 사이클 비용 규율.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    # 소스① Helm 차트 본체(공식 prometheus-community 리포).
+    # ⚠️ targetRevision은 부트스트랩 시점에 실제 최신 안정판으로 재확인/갱신할 것
+    #   (여기 버전은 작성 시점 기준 — 차트가 빠르게 릴리즈되므로 apply 직전 재확인 권장).
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: "61.9.0"
+      helm:
+        releaseName: kube-prometheus-stack # values 파일의 serviceAccount 이름 규칙과 연동
+        valueFiles:
+          - $values/gitops/monitoring/kube-prometheus-stack-values.yaml
+    # 소스② 이 레포 — values 파일만 제공(ref: values 로 위에서 $values 참조).
+    - repoURL: https://github.com/jun0601/cnapp-agentic.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true # Git(차트 기본값+values)에서 없어진 리소스는 클러스터에서도 제거
+      selfHeal: true # 클러스터 드리프트를 Git 상태로 자동 복구
+    syncOptions:
+      - CreateNamespace=true # monitoring 네임스페이스 자동 생성

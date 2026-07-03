@@ -1,0 +1,55 @@
+# kube-prometheus-stack Helm values — infra/monitoring/README.md §1 하이브리드 설계의 "EKS 안" 절반.
+#
+# 무슨 역할:
+#   ① Prometheus(node-exporter·kube-state-metrics·cAdvisor)로 EKS 안(파드·노드) 관측.
+#   ② Grafana의 기본 데이터소스 = Prometheus(자동), 추가 데이터소스 = CloudWatch(EKS 밖:
+#      Lambda·RDS·SQS·ALB·Step Functions·S3·Bedrock·Cognito) — infra/monitoring이 만든
+#      IRSA 역할(grafana_irsa_role_arn)로 Grafana ServiceAccount가 직접 CloudWatch를 읽는다.
+#
+# ⚠️ 아래 role-arn·네임스페이스·serviceAccount 이름은 infra/monitoring/variables.tf의
+#    grafana_namespace("monitoring")·grafana_service_account("kube-prometheus-stack-grafana")와
+#    반드시 일치해야 한다(IRSA trust policy의 sub 조건이 이 조합으로 고정돼 있음, main.tf 참고).
+#    role-arn 자체는 IAM 역할 이름이 고정값이라(랜덤 접미사 없음) apply→destroy를 반복해도
+#    바뀌지 않는다 — 이 파일을 다시 쓸 필요 없이 계속 유효하다.
+
+grafana:
+  serviceAccount:
+    create: true
+    name: kube-prometheus-stack-grafana # release name "kube-prometheus-stack" + 차트 기본 규칙
+    annotations:
+      eks.amazonaws.com/role-arn: "arn:aws:iam::066107819776:role/cnapp-agentic-monitoring-grafana-irsa"
+
+  # Prometheus는 차트가 자동으로 기본 데이터소스로 등록 — CloudWatch만 추가.
+  additionalDataSources:
+    - name: CloudWatch
+      type: cloudwatch
+      access: proxy
+      jsonData:
+        authType: default # IRSA(위 role-arn)로 자동 인증 — 액세스키 불필요
+        defaultRegion: ap-northeast-2
+
+  # 데모 규모(비용 규율) — 영구볼륨 없이 파드 재시작 시 대시보드 정의는 그대로(ConfigMap
+  # 프로비저닝, 아래 dashboardProviders)라 무방. 로그인 정보만 데모용 기본값.
+  persistence:
+    enabled: false
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 200m, memory: 256Mi }
+
+# Prometheus 서버 — 데모 규모(소형 spot 노드, infra/shared) 기준 최소 리소스·짧은 보존.
+# 영구볼륨 미사용 = apply/destroy 사이클마다 과거 데이터는 사라짐(원래 CloudWatch가 진짜
+# 장기 보존소, Prometheus는 EKS 안 실시간 관측용 — README §1 원칙과 일치).
+prometheus:
+  prometheusSpec:
+    retention: 6h
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { cpu: 500m, memory: 512Mi }
+    storageSpec: {} # emptyDir(기본) — PVC/StorageClass 프로비저닝 불필요
+
+alertmanager:
+  # CloudWatch Alarms → SNS → Teams(infra/monitoring §11)가 이미 알림 경로를 커버 —
+  # 인클러스터 Alertmanager 중복 방지, 리소스도 아낌(비용 규율).
+  enabled: false
+
+# kube-state-metrics·node-exporter는 기본값 그대로(경량, 이 스택의 핵심 관측 소스).

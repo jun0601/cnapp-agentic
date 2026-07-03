@@ -196,12 +196,17 @@ gitops/
 - [x] `engine/reasoning/orchestrator.py`의 `_emit_case_metrics` 계측(§2③.1) — **완료(당일 후속)**, 아래 항목에서 완료로 이동
 - [x] 케이스별 Bedrock 비용(토큰) EMF + tool별 breakdown EMF + Bedrock 비용 알람(§15) — `engine/evidence/bedrock_planner.py`·`evidence.py`·`core/case.py`·`reasoning/orchestrator.py` 4개 파일
 
+**apply 완료(2026-07-03, §16) 후 처리:**
+
+- [x] `infra/monitoring` **실 apply 완료** — 27개 리소스 생성(0 변경·0 삭제), 대시보드 24위젯 실제 렌더링(API로 확인, y/x 겹침 없음) — §16
+- [x] `gitops/argocd/app-monitoring.yaml` + `gitops/monitoring/kube-prometheus-stack-values.yaml` 신설 — `grafana_irsa_role_arn` 실값 반영 완료(§16)
+- [x] CloudTrail 기존 트레일(`cnapp-org-trail`)에 `cloudtrail_log_group_arn`/`cloudtrail_cwl_role_arn` 1회 연결 — CLI로 완료(§16, 로그그룹 ARN에 `:*` 접미사 필요했던 함정 기록)
+- [ ] apply 후: `teams_webhook_secret_arn`에 로테이션된 새 webhook URL을 `aws secretsmanager put-secret-value`로 1회 수동 주입 — **미착수, 실 webhook URL 필요**
+
 **이 폴더 밖이라 구현 안 함 — 기록만(§12 "외부 폴더 후속 작업" 참고):**
 
-- [ ] `gitops/argocd/app-monitoring.yaml` + `gitops/monitoring/kube-prometheus-stack-values.yaml` 신설 — `grafana_irsa_role_arn`이 apply 후 실제 값으로 나와야 착수 가능(진짜 blocked)
 - [ ] (선택) `infra/shared/db/schema.sql`에 `grafana_ro` 읽기전용 Postgres 롤 추가(§9 실무 디테일) — Grafana의 3번째 데이터소스(Postgres)로 tool-use 분포·MTTR 등 직접 SQL 조회하고 싶을 때만 필요, 지금 3축 설계엔 없어도 무방
-- [ ] apply 후: CloudTrail 콘솔에서 `cloudtrail_log_group_arn`/`cloudtrail_cwl_role_arn`을 기존 트레일에 1회 수동 연결(§10)
-- [ ] apply 후: `teams_webhook_secret_arn`에 로테이션된 새 webhook URL을 `aws secretsmanager put-secret-value`로 1회 수동 주입
+- [ ] `kubectl apply -f gitops/argocd/app-monitoring.yaml` 실행 자체는 EKS에 ArgoCD가 부트스트랩된 뒤(`gitops/README.md` 부트스트랩 순서 4번) — 아직 미실행
 
 ## 8. 검증 이력
 
@@ -452,3 +457,53 @@ python -m py_compile lambda_src/teams_notifier.py → 통과
 오프라인 fake Bedrock 클라이언트로 2턴 tool-use 루프(1턴째 tool 2개 호출+usage 500/120, 2턴째 end_turn+usage 300/80)를 재현해 `input_tokens==800`·`output_tokens==200`(누적 확인)·`model_trace[-1]["tokens"]==1000`·EMF 출력 JSON 형태(총계 라인 1개 + tool별 라인 2개) 전부 확인. `engine.run_demo`·`run_e2e`·`contracts validate` 무회귀(Lambda 밖이라 미발행 그대로). `infra/monitoring` `fmt`+`init -backend=false`+`validate` 재통과.
 
 ⚠️ 위 §7 알려진 갭과 동일한 한계 — 실 Bedrock/Lambda가 돌아가기 전까진 이 6개 EMF 위젯·`bedrock_cost_high` 알람 다 "No data"/`INSUFFICIENT_DATA`가 정상.
+
+---
+
+## 16. 실 apply 완료 (2026-07-03) — 준형 4개 레이어(shared·target·console·backend) 이후
+
+준형이 `infra/shared`·`infra/target`·`infra/console`·`infra/backend`(§ pipeline+engine 병합, `e806ee6`) apply를 끝낸 직후 이 레이어를 처음으로 실제 apply했다.
+
+### 16.1 apply 결과
+
+`terraform plan` → **27 to add, 0 to change, 0 to destroy**(순수 신규 생성, 기존 레이어 무영향) → `apply` 성공. Outputs 전부 발급 확인:
+
+```
+grafana_irsa_role_arn    = arn:aws:iam::066107819776:role/cnapp-agentic-monitoring-grafana-irsa
+dashboard_url            = https://ap-northeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-2#dashboards:name=cnapp-agentic-platform
+teams_webhook_secret_arn = arn:aws:secretsmanager:ap-northeast-2:066107819776:secret:cnapp-agentic/teams/webhook-V5Ec2l
+cloudtrail_log_group_arn = arn:aws:logs:ap-northeast-2:066107819776:log-group:/aws/cloudtrail/cnapp-agentic
+cloudtrail_cwl_role_arn  = arn:aws:iam::066107819776:role/cnapp-agentic-cloudtrail-to-cwl
+alerts_sns_topic_arn     = arn:aws:sns:ap-northeast-2:066107819776:cnapp-agentic-monitoring-alerts
+```
+
+### 16.2 대시보드 실제 렌더링 검증 (§13 캐비어트가 우려했던 부분)
+
+§13/§7에서 "위젯 JSON의 AWS 시맨틱은 `terraform validate`로 못 잡고 apply 후 육안 확인이 필요하다"고 적어뒀던 것 — boto3 없는 환경이라 CLI로 대신 확인(`aws cloudwatch get-dashboard` → `DashboardBody` JSON 파싱). **결과: 정확히 24개 위젯, 설계한 y/x 좌표 그대로 겹침 없이 등록됨**(Lambda 6 → 인프라 8 → Bedrock 2 → 비용 1 → 엔진 EMF 6 → CloudFront 1). `dashboard_url` 콘솔 화면으로 진짜 렌더링(그래프 표시)까지는 별도 확인 필요하지만, JSON 스키마 레벨(디멘션 이름 등)은 AWS가 리소스 생성을 거부하지 않았다는 것으로 최소 검증됨.
+
+⚠️ Windows 콘솔(cp949)에서 `aws cloudwatch get-dashboard`가 한국어 위젯 제목의 em-dash(—, U+2014)를 못 인코딩해 크래시하는 함정 발견 — `PYTHONUTF8=1 PYTHONIOENCODING=utf-8` 환경변수로 우회(다른 Python 스크립트들의 `sys.stdout.reconfigure(encoding="utf-8")`와 같은 계열의 Windows 콘솔 인코딩 문제).
+
+### 16.3 CloudTrail → CloudWatch Logs 연결 (§10·§7 마지막 수동 단계)
+
+`aws cloudtrail describe-trails`로 실제 트레일명이 `cnapp-org-trail`(manual-infra §1과 일치)임을 확인 후 CLI로 연결:
+```
+aws cloudtrail update-trail --name cnapp-org-trail \
+  --cloud-watch-logs-log-group-arn "<cloudtrail_log_group_arn>:*" \
+  --cloud-watch-logs-role-arn "<cloudtrail_cwl_role_arn>"
+```
+**함정**: 처음 `:*` 접미사 없이 보냈다가 `InvalidCloudWatchLogsLogGroupArnException`로 실패 — CloudTrail의 `CloudWatchLogsLogGroupArn`은 로그 스트림 와일드카드(`:*`)가 붙은 형태를 요구한다(로그그룹 자체 ARN이 아님). `terraform output`이 주는 순수 로그그룹 ARN에 `:*`를 붙여서 재시도 후 성공. **트레일 자체는 Terraform state 밖**(§10 설계 그대로) — 이 명령은 `infra/monitoring`의 tfstate에 아무 영향 없음(순수 AWS API 호출), 트레일의 "로그 전달 대상"만 갱신.
+
+### 16.4 gitops/monitoring 신설 (§14의 "진짜 blocked" 해소)
+
+`grafana_irsa_role_arn`이 실제 값으로 나온 시점에 바로 착수:
+- **`gitops/monitoring/kube-prometheus-stack-values.yaml`** — Grafana ServiceAccount에 위 IRSA role-arn 주석(annotation), CloudWatch를 `additionalDataSources`로 추가(`authType: default`로 IRSA 자동 인증), Alertmanager는 비활성화(CloudWatch Alarms→SNS→Teams가 이미 커버 — 중복 방지·리소스 절감), Prometheus/Grafana 둘 다 영구볼륨 없이 소형 리소스(데모 규모 spot 노드 기준).
+- **`gitops/argocd/app-monitoring.yaml`** — `app-target.yaml`과 소스 구조가 다름: 이건 **멀티소스 Application**(ArgoCD 2.6+)으로, 소스①=공식 `prometheus-community/kube-prometheus-stack` Helm 차트, 소스②=이 레포(`ref: values`, 위 values 파일만 제공). `$values/gitops/monitoring/kube-prometheus-stack-values.yaml` 참조로 두 소스를 묶는다.
+- **IAM 역할 이름이 고정값(랜덤 접미사 없음)**이라 apply→destroy를 반복해도 ARN이 안 바뀜 — 이 values 파일은 한 번만 쓰면 되고, 재apply 때마다 갱신할 필요 없음(대화 중 미리 확인해둔 설계 근거, `main.tf`의 `aws_iam_role.grafana` `name` 참고).
+- 아직 안 한 것: `kubectl apply -f gitops/argocd/app-monitoring.yaml` 실행 자체(ArgoCD가 EKS에 부트스트랩된 뒤 — `gitops/README.md` 순서 4번, 다음 세션).
+
+### 16.5 남은 것
+
+- Teams webhook secret에 실제 URL 값 수동 주입(로테이션된 URL 필요 — 아직 미착수)
+- `kubectl apply -f gitops/argocd/app-monitoring.yaml`로 실제 Grafana 배포·CloudWatch 데이터소스 연결 확인
+- `engine`/`backend` Lambda가 실제로 finding을 처리하기 시작하면 EMF 위젯·알람 실데이터 재확인
+- `kube_bench.scan_cluster()`/`trivy.scan_image()` 등 EKS 필요한 실 스캐너 경로 검증(별도 작업, `scanners/workload/README` 참고)
