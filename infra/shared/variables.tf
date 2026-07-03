@@ -97,7 +97,7 @@ variable "db_username" {
 
 # --- 운영자 접근 ---
 variable "cluster_admin_principal_arns" {
-  description = "EKS cluster admin으로 등록할 IAM 사용자/역할 ARN (jh_lee·jw_kim). apply 전 실제 ARN 채우기."
+  description = "EKS cluster admin으로 추가 등록할 IAM 사용자/역할 ARN. jh_lee(생성자)는 enable_cluster_creator_admin_permissions로 자동 admin이라 여기 안 넣음(중복 access entry 충돌). 진우(jw_kim)는 생성자가 아니라 여기 명시해야 kubectl 접근 가능(2026-07-03 진우 요청)."
   type        = list(string)
-  default     = [] # TODO: ["arn:aws:iam::<acct>:user/jh_lee","arn:aws:iam::<acct>:user/jw_kim"]
+  default     = ["arn:aws:iam::066107819776:user/jw_kim"]
 }
