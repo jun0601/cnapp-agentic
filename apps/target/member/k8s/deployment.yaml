@@ -8,7 +8,7 @@ metadata:
   namespace: shop
   annotations:
     # infra/target의 member IRSA 역할(최소권한: 이 버킷 PutObject/HeadObject만)
-    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/cnapp-agentic-target-member-irsa" # infra/target = ${var.project}-target-member-irsa (project=cnapp-agentic)
+    eks.amazonaws.com/role-arn: "arn:aws:iam::066107819776:role/cnapp-agentic-target-member-irsa" # 단일 계정 확정(D1) — infra/target = ${var.project}-target-member-irsa
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -31,11 +31,11 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: member
-          image: "ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com/cnapp-agentic/member:latest" # TODO ECR
+          image: "066107819776.dkr.ecr.ap-northeast-2.amazonaws.com/cnapp-agentic/member:latest" # build-images.yml이 push
           ports: [{ containerPort: 8080 }]
           env:
             - name: MEMBER_PII_BUCKET
-              value: "member-pii-prod-ACCOUNT_ID" # infra/target output(member_pii_bucket)의 실제 값으로 치환(전역 유일성 위해 계정ID 접미사, 2026-07-03). 공개 결함은 버킷 정책(infra/target)에 있음
+              value: "member-pii-prod-066107819776" # infra/target output(member_pii_bucket) = ${member_pii_bucket}-${account_id}. 공개 결함은 버킷 정책(infra/target)에 있음
             - name: MEMBER_PII_COUNT
               value: "200"
             - name: AWS_REGION

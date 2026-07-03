@@ -1,20 +1,26 @@
 import { useNavigate } from 'react-router-dom'
 import { IS_MOCK, setRole, getRole, type Role } from '@/lib/auth'
+import { oidcConfigured, beginLogin } from '@/lib/oidc'
 
-// SSO 로그인(Entra→Cognito→ALB authenticate-cognito) 진입점.
-// 실환경: ALB가 미인증 요청을 IdP로 리다이렉트하므로 이 화면은 목업/개발용.
-// 목업: "로그인" = 역할 선택 후 대시보드로. (실데이터는 백엔드가 custom:groups로 판정)
+// SSO 로그인 — 옵션 B: SPA가 Cognito Hosted UI로 직접 OIDC(PKCE).
+// 실환경(OIDC 구성 시): 버튼 → beginLogin()이 Hosted UI로 리다이렉트 → Entra → /callback.
+// 목업/개발: "로그인" = 역할 선택 후 대시보드로.
 
 const SSO_STEPS = [
   { n: '1', t: 'Microsoft Entra ID', d: '조직 계정으로 인증 (IdP)' },
-  { n: '2', t: 'Amazon Cognito', d: 'SAML → User Pool, custom:groups 매핑' },
-  { n: '3', t: 'ALB authenticate-cognito', d: 'x-amzn-oidc-data JWT를 백엔드로' },
+  { n: '2', t: 'Amazon Cognito', d: 'SAML → User Pool, custom:groups(GUID) 매핑' },
+  { n: '3', t: 'SPA (PKCE)', d: 'ID 토큰 → Authorization: Bearer로 백엔드에' },
 ]
 
 export default function Login() {
   const navigate = useNavigate()
+  const realSso = !IS_MOCK && oidcConfigured()
 
   function loginAs(role: Role) {
+    if (realSso) {
+      void beginLogin() // Hosted UI로 리다이렉트(역할은 로그인 후 토큰에서 판정)
+      return
+    }
     if (IS_MOCK) setRole(role)
     navigate('/')
   }

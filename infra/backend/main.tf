@@ -19,9 +19,10 @@
 # 조치(HITL, §17): 콘솔 approver 승인 → console-backend가 remediation SFn StartExecution
 #     → 검증 → remediation Lambda(격상 역할, 변경 API) → 불변 감사(S3 Object Lock)
 #
-# ⚠️ 모든 Lambda 패키지 = '배포 가능한 스텁'(index.handler). 실 apply/CI에서
-#    각 코드(pipeline/·attackpath/·engine/ handler.py + psycopg2 레이어)로 교체
-#    (swap 포인트 = archive_file.source). 로직은 run_e2e/run_real로 로컬 검증됨.
+# ★ 모든 Lambda = 실코드 배포(2026-07-03 스텁 스왑 완료): pipeline/·attackpath/·engine/의
+#    handler.py를 패키지째 번들(+contracts JSON, psycopg2 레이어). 빌드 = build_lambdas.py
+#    (deploy.ps1이 backend apply/plan 전 자동 실행). 로직은 run_e2e/run_real로 로컬 검증됨 —
+#    RDS/Bedrock 라이브 관통은 apply 세션에서.
 #
 # 구역: [TF·BACKEND][PROVIDER][SHARED refs][공통 IAM·SG]
 #       [데이터 평면: SQS·ingest·normalize·EventBridge]
@@ -218,37 +219,43 @@ resource "aws_iam_role_policy" "normalize" {
   policy = data.aws_iam_policy_document.normalize.json
 }
 
-# --- [LAMBDA] ingest·normalize (배포 가능 스텁 · 실코드 스왑 포인트) ---
-data "archive_file" "ingest" {
+# --- [LAMBDA 패키징] 실코드 번들 + psycopg2 레이어 (2026-07-03 스텁→실코드 스왑 완료) ---
+# 선행: `python infra/backend/build_lambdas.py` (deploy.ps1이 backend apply/plan 전 자동 실행) —
+#   build/src-{pipeline,attackpath,engine}/ = 각 패키지 + contracts/*.json (zip 루트에 나란히 →
+#   코드의 상대경로 해석 무변경 동작), build/layer/python/ = psycopg2(manylinux x86_64, cp312).
+# validate는 archive_file을 평가 안 해 빌드 없이 통과, plan/apply는 빌드 디렉터리 필수(없으면 명확히 실패).
+data "archive_file" "pipeline_pkg" {
   type        = "zip"
-  output_path = "${path.module}/build/ingest.zip"
-  source {
-    filename = "index.py"
-    content  = <<-PY
-      # 실코드 스왑 = handler "pipeline.ingest.handler.handler"(pipeline 패키지 번들, boto3만/RDS 불요).
-      # 지금은 배포 가능한 스텁(이벤트 로깅). 실코드는 pipeline/ingest/handler.py에 있음.
-      import json
-      def handler(event, context):
-          print("ingest:", json.dumps(event)[:500])
-          return {"ok": True}
-    PY
-  }
+  source_dir  = "${path.module}/build/src-pipeline"
+  output_path = "${path.module}/build/pipeline.zip"
 }
 
-data "archive_file" "normalize" {
+data "archive_file" "attackpath_pkg" {
   type        = "zip"
-  output_path = "${path.module}/build/normalize.zip"
-  source {
-    filename = "index.py"
-    content  = <<-PY
-      # 실코드 스왑 = handler "pipeline.normalize.handler.handler"(pipeline 패키지 + psycopg2 레이어).
-      # findings 테이블 필요 → 스키마 infra/shared/db/schema.sql 선적용. 실코드는 pipeline/normalize/handler.py.
-      import json
-      def handler(event, context):
-          print("normalize records:", len(event.get("Records", [])))
-          return {"ok": True}
-    PY
-  }
+  source_dir  = "${path.module}/build/src-attackpath"
+  output_path = "${path.module}/build/attackpath.zip"
+}
+
+data "archive_file" "engine_pkg" {
+  type        = "zip"
+  source_dir  = "${path.module}/build/src-engine"
+  output_path = "${path.module}/build/engine.zip"
+}
+
+data "archive_file" "psycopg2_layer" {
+  type        = "zip"
+  source_dir  = "${path.module}/build/layer"
+  output_path = "${path.module}/build/psycopg2-layer.zip"
+}
+
+# RDS 접근 Lambda 4종(normalize·correlation·orchestrator·remediation)이 공유하는 psycopg2 레이어.
+# ingest는 boto3만 필요(RDS 무관)라 미부착.
+resource "aws_lambda_layer_version" "psycopg2" {
+  layer_name               = "${var.project}-psycopg2"
+  filename                 = data.archive_file.psycopg2_layer.output_path
+  source_code_hash         = data.archive_file.psycopg2_layer.output_base64sha256
+  compatible_runtimes      = ["python3.12"]
+  compatible_architectures = ["x86_64"]
 }
 
 resource "aws_cloudwatch_log_group" "ingest" {
@@ -265,9 +272,9 @@ resource "aws_lambda_function" "ingest" {
   function_name    = "${var.project}-ingest"
   role             = aws_iam_role.ingest.arn
   runtime          = "python3.12"
-  handler          = "index.handler"
-  filename         = data.archive_file.ingest.output_path
-  source_code_hash = data.archive_file.ingest.output_base64sha256
+  handler          = "pipeline.ingest.handler.handler" # 실코드(pipeline/ingest/handler.py) — RDS 불요·레이어 불요
+  filename         = data.archive_file.pipeline_pkg.output_path
+  source_code_hash = data.archive_file.pipeline_pkg.output_base64sha256
   timeout          = 30
   memory_size      = 256
   environment {
@@ -282,9 +289,10 @@ resource "aws_lambda_function" "normalize" {
   function_name    = "${var.project}-normalize"
   role             = aws_iam_role.normalize.arn
   runtime          = "python3.12"
-  handler          = "index.handler"
-  filename         = data.archive_file.normalize.output_path
-  source_code_hash = data.archive_file.normalize.output_base64sha256
+  handler          = "pipeline.normalize.handler.handler" # 실코드(SQS 봉투→정규화→RDS upsert→batch.completed)
+  filename         = data.archive_file.pipeline_pkg.output_path
+  source_code_hash = data.archive_file.pipeline_pkg.output_base64sha256
+  layers           = [aws_lambda_layer_version.psycopg2.arn]
   timeout          = 60
   memory_size      = 512
   vpc_config {
@@ -377,39 +385,7 @@ resource "aws_iam_role_policy_attachment" "orchestrator_bedrock" {
   policy_arn = local.bedrock_invoke_policy_arn
 }
 
-# --- [LAMBDA 분석] 상관 + 오케스트레이터 (배포 가능 스텁 · 실코드 스왑 포인트) ---
-data "archive_file" "correlation" {
-  type        = "zip"
-  output_path = "${path.module}/build/correlation.zip"
-  source {
-    filename = "index.py"
-    content  = <<-PY
-      # 실코드 스왑 = handler "attackpath.correlation.handler.handler"(attackpath 패키지 + psycopg2).
-      # findings/attack_paths 테이블 필요 → 스키마 infra/shared/db/schema.sql. 실코드=attackpath/correlation/handler.py.
-      import json
-      def handler(event, context):
-          print("correlation:", json.dumps(event)[:500])
-          return {"ok": True}
-    PY
-  }
-}
-
-data "archive_file" "orchestrator" {
-  type        = "zip"
-  output_path = "${path.module}/build/orchestrator.zip"
-  source {
-    filename = "index.py"
-    content  = <<-PY
-      # 실코드 스왑 = handler "engine.handler.handler"(engine 패키지 + psycopg2, REAL_TOOLS=1이면 실 Bedrock tool-use).
-      # cases/findings 테이블 필요 → 스키마 infra/shared/db/schema.sql. 실코드=engine/handler.py(run_real.py 구성 미러링).
-      import json
-      def handler(event, context):
-          print("orchestrator:", json.dumps(event)[:500])
-          return {"ok": True}
-    PY
-  }
-}
-
+# --- [LAMBDA 분석] 상관 + 오케스트레이터 — 실코드(위 패키징 번들 사용) ---
 resource "aws_cloudwatch_log_group" "correlation" {
   name              = "/aws/lambda/${var.project}-correlation"
   retention_in_days = var.log_retention_days
@@ -423,9 +399,10 @@ resource "aws_lambda_function" "correlation" {
   function_name    = "${var.project}-correlation"
   role             = aws_iam_role.correlation.arn
   runtime          = "python3.12"
-  handler          = "index.handler"
-  filename         = data.archive_file.correlation.output_path
-  source_code_hash = data.archive_file.correlation.output_base64sha256
+  handler          = "attackpath.correlation.handler.handler" # 실코드(R1~R5 상관→attack_paths upsert→2-pass 발행)
+  filename         = data.archive_file.attackpath_pkg.output_path
+  source_code_hash = data.archive_file.attackpath_pkg.output_base64sha256
+  layers           = [aws_lambda_layer_version.psycopg2.arn]
   timeout          = 120
   memory_size      = 512
   vpc_config {
@@ -442,9 +419,10 @@ resource "aws_lambda_function" "orchestrator" {
   function_name    = "${var.project}-orchestrator"
   role             = aws_iam_role.orchestrator.arn
   runtime          = "python3.12"
-  handler          = "index.handler"
-  filename         = data.archive_file.orchestrator.output_path
-  source_code_hash = data.archive_file.orchestrator.output_base64sha256
+  handler          = "engine.handler.handler" # 실코드 — ★심장 배포판(Triage→Hypothesis→Evidence tool-use→Reasoning)
+  filename         = data.archive_file.engine_pkg.output_path
+  source_code_hash = data.archive_file.engine_pkg.output_base64sha256
+  layers           = [aws_lambda_layer_version.psycopg2.arn]
   timeout          = 300 # Evidence tool-use 루프(Bedrock 왕복) 여유
   memory_size      = 1024
   vpc_config {
@@ -457,6 +435,7 @@ resource "aws_lambda_function" "orchestrator" {
       DB_SECRET_ARN = local.rds_secret_arn
       # 실 tool-use model ID(manual-infra §4) — Global inference profile
       BEDROCK_MODEL_ID = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+      REAL_TOOLS       = "1" # RealToolExecutor+BedrockEvidenceAgent(run_real 구성) — 핸들러 기본값이지만 명시
     }
   }
   depends_on = [aws_cloudwatch_log_group.orchestrator, aws_iam_role_policy_attachment.orchestrator_vpc]
@@ -604,22 +583,7 @@ resource "aws_iam_role_policy_attachment" "remediation_vpc" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
-data "archive_file" "remediation" {
-  type        = "zip"
-  output_path = "${path.module}/build/remediation.zip"
-  source {
-    filename = "index.py"
-    content  = <<-PY
-      # 실코드 스왑 = handler "engine.remediation.handler"(engine 패키지 + psycopg2 레이어).
-      # 실코드는 engine/remediation.py(S3 block·SG revoke·IAM diff → dry-run/apply → 감사·RDS). 지금은 스텁.
-      import json
-      def handler(event, context):
-          print("remediation:", json.dumps(event)[:500])
-          return {"ok": True, "applied": False}  # 스텁은 실제 변경 안 함
-    PY
-  }
-}
-
+# remediation은 engine 번들 재사용(engine/remediation.py 포함) — 핸들러만 다름.
 resource "aws_cloudwatch_log_group" "remediation" {
   name              = "/aws/lambda/${var.project}-remediation"
   retention_in_days = var.log_retention_days
@@ -629,9 +593,10 @@ resource "aws_lambda_function" "remediation" {
   function_name    = "${var.project}-remediation"
   role             = aws_iam_role.remediation_lambda.arn
   runtime          = "python3.12"
-  handler          = "index.handler"
-  filename         = data.archive_file.remediation.output_path
-  source_code_hash = data.archive_file.remediation.output_base64sha256
+  handler          = "engine.remediation.handler" # 실코드 — 유일한 '쓰기' 경로(S3 block·SG revoke·IAM diff + Object Lock 감사)
+  filename         = data.archive_file.engine_pkg.output_path
+  source_code_hash = data.archive_file.engine_pkg.output_base64sha256
+  layers           = [aws_lambda_layer_version.psycopg2.arn]
   timeout          = 120
   memory_size      = 256
   # RDS 상태 갱신(수정→소멸 루프) 위해 VPC 배치. S3/EC2/IAM 변경 API는 NAT로 egress.

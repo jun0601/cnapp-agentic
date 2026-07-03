@@ -83,6 +83,14 @@ function Invoke-Layer {
 
   Write-Host "--- [$L] terraform $Act ---" -ForegroundColor Green
 
+  # backend ships REAL lambda code: bundle dirs + psycopg2 layer must exist before
+  # plan/apply (archive_file zips them). validate skips data sources, so no build needed there.
+  if ($L -eq 'backend' -and $Act -in @('plan', 'apply')) {
+    Write-Host "--- [backend] packaging lambda bundles (build_lambdas.py) ---" -ForegroundColor Green
+    & python (Join-Path $dir 'build_lambdas.py')
+    if ($LASTEXITCODE -ne 0) { throw "[backend] lambda build failed -- not deploying stale/missing bundles" }
+  }
+
   # Push-Location moves the real CWD (a cmdlet handles non-ASCII paths fine),
   # so terraform runs with no '-chdir=<abs path>' arg (that arg mangles under cp949).
   Push-Location $dir

@@ -1,0 +1,60 @@
+name: build-images
+
+# Docker 이미지 빌드 -> ECR push (키리스: GitHub OIDC -> IAM Role, infra/shared의 github-ci 역할).
+#
+# 왜 별도 워크플로 + 수동 트리거인가:
+#   - ci.yml(로직 회귀)은 매 push $0이지만, 이미지 push는 ECR(=infra/shared apply 후에만 존재)이 대상이라
+#     상시 자동이면 인프라 없을 때 매번 실패한다. 그래서 workflow_dispatch(수동) + 코드 변경 시 push 트리거.
+#   - EKS 배포는 여기서 안 한다 -> ArgoCD가 Git을 pull-sync(gitops/). CI엔 클러스터 자격증명 안 넣음(키리스 테마).
+#   - order는 upstream retail-store 퍼블릭 이미지를 그대로 쓰므로 빌드 대상 아님(member/product만 우리가 빌드).
+#
+# 선행(1회): infra/shared apply 완료(ECR 4개 리포 + github-ci OIDC 역할 생성).
+# 사용: Actions 탭 -> build-images -> Run workflow (또는 apps/target 변경 push 시 자동).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "apps/target/member/**"
+      - "apps/target/product/**"
+      - ".github/workflows/build-images.yml"
+
+permissions:
+  id-token: write # OIDC 토큰 발급(키리스 AssumeRoleWithWebIdentity)
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REGISTRY: "066107819776.dkr.ecr.ap-northeast-2.amazonaws.com"
+
+jobs:
+  build-push:
+    name: build & push (member, product)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [member, product]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure AWS credentials (OIDC, keyless)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::066107819776:role/cnapp-agentic-github-ci"
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ECR 리포는 infra/shared가 apply 시 생성(cnapp-agentic/<service>). 없으면 이 스텝이 명확히 실패.
+      - name: Build and push
+        run: |
+          set -e
+          IMAGE="${ECR_REGISTRY}/cnapp-agentic/${{ matrix.service }}"
+          docker build -t "${IMAGE}:${GITHUB_SHA::7}" -t "${IMAGE}:latest" \
+            "apps/target/${{ matrix.service }}"
+          docker push "${IMAGE}:${GITHUB_SHA::7}"
+          docker push "${IMAGE}:latest"
+          echo "pushed ${IMAGE}:${GITHUB_SHA::7} and :latest"

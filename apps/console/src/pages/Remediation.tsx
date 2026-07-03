@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useRole } from '@/lib/auth'
-import { useFindings } from '@/api/queries'
+import { useFindings, useRemediationDecision } from '@/api/queries'
 import { Card, SectionTitle, SkeletonRows, ErrorNote } from '@/components/ui'
 import { EmptyState } from '@/components/EmptyState'
 import { SeverityBadge } from '@/components/SeverityBadge'
@@ -19,11 +19,13 @@ function ActionRow({
   f,
   canApprove,
   decision,
+  pending,
   onDecide,
 }: {
   f: Finding
   canApprove: boolean
   decision?: Decision
+  pending?: boolean
   onDecide: (id: string, d: Decision) => void
 }) {
   const a = ACTIONS[f.control_id]
@@ -48,15 +50,15 @@ function ActionRow({
       ) : (
         <div className="flex gap-2">
           <button
-            disabled={!canApprove}
+            disabled={!canApprove || pending}
             onClick={() => onDecide(f.finding_id, 'approved')}
             className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
             title={canApprove ? '승인 → Step Functions 실행' : 'approver 권한 필요'}
           >
-            승인
+            {pending ? '처리 중…' : '승인'}
           </button>
           <button
-            disabled={!canApprove}
+            disabled={!canApprove || pending}
             onClick={() => onDecide(f.finding_id, 'rejected')}
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm enabled:hover:bg-slate-50 disabled:opacity-40"
           >
@@ -72,10 +74,24 @@ export default function Remediation() {
   const role = useRole()
   const canApprove = role === 'approver'
   const { data, isLoading, isError, error } = useFindings({ status: 'open', sort: 'priority' })
+  const decide = useRemediationDecision()
   const [decisions, setDecisions] = useState<Record<string, Decision>>({})
+  const [actionError, setActionError] = useState<string | null>(null)
 
   // 자동 조치 가능한 control을 가진 open finding만 큐에 노출
   const queue = (data ?? []).filter((f) => f.control_id in ACTIONS)
+
+  // 승인/거부 → 백엔드 POST /remediations/:id/{approve,reject} → 성공 시 UI 상태 갱신.
+  function handleDecide(id: string, d: Decision) {
+    setActionError(null)
+    decide.mutate(
+      { id, action: d === 'approved' ? 'approve' : 'reject' },
+      {
+        onSuccess: () => setDecisions((prev) => ({ ...prev, [id]: d })),
+        onError: (e) => setActionError((e as Error)?.message ?? '조치 요청 실패'),
+      },
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -93,6 +109,12 @@ export default function Remediation() {
       {!canApprove && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
           현재 <b>viewer</b> — 조치를 승인/거부하려면 approver 권한이 필요합니다. (개발 중엔 헤더 역할 스위처로 전환)
+        </p>
+      )}
+
+      {actionError && (
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          조치 요청 실패: {actionError}
         </p>
       )}
 
@@ -116,7 +138,8 @@ export default function Remediation() {
               f={f}
               canApprove={canApprove}
               decision={decisions[f.finding_id]}
-              onDecide={(id, d) => setDecisions((prev) => ({ ...prev, [id]: d }))}
+              pending={decide.isPending && decide.variables?.id === f.finding_id}
+              onDecide={handleDecide}
             />
           ))}
         </div>

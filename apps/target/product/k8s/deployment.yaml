@@ -18,8 +18,8 @@ spec:
     spec:
       containers:
         - name: product
-          # f1: KEV 취약 이미지(위 Dockerfile로 빌드한 이미지)
-          image: "ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com/cnapp-agentic/product:latest"
+          # f1: KEV 취약 이미지(product/Dockerfile로 빌드, build-images.yml이 push)
+          image: "066107819776.dkr.ecr.ap-northeast-2.amazonaws.com/cnapp-agentic/product:latest"
           ports: [{ containerPort: 8080 }]
           # ── f2 결함: 과도 권한 파드(privileged) ──
           securityContext:

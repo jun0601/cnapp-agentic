@@ -1,7 +1,11 @@
 // 역할(RBAC) 추출 — Entra 그룹 클레임 → viewer/approver (console-app-design §7).
-// ALB(authenticate-cognito)가 검증한 신원을 x-amzn-oidc-data 헤더(JWT)로 전달 →
-// custom:groups 클레임에서 cnapp-approver 그룹이면 approver, 아니면 viewer.
+// 두 인증 경로를 모두 지원한다(어느 쪽이든 custom:groups GUID로 판정):
+//   ① 옵션 B(현행): SPA가 Cognito Hosted UI로 직접 OIDC → ID 토큰을 Authorization: Bearer로 전송.
+//   ② (레거시) ALB authenticate-cognito가 x-amzn-oidc-data 헤더(JWT)로 전달.
 // 조치 승인(POST /remediations)은 approver만(HITL, 거버넌스 §17).
+//
+// ⚠️ 여기선 JWT 서명을 검증하지 않는다(디코드만) — ①은 프론트→백엔드 직결이라 프로덕션이면
+//    Cognito JWKS로 서명·aud·exp 검증이 필요(데모 범위 밖). ②는 ALB가 이미 검증한 신뢰 헤더.
 //
 // ⚠️ 그룹 "이름" 문자열이 아니라 "개체 ID(GUID)"로 매칭한다(2026-07-02 확정):
 // Entra 무료 티어라 SAML 그룹 클레임에서 "애플리케이션에 할당된 그룹"(그룹 이름 내보내기 지원)을
@@ -21,7 +25,10 @@ export function roleFromHeaders(headers: Record<string, string | undefined> = {}
   // 헤더 키는 대소문자 혼용 가능 → 소문자로 정규화
   const lower: Record<string, string> = {}
   for (const [k, v] of Object.entries(headers)) if (v != null) lower[k.toLowerCase()] = v
-  const jwt = lower['x-amzn-oidc-data']
+
+  // ① Authorization: Bearer <id_token> (옵션 B, SPA 직접 OIDC)  ② x-amzn-oidc-data (레거시 ALB)
+  const bearer = lower['authorization']?.replace(/^Bearer\s+/i, '')
+  const jwt = bearer || lower['x-amzn-oidc-data']
   if (!jwt) return 'viewer' // 미인증/로컬 mock → 최소 권한 기본값
   try {
     const parts = jwt.split('.')

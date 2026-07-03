@@ -391,7 +391,31 @@ data "aws_iam_policy_document" "github_assume" {
 resource "aws_iam_role" "github_ci" {
   name               = "${var.project}-github-ci"
   assume_role_policy = data.aws_iam_policy_document.github_assume.json
-  # TODO: CI 최소권한 정책 attach(ECR push·EKS describe·해당 infra apply). 17번 최소권한으로 좁히기
+}
+
+# CI(GitHub Actions OIDC)가 이미지 빌드→ECR push할 때 필요한 최소권한(2026-07-03 배선).
+#   GetAuthorizationToken은 리소스 스코프 불가(계정 전역, AWS 규격) → * / 나머지는 우리 리포지토리로 스코프.
+# EKS 배포는 ArgoCD(gitops)가 pull-sync하므로 CI에 kubectl 권한은 안 준다(pull 기반·키리스 테마 정합).
+data "aws_iam_policy_document" "github_ci" {
+  statement {
+    sid       = "EcrAuthToken"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+  statement {
+    sid = "EcrPushPull"
+    actions = [
+      "ecr:BatchCheckLayerAvailability", "ecr:CompleteLayerUpload", "ecr:InitiateLayerUpload",
+      "ecr:PutImage", "ecr:UploadLayerPart", "ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer",
+    ]
+    resources = [for r in aws_ecr_repository.this : r.arn] # 우리 4개 리포만
+  }
+}
+
+resource "aws_iam_role_policy" "github_ci" {
+  name   = "ecr-push"
+  role   = aws_iam_role.github_ci.id
+  policy = data.aws_iam_policy_document.github_ci.json
 }
 
 

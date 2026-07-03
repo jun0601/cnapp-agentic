@@ -8,9 +8,11 @@ import Remediation from './pages/Remediation'
 import Compliance from './pages/Compliance'
 import Audit from './pages/Audit'
 import Login from './pages/Login'
+import Callback from './pages/Callback'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
+  { path: '/callback', element: <Callback /> }, // OIDC 리다이렉트(옵션 B)
   {
     path: '/',
     element: <App />,

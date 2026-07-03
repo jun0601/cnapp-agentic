@@ -7,10 +7,18 @@
   "main": "dist/handler.js",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "tsc"
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && npm run typecheck && esbuild src/handler.ts --bundle --platform=node --target=node20 --format=cjs --external:@aws-sdk/* --outfile=dist/handler.js"
+  },
+  "//": "build = esbuild 번들(pg를 dist/handler.js에 인라인 → VPC Lambda에서 real pg 경로 동작). @aws-sdk/*는 Node20 Lambda 런타임에 이미 포함되어 external. typecheck 선행으로 타입 게이트 유지.",
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.600.0",
+    "pg": "^8.12.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.0",
+    "esbuild": "^0.23.0",
     "typescript": "^5.5.0"
   }
 }

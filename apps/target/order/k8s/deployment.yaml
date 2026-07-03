@@ -13,7 +13,7 @@ metadata:
   namespace: shop
   annotations:
     # f4: 과도권한 IRSA(infra/target에서 s3:* 등 부여) — 측면이동 발판
-    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/cnapp-agentic-target-order-irsa" # infra/target = ${var.project}-target-order-irsa (project=cnapp-agentic)
+    eks.amazonaws.com/role-arn: "arn:aws:iam::066107819776:role/cnapp-agentic-target-order-irsa" # 단일 계정 확정(D1) — infra/target = ${var.project}-target-order-irsa
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -32,7 +32,7 @@ spec:
       serviceAccountName: order
       containers:
         - name: order
-          image: "ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com/cnapp-agentic/order:latest"
+          image: "066107819776.dkr.ecr.ap-northeast-2.amazonaws.com/cnapp-agentic/order:latest" # order는 upstream retail-store orders fork(Dockerfile 없음) — 실배포 시 upstream 이미지 push 필요
           ports: [{ containerPort: 8080 }]
           env:
             # ── f5 결함: Azure SP 자격증명 평문 노출 (Secrets Manager 미사용) ──

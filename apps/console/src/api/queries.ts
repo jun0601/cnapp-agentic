@@ -1,6 +1,6 @@
 // TanStack Query 훅 — 30~60초 폴링(§6.2)·캐싱·수동 새로고침(invalidate)이 선언적.
-import { useQuery } from '@tanstack/react-query'
-import { apiGet } from './client'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { apiGet, apiPost } from './client'
 import type { Finding, FindingDetail, AttackPath, Scores } from './types'
 import type { AuditEvent, ComplianceReport } from './view-types'
 
@@ -65,5 +65,19 @@ export function useCompliance() {
   return useQuery({
     queryKey: ['compliance'],
     queryFn: () => apiGet<ComplianceReport>('/compliance'),
+  })
+}
+
+// 조치 승인/거부(UC4, HITL) — approver만. 승인 시 백엔드가 remediation SFn StartExecution.
+// 성공하면 findings 캐시를 무효화(승인된 finding은 remediated로 소멸 → 목록 갱신).
+export function useRemediationDecision() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'approve' | 'reject' }) =>
+      apiPost<{ ok: boolean; execution_arn?: string }>(`/remediations/${id}/${action}`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['findings'] })
+      void qc.invalidateQueries({ queryKey: ['audit'] })
+    },
   })
 }

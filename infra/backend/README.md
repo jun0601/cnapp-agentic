@@ -60,14 +60,18 @@ terraform apply backend.tfplan
 - **후행 참조:** `infra/monitoring`은 이 레이어 apply 후에 plan 가능(remote_state).
 - **RDS 스키마:** normalize/correlation/orchestrator는 findings·attack_paths·cases 테이블 필요 → shared apply 후 `psql -f infra/shared/db/schema.sql` 선적용([shared README](../shared/README.md)).
 
-## ⚠️ Lambda 실코드 스왑
-현재 모든 Lambda는 **배포 가능한 스텁**(`index.handler`, 이벤트 로깅). 실 apply/CI에서 각 코드로 교체(swap 포인트 = `archive_file.source`):
-| Lambda | 실코드 handler | 비고 |
-|---|---|---|
-| ingest | `pipeline.ingest.handler.handler` | boto3만 (RDS 불요) |
-| normalize | `pipeline.normalize.handler.handler` | + psycopg2 레이어 |
-| correlation | `attackpath.correlation.handler.handler` | + psycopg2 |
-| orchestrator | `engine.handler.handler` | + psycopg2, `REAL_TOOLS=1`이면 실 Bedrock tool-use |
-| remediation | `engine.remediation.handler` | + psycopg2, 변경 API(dry-run/apply) |
+## Lambda 실코드 배포 (2026-07-03 스텁 스왑 완료)
+모든 Lambda가 **실코드**를 배포한다. 빌드 = **`python infra/backend/build_lambdas.py`**(deploy.ps1이 backend apply/plan 전 자동 실행):
+- `build/src-{pipeline,attackpath,engine}/` = 각 패키지 + `contracts/*.json`을 zip 루트에 나란히 배치 → 코드의 상대경로 해석(`normalizer._CATALOG_PATH` 등)이 무변경으로 동작.
+- `build/layer/python/` = psycopg2-binary(manylinux2014_x86_64·cp312) → Lambda 레이어(RDS 접근 4함수 부착, ingest 제외).
+- zip은 terraform `archive_file`이 생성(소스 해시 일관). `validate`는 archive를 평가 안 해 빌드 없이 통과, `plan/apply`는 빌드 디렉터리 필수.
 
-로직 자체는 `run_e2e.py`·`run_real.py`로 로컬 검증됨 — 이 레이어는 '프로덕션 배관 모양'.
+| Lambda | handler | 레이어 | 비고 |
+|---|---|---|---|
+| ingest | `pipeline.ingest.handler.handler` | — | boto3만 (RDS 불요) |
+| normalize | `pipeline.normalize.handler.handler` | psycopg2 | SQS→정규화→RDS upsert→batch.completed |
+| correlation | `attackpath.correlation.handler.handler` | psycopg2 | R1~R5→attack_paths upsert→2-pass 발행 |
+| orchestrator | `engine.handler.handler` | psycopg2 | `REAL_TOOLS=1`(기본) → 실 Bedrock tool-use |
+| remediation | `engine.remediation.handler` | psycopg2 | 변경 API(dry-run/apply)+Object Lock 감사 |
+
+로직 자체는 `run_e2e.py`·`run_real.py`로 로컬 검증됨(RDS/Bedrock 라이브 관통은 apply 세션). ⚠️ 실 RDS 테이블 필요 → shared apply 후 `psql -f infra/shared/db/schema.sql` 선적용.

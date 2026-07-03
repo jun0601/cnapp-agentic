@@ -39,17 +39,17 @@ export async function handler(event: AlbEvent): Promise<AlbResult> {
     // ── GET ──
     if (method === 'GET') {
       if (path === '/findings') {
-        return json(200, data.getFindings({ cloud: q.cloud, pillar: q.pillar, status: q.status, sort: q.sort }))
+        return json(200, await data.getFindings({ cloud: q.cloud, pillar: q.pillar, status: q.status, sort: q.sort }))
       }
       const fDetail = path.match(/^\/findings\/([^/]+)$/)
       if (fDetail) {
-        const d = data.getFindingDetail(decodeURIComponent(fDetail[1]))
+        const d = await data.getFindingDetail(decodeURIComponent(fDetail[1]))
         return d ? json(200, d) : json(404, { error: 'finding not found' })
       }
-      if (path === '/attack-paths') return json(200, data.getAttackPaths())
+      if (path === '/attack-paths') return json(200, await data.getAttackPaths())
       const pDetail = path.match(/^\/attack-paths\/([^/]+)$/)
       if (pDetail) {
-        const p = data.getAttackPath(decodeURIComponent(pDetail[1]))
+        const p = await data.getAttackPath(decodeURIComponent(pDetail[1]))
         return p ? json(200, p) : json(404, { error: 'attack-path not found' })
       }
       if (path === '/scores') return json(200, data.getScores())

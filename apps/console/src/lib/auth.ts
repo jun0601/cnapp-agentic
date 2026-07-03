@@ -7,6 +7,7 @@
 // 목업/개발 단계: 역할을 런타임 전환 가능하게 한다(진우 제안 = VITE_MOCK_ROLE).
 //   우선순위 = localStorage(헤더 스위처) > VITE_MOCK_ROLE(빌드 env) > 'viewer'(기본).
 import { useSyncExternalStore } from 'react'
+import { oidcConfigured, roleFromToken, isAuthenticated } from './oidc'
 
 export type Role = 'viewer' | 'approver'
 
@@ -22,12 +23,19 @@ function envRole(): Role {
 }
 
 export function getRole(): Role {
-  // TODO(실데이터): 백엔드가 x-amzn-oidc-data(custom:groups)로 판정한 역할을 API로 받아 대체.
+  // 실환경(옵션 B): OIDC ID 토큰의 custom:groups(GUID)로 판정 — 백엔드와 동일 규칙.
+  if (!IS_MOCK && oidcConfigured()) return roleFromToken()
+  // 목업/개발: localStorage(헤더 스위처) > VITE_MOCK_ROLE > viewer.
   if (typeof localStorage !== 'undefined') {
     const stored = localStorage.getItem(KEY)
     if (isRole(stored)) return stored
   }
   return envRole()
+}
+
+/** 로그인 필요 여부 — 실환경에서 토큰 없으면 Login으로 보내기 위함(목업은 항상 통과). */
+export function needsLogin(): boolean {
+  return !IS_MOCK && oidcConfigured() && !isAuthenticated()
 }
 
 export function setRole(r: Role): void {

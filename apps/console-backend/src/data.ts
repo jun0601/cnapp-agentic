@@ -97,8 +97,8 @@ export interface FindingsFilter {
   sort?: string
 }
 
-// ── 공개 API(핸들러가 호출) ──
-export function getFindings(filter: FindingsFilter): Finding[] {
+// ── 공개 API(핸들러가 호출) — DB-backed 4종은 async(real은 pgvector 조회) ──
+export async function getFindings(filter: FindingsFilter): Promise<Finding[]> {
   if (!USE_MOCK) return pgFindings(filter)
   let rows = mockFindings().slice()
   if (filter.cloud) rows = rows.filter((f) => f.cloud === filter.cloud)
@@ -108,7 +108,7 @@ export function getFindings(filter: FindingsFilter): Finding[] {
   return rows
 }
 
-export function getFindingDetail(id: string): FindingDetail | null {
+export async function getFindingDetail(id: string): Promise<FindingDetail | null> {
   if (!USE_MOCK) return pgFindingDetail(id)
   const f = mockFindings().find((x) => x.finding_id === id)
   if (!f) return null
@@ -116,10 +116,10 @@ export function getFindingDetail(id: string): FindingDetail | null {
   return { finding: f, explanation: explanationFor(f, cases), case: caseForFinding(id, cases) }
 }
 
-export function getAttackPaths(): AttackPath[] {
+export async function getAttackPaths(): Promise<AttackPath[]> {
   return USE_MOCK ? mockPaths() : pgAttackPaths()
 }
-export function getAttackPath(id: string): AttackPath | null {
+export async function getAttackPath(id: string): Promise<AttackPath | null> {
   if (!USE_MOCK) return pgAttackPath(id)
   return mockPaths().find((p) => p.attack_path_id === id) ?? null
 }
@@ -191,12 +191,101 @@ export function getCompliance() {
   return { framework: 'ISMS-P (요약 매핑)', generated_at: '2026-06-30T02:20:00Z', score, domains }
 }
 
-// ── 실 pgvector 경로(스텁) — USE_MOCK=false + PG_DSN 후 활성화 ──
-// eslint 무시: 실배포 시 pg 클라이언트로 findings/attack_paths/cases 테이블 조회.
-function pgClientUnavailable(): never {
-  throw new Error('real 모드 미구현 — PG_DSN + pg 클라이언트 배선 후 pgFindings 등 구현(콘솔 §5 스키마)')
+// ── 실 pgvector 경로 — USE_MOCK=false. 스키마=infra/shared/db/schema.sql ──
+// 자격증명: PG_DSN(직접) 또는 DB_HOST+DB_SECRET_ARN(Secrets Manager, VPC Lambda 표준).
+// pg는 지연 require(mock/CI 번들엔 불필요) — 실배포 시 layer/번들에 포함.
+import type { Pool as PgPool } from 'pg'
+
+let _pool: PgPool | null = null
+async function pool(): Promise<PgPool> {
+  if (_pool) return _pool
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { Pool } = require('pg') as typeof import('pg')
+  const dsn = process.env.PG_DSN
+  if (dsn) {
+    _pool = new Pool({ connectionString: dsn, max: 2, ssl: { rejectUnauthorized: false } })
+  } else {
+    // Secrets Manager에서 자격증명 로드(engine/pipeline Lambda와 동일 패턴).
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager')
+    const sm = new SecretsManagerClient({})
+    const sec = JSON.parse(
+      (await sm.send(new GetSecretValueCommand({ SecretId: process.env.DB_SECRET_ARN }))).SecretString,
+    ) as { username: string; password: string; dbname?: string }
+    _pool = new Pool({
+      host: process.env.DB_HOST, port: 5432, database: sec.dbname ?? 'cnapp',
+      user: sec.username, password: sec.password, max: 2, ssl: { rejectUnauthorized: false },
+    })
+  }
+  return _pool
 }
-function pgFindings(_f: FindingsFilter): Finding[] { return pgClientUnavailable() }
-function pgFindingDetail(_id: string): FindingDetail | null { return pgClientUnavailable() }
-function pgAttackPaths(): AttackPath[] { return pgClientUnavailable() }
-function pgAttackPath(_id: string): AttackPath | null { return pgClientUnavailable() }
+
+const F_COLS =
+  'finding_id, cloud, resource_id, resource_type, pillar, control_id, title, severity_id, status, priority_score, attack_path_id, ai_status'
+
+async function pgFindings(f: FindingsFilter): Promise<Finding[]> {
+  const where: string[] = []
+  const args: unknown[] = []
+  for (const [col, val] of [['cloud', f.cloud], ['pillar', f.pillar], ['status', f.status]] as const) {
+    if (val) { args.push(val); where.push(`${col} = $${args.length}`) }
+  }
+  const order = f.sort === 'severity' ? 'severity_id ASC' : 'priority_score DESC NULLS LAST'
+  const sql = `SELECT ${F_COLS} FROM findings ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${order}`
+  return (await (await pool()).query(sql, args)).rows as Finding[]
+}
+
+async function pgFindingDetail(id: string): Promise<FindingDetail | null> {
+  const p = await pool()
+  const fr = await p.query(`SELECT ${F_COLS} FROM findings WHERE finding_id = $1`, [id])
+  if (fr.rowCount === 0) return null
+  const finding = fr.rows[0] as Finding
+  // finding_explanations 조인(계약: ai_summary·confidence_score·case_id). ai_status≠done이면 빈 설명.
+  const er = await p.query(
+    'SELECT ai_summary, confidence_score, rag_refs, case_id, ai_status FROM finding_explanations WHERE finding_id = $1',
+    [id],
+  )
+  const e = er.rows[0] as
+    | { ai_summary: string; confidence_score: number | null; case_id: string | null; ai_status: string }
+    | undefined
+  let caseObj: Case | null = null
+  if (e?.case_id) {
+    const cr = await p.query('SELECT case_id, finding_ids, reasoning, evidence FROM cases WHERE case_id = $1', [e.case_id])
+    const row = cr.rows[0] as { case_id: string; finding_ids: string[]; reasoning: unknown; evidence: unknown } | undefined
+    if (row) {
+      caseObj = {
+        case_id: row.case_id,
+        finding: { finding_ids: row.finding_ids },
+        reasoning: (row.reasoning as { narrative?: string }) ?? undefined,
+        evidence: (row.evidence as unknown[]) ?? [],
+      }
+    }
+  }
+  const explanation: FindingExplanation =
+    e && e.ai_status === 'done'
+      ? {
+          finding_id: id,
+          summary: e.ai_summary,
+          why: caseObj?.reasoning?.narrative ?? e.ai_summary,
+          how: '조치 카탈로그(§14) 참조 — 승인 경로(HITL)로만 적용.',
+          ai_status: 'done',
+          case_id: e.case_id,
+        }
+      : { finding_id: id, summary: '', why: '', how: '', ai_status: e?.ai_status ?? finding.ai_status, case_id: e?.case_id ?? null }
+  return { finding, explanation, case: caseObj }
+}
+
+async function pgAttackPaths(): Promise<AttackPath[]> {
+  return (
+    await (await pool()).query(
+      'SELECT attack_path_id, severity_id, nodes, edges, narrative_text FROM attack_paths ORDER BY severity_id ASC',
+    )
+  ).rows as AttackPath[]
+}
+
+async function pgAttackPath(id: string): Promise<AttackPath | null> {
+  const r = await (await pool()).query(
+    'SELECT attack_path_id, severity_id, nodes, edges, narrative_text FROM attack_paths WHERE attack_path_id = $1',
+    [id],
+  )
+  return (r.rows[0] as AttackPath) ?? null
+}

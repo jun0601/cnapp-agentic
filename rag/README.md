@@ -226,7 +226,7 @@ contracts/rag-chunk.schema.json
 **전제조건(실배포 전):**
 1. `PG_DSN` 환경변수 — RDS pgvector DSN
 2. `CorpusLoader(mock=False).load(mock_corpus.all_chunks(), dry_run=False)` 1회 실행 — Titan Embed v2로 24개 청크 벡터화 후 pgvector INSERT
-3. Bedrock 모델 액세스 활성화 (서울 리전, Claude Sonnet inference profile ID 확정)
+3. Bedrock 모델 액세스 활성화 (서울 리전) — Sonnet inference profile ID **확정됨**: `global.anthropic.claude-sonnet-4-5-20250929-v1:0`(2026-07-03 `aws bedrock list-inference-profiles` 확인, answer_gen.py 반영). 기존 bare name은 404였음.
 
 **적재·검색 로직(loader.py·retriever.py·answer_gen.py)은 무변** — 생성자 인자(`mock=False`)만 바꾸면 실배포 전환 완료.
 
