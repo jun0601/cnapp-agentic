@@ -145,7 +145,7 @@ Bedrock native `InputTokenCount`·`OutputTokenCount`(모델별)에 단가를 곱
 
 **기술적으로 강제는 아니다.** `helm install kube-prometheus-stack ...`을 ArgoCD 없이 수동으로 실행해도 Prometheus/Grafana 자체는 뜬다. 하지만:
 
-- 이 프로젝트는 이미 **"K8s에 올라가는 건 전부 GitOps(ArgoCD pull-sync)"** 원칙을 `gitops/argocd/app-target.yaml`(타깃 앱)·`gitops/autoscaling/`(Karpenter·HPA)로 확립해 놓았다. 모니터링만 예외로 수동 설치하면 self-heal·드리프트 교정 스토리(project-draft §19)가 이 레이어만 깨지고, 포폴 일관성도 떨어진다.
+- 이 프로젝트는 이미 **"K8s에 올라가는 건 전부 GitOps(ArgoCD pull-sync)"** 원칙을 `gitops/argocd/app-target.yaml`(타깃 앱)·`gitops/autoscaling/hpa.yaml`(파드층 HPA)로 확립해 놓았다(노드층 Karpenter는 IAM과 한 몸이라 예외적으로 `infra/karpenter` terraform 소유 — 2026-07-03 분리). 모니터링만 예외로 수동 설치하면 self-heal·드리프트 교정 스토리(project-draft §19)가 이 레이어만 깨지고, 포폴 일관성도 떨어진다.
 - 지금 `infra/monitoring/variables.tf`·`main.tf` 주석이 이미 `gitops/monitoring/values.yaml`의 존재를 전제로 Grafana SA 이름(`kube-prometheus-stack-grafana`)·네임스페이스(`monitoring`)를 하드코딩해놨다 — 즉 **설계가 이미 gitops 경로를 전제로 되어 있어서**, 지금 와서 수동 설치로 바꾸면 이 레이어의 IRSA 코드도 다시 손봐야 한다.
 
 **결론: 기술적 필수는 아니지만, 지금 설계·프로젝트 원칙을 유지하려면 사실상 추가하는 게 맞다.** 최소 2개 파일 제안(기존 `gitops/argocd/app-target.yaml` 패턴과 동일):

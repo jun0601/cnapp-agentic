@@ -122,13 +122,14 @@ cnapp-agentic/
 ├── attackpath/               ✅ finding→그래프 상관 동작 (골든 정합 OK)
 │   ├── model/                (준형) 그래프 데이터 모델·불변식 검증 ✅
 │   └── correlation/          (진우) R1~R5 상관·2-pass backfill ✅
-└── infra/                    Terraform (레이어드) — shared 먼저 → 영역별. 전 레이어 validate·plan 통과
+└── infra/                    Terraform (레이어드) — shared 먼저 → 영역별. 전 6레이어 validate 통과
     ├── README.md             ✅ 인프라 루트 개요(레이어링·apply 규율·preflight 체크리스트·비용)
-    ├── shared/               ✅ VPC·NAT·EKS·ECR·RDS pgvector·OIDC·IAM + db/schema.sql(pgvector 6테이블)
+    ├── deploy.ps1            ✅ ★레이어 순서 강제 실행기(apply 정방향·destroy 역방향·실패 시 중단, ASCII 전용)
+    ├── shared/               ✅ VPC·NAT·EKS·ECR·RDS pgvector·OIDC·IAM + db/schema.sql(pgvector 6테이블) + Karpenter discovery 태그
+    ├── karpenter/            ✅ 동적 노드 오토스케일러(컨트롤러 helm·IRSA·spot SQS·NodePool·EC2NodeClass) — 2026-07-03 shared에서 분리
     ├── target/               ✅ 취약 워크로드 + 의도적 결함 IaC(f3·f4·f6 var.enable_* 토글)
     ├── console/              ✅ S3+CloudFront·ALB(authenticate-cognito)→Lambda·Cognito SSO(count 가드)
-    ├── pipeline/             ✅ EventBridge→SQS→ingest/normalize Lambda
-    ├── engine/               ✅ 상관·오케스트레이터 Lambda·Bedrock IAM·조치 SFn + remediation 실행기·감사 Object Lock
+    ├── backend/              ✅ 수집·정규화+상관·오케스트레이터 Lambda(2-pass)·Bedrock IAM·조치 SFn + remediation 실행기·감사 Object Lock (구 pipeline+engine 병합)
     ├── monitoring/           ✅ 운영 관측(진우) — Grafana IRSA·CloudWatch 대시보드 24위젯·CloudTrail 연동·Teams 알림
     ├── slice/                ✅ 엔진 실 tool-use 최소비용 검증 픽스처(Phase1 — 레이어 아님)
     └── {scanners,rag,attackpath} ⬜ 영역별 terraform(미구현 — 데모 핵심 경로 밖)
@@ -152,7 +153,7 @@ cnapp-agentic/
 | 영역 | 준형 | 준형 진행(목업) | 진우 | 진우 진행(목업) | 🚀 실(real) 전환 |
 |---|---|---|---|---|---|
 | 🖥️ **앱 & 환경 세팅** | 타깃 앱 · 관제 앱 **2개 개발** | ✅ 목업 동작(콘솔 8화면 · 타깃 member+포털) | **AWS/Azure 환경**(M365·Entra 데모 테넌트·계정 초기) | 🔄 AWS 계정 ✅ / Azure 테넌트 진행중 | ⬜ apply 시 배포(Phase2~) · Azure 테넌트·AWS 계정은 실물 ✅ |
-| 🏗️ **공유 인프라 · 토대** | `infra/` 6층(shared·target·console·pipeline·engine·monitoring) · CI/CD · Shift-Left | 🔨 코드 완성·`validate` 통과(apply 전) | 모니터링·운영관제(Grafana·CloudTrail) | ✅ 코드 완성(`infra/monitoring`, 대시보드 24위젯·CloudTrail 연동·Teams 알림) | ⬜ apply 전(TF state 버킷만 실물 ✅) |
+| 🏗️ **공유 인프라 · 토대** | `infra/` 6층(shared·karpenter·target·console·backend·monitoring) + `deploy.ps1` 순서강제 · CI/CD · Shift-Left | ✅ **라이브 풀사이클 실검증**(apply 207→검증→destroy 208·$0, 2026-07-03) | 모니터링·운영관제(Grafana·CloudTrail) | ✅ 코드 완성(`infra/monitoring`, 대시보드 24위젯·CloudTrail 연동·Teams 알림) | ✅ **Karpenter 수명주기 실증**(스팟 프로비저닝 ~30초·consolidation) — 남은 실전환=데모 시나리오(스캐너 실 finding·SSO 라이브·gitops 부트스트랩) |
 | 🔍 **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ✅ 목업 동작(`scanners/cspm`, 골든 5종) | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM(`scanners/ciem`) | ✅ Trivy·kube-bench(f2·f13 골든) ✅ · Entra CIEM ✅(f8·f9·f16·f17 골든) · Inspector는 별도 코드 불필요(scan_securityhub 경유) · Defender만 남음(데모 때만) | ⬜ Phase2 첫 실스캐너(scan_securityhub/scan_prowler 실계정) → Phase3 확장 |
 | 📥 **수집 · 정규화** | 수집부 (EventBridge→SQS) | ✅ 목업 동작(`pipeline/ingest`) | 정규화부 (Lambda→OCSF) | ✅ 목업 동작(`pipeline/normalize`) | ⬜ Phase2(Lambda 배포 + 실 finding) |
 | 📚 **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ✅ 목업 동작(`rag/corpus`, 계약⑥ 24청크) | 검색 · LLM 답변 생성 | ✅ 목업 동작(`rag/retrieval`) | ⬜ Phase3(pgvector 적재 + Bedrock 임베딩) |

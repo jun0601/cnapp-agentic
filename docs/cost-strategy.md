@@ -109,7 +109,7 @@
 - **파드층 = HPA** — replica를 CPU 부하로 조절(metrics-server 필요).
 - **노드층 = Karpenter**(Cluster Autoscaler 대체) — spot 우선 + 인스턴스 유연 + **consolidation(저활용 노드 자동 정리)**로 유휴 비용 제거. 노드그룹 사전정의 불필요.
 
-**⚠️ 정직한 핵심(과장 금지):** 데모 규모(파드 소수)에선 **노드 오토스케일러 선택이 실비를 크게 좌우하지 않는다.** 진짜 비용 1위는 **EKS control plane $0.10/h 고정**(노드 수 무관)이라 **destroy만이 답**이다. 그래서 Karpenter를 고른 이유는 *실 절감보다* **모던 아키텍처 + 포폴 신호(FinOps 역량)**이고, 실제 절감은 **(a) 안 쓸 때 destroy (b) spot** 이 지배적. 선언형 코드는 [`gitops/`](../gitops/)에.
+**⚠️ 정직한 핵심(과장 금지):** 데모 규모(파드 소수)에선 **노드 오토스케일러 선택이 실비를 크게 좌우하지 않는다.** 진짜 비용 1위는 **EKS control plane $0.10/h 고정**(노드 수 무관)이라 **destroy만이 답**이다. 그래서 Karpenter를 고른 이유는 *실 절감보다* **모던 아키텍처 + 포폴 신호(FinOps 역량)**이고, 실제 절감은 **(a) 안 쓸 때 destroy (b) spot** 이 지배적. 선언형 코드: 노드층 Karpenter = [`infra/karpenter`](../infra/karpenter/)(terraform, IAM과 한 몸), 파드층 HPA = [`gitops/`](../gitops/).
 
 ---
 

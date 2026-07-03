@@ -281,6 +281,10 @@ resource "aws_security_group" "backend_lambda" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  # VPC Lambda의 Hyperplane ENI가 함수 삭제 후에도 10~20분 SG를 붙잡을 수 있음(backend 레이어와
+  # 동일 함정, infra/backend/main.tf 참고). 원샷 destroy 되도록 delete 대기 연장.
+  timeouts { delete = "40m" }
 }
 
 data "aws_iam_policy_document" "lambda_assume" {

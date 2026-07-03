@@ -104,6 +104,11 @@ resource "aws_security_group" "lambda" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  # destroy 시 Lambda Hyperplane ENI가 함수 삭제 후에도 10~20분 SG를 붙잡음(AWS 플랫폼 동작,
+  # 2026-07-03 라이브 destroy 실측: normalize ENI 2개가 in-use 유지). 기본 delete timeout 15분이면
+  # 한 번 실패 후 재실행이 필요해져서, 원샷 destroy 되도록 대기를 늘림.
+  timeouts { delete = "40m" }
 }
 
 # 상관/오케스트레이터/조치 역할 공통 베이스(로그 + RDS secret + PutEvents)

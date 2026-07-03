@@ -298,14 +298,15 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 **terraform = 레이어드.** `infra/`에서만 apply하고, 컴포넌트 폴더(scanners·pipeline·engine·rag·attackpath·apps)는 **코드만**(CI가 배포). 쪼개기 단위는 **영역까지만**(영역 안 반반까지 또 terraform 만들지 않음 — 한 영역 = state 1개, 두 사람이 그 파일만 공유).
 
 ```
-1) 기반 먼저:  infra/shared   (VPC·EKS·OIDC·RDS pgvector·Bedrock·ECR + db/schema.sql[pgvector 6테이블])  → 준형, 최초 apply, 모두가 의존
+1) 기반 먼저:  infra/shared   (VPC·EKS·OIDC·RDS pgvector·Bedrock·ECR + db/schema.sql[pgvector 6테이블] + Karpenter discovery 태그)  → 준형, 최초 apply, 모두가 의존
 2) 그 위 영역별 terraform (영역 주인이 apply, 의존성 순서대로):
+     infra/karpenter  준형   동적 노드 오토스케일러(컨트롤러 helm·IRSA·spot SQS·NodePool·EC2NodeClass) — shared 직후, 라이브 EKS 필요  ✅ 코드 (2026-07-03 shared에서 분리)
      infra/target     준형   취약 워크로드+의도적 결함 (휘발성 — 토글하며 apply/destroy 잦음, 격리)  ✅ 코드
      infra/console    준형   ALB(authenticate-cognito)·Cognito SAML·console Lambda·CloudFront (ACM 없으면 HTTP로 apply·count 가드)  ✅ 코드
      infra/scanners   각 주인  스캔 IAM 역할·서비스 활성화(Config/SecurityHub/Inspector…)  (미구현)
      infra/backend    각 주인  수집·정규화(SQS·ingest/normalize) + 상관·오케스트레이터 Lambda(2-pass) + 조치 SFn·감사 S3 Object Lock  ✅ 코드 (구 pipeline+engine 병합 2026-07-03)
-     infra/monitoring 진우    Grafana IRSA·대시보드17·CloudTrail→Logs 배관·Teams 알림  ✅ 코드 (shared+backend+console 다음, 마지막)
-   ※ 배포 코드 상세·apply 규율은 infra/README.md, 실코드 스왑(핸들러)은 각 컴포넌트 handler.py / engine/remediation.py
+     infra/monitoring 진우    Grafana IRSA·대시보드24·CloudTrail→Logs 배관·Teams 알림  ✅ 코드 (shared+backend+console 다음, 마지막)
+   ※ apply/destroy 순서는 infra/deploy.ps1이 강제(정방향 apply·역방향 destroy·실패 시 중단). 배포 코드 상세·규율은 infra/README.md, 실코드 스왑(핸들러)은 각 컴포넌트 handler.py / engine/remediation.py
 
   (별도) infra/slice  준형   ★아키텍처 레이어 아님 = 엔진 실 tool-use 최소비용(<$1) 검증용 '일회용 픽스처'
                             (공개 S3 1개 + 가짜 PII 1개, EKS/RDS 무관 독립 스택). Phase1 실검증에 사용.
@@ -321,7 +322,8 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 | 폴더 | 쪼개기(준형/진우) | terraform | 비고 |
 |---|---|---|---|
 | `contracts/` | **안 쪼갬 — 공유** | ❌ | 모든 이음새 계약(4.4)의 단일 진실. 확정 후 거의 고정 |
-| `infra/shared` | 준형 | ✅ 기반 | 최초 apply, 전 영역 의존 |
+| `infra/shared` | 준형 | ✅ 기반 | 최초 apply, 전 영역 의존. Karpenter는 태그만(실체는 별 레이어) |
+| `infra/karpenter` | 준형 | ✅ | 노드 오토스케일러(helm·CRD). shared 직후 apply, 라이브 EKS 필요(2026-07-03 분리) |
 | `infra/target` | 준형 | ✅ | 휘발성·격리 |
 | `infra/console` | 준형 | ✅ | 준형 apply(콘솔 앱 소유). SSO는 진우 Entra App Reg(manual-infra §3) 연동 |
 | `infra/backend` | 각 주인 | ✅ | 수집·정규화+상관·오케스트레이터+조치 SFn·감사 (구 pipeline+engine 병합 2026-07-03) |

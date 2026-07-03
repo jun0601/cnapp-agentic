@@ -102,9 +102,4 @@ variable "cluster_admin_principal_arns" {
   default     = ["arn:aws:iam::066107819776:user/jw_kim"]
 }
 
-# --- Karpenter(karpenter.tf) ---
-variable "karpenter_chart_version" {
-  description = "Karpenter helm 차트(=앱) 버전. Karpenter 1.x. ⚠️ apply 전 최신 안정 1.x 확인(잘못되면 helm이 차트 못 찾아 실패). oci://public.ecr.aws/karpenter/karpenter."
-  type        = string
-  default     = "1.1.1"
-}
+# Karpenter 변수(karpenter_chart_version 등)는 shared에서 제거됨 → infra/karpenter/variables.tf 소유(2026-07-03 레이어 분리).

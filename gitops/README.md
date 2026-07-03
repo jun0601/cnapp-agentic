@@ -27,11 +27,11 @@
 
 ## 오토스케일링 (2층) — 비용 최적화 근거
 
-- **파드층 = HPA** (`autoscaling/hpa.yaml`): replica 수를 CPU 부하로 조절. metrics-server 필요.
-- **노드층 = Karpenter** (`autoscaling/karpenter.yaml`, Cluster Autoscaler 대체):
-  - **spot 우선** + 인스턴스 타입 유연 → 가장 싼 조합 자동 선택(~70% 할인).
-  - **consolidation** → 놀거나 저활용된 노드를 자동 정리·교체(CAS엔 없는 절감 레버).
-  - 작은 인스턴스부터, `limits.cpu`로 폭주 상한(비용 가드).
+- **파드층 = HPA** (`autoscaling/hpa.yaml`): replica 수를 CPU 부하로 조절. metrics-server 필요. → 이 층만 gitops(kubectl/ArgoCD)로 적용.
+- **노드층 = Karpenter** (Cluster Autoscaler 대체): **컨트롤러(helm) + NodePool + EC2NodeClass 전부 `infra/karpenter` terraform 레이어가 소유**(2026-07-03 이전). 왜 gitops가 아니라 terraform?
+  - Karpenter는 컨트롤러 helm 릴리스 + IAM(IRSA·노드역할·spot 중단 SQS)가 한 몸이라, IAM을 terraform이 만들면서 CRD를 kubectl로 따로 적용하면 소스가 갈린다 → terraform `kubectl_manifest`로 한 레이어에 묶어 apply/destroy 수명주기를 통일.
+  - **spot 우선** + `consolidation`(유휴 노드 자동 정리, CAS엔 없는 절감) + `limits.cpu` 상한. ⚠️ 프리티어 계정이라 NodePool을 **t3.small/t3.micro 스팟**으로 제한(그 밖 타입은 RunInstances 거부).
+  - 상세·근거 = [`infra/karpenter/main.tf`](../infra/karpenter/main.tf) 헤더 + [infra/README §2](../infra/README.md).
 - **정직한 핵심:** 데모 규모(파드 소수)에선 노드 오토스케일러 선택이 실비를 크게 좌우하지 않는다.
   진짜 비용 1위 = **EKS control plane ~$0.10/h 고정**(노드 수 무관) → **destroy만이 답**.
   즉 Karpenter를 고른 이유는 *실 절감보다* **모던 아키텍처 + 포폴 신호**이고,
@@ -40,17 +40,18 @@
 ## 부트스트랩 순서 (EKS 살아있을 때)
 
 ```
-0. infra/shared apply — EKS + Karpenter 컨트롤러(helm)+IRSA + spot 중단 SQS,
-   subnet/SG에 karpenter.sh/discovery=cnapp-eks 태그, 작은 시스템 노드그룹(Karpenter/컨트롤러용)
+0. infra/shared apply — EKS + 작은 관리형 노드그룹(시스템·컨트롤러 파드용) + subnet/SG에
+                        karpenter.sh/discovery=cnapp-agentic-shared 태그
+0.5 infra/karpenter apply — Karpenter 컨트롤러(helm)+IRSA + spot 중단 SQS + NodePool·EC2NodeClass
+   (= './infra/deploy.ps1 -Action apply -Layer karpenter'. NodePool/EC2NodeClass는 여기서 kubectl_manifest로 적용 → gitops 불필요)
 1. ArgoCD 설치:   kubectl create namespace argocd
                   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-2. 오토스케일링:  kubectl apply -f gitops/autoscaling/karpenter.yaml   # NodePool·EC2NodeClass
-                  kubectl apply -f gitops/autoscaling/hpa.yaml         # (metrics-server 먼저)
+2. 파드 오토스케일: kubectl apply -f gitops/autoscaling/hpa.yaml         # (metrics-server 먼저) — 노드층 Karpenter는 0.5에서 이미 적용됨
 3. 앱 CD:        kubectl apply -f gitops/argocd/app-target.yaml       # ArgoCD가 apps/target sync
    (product 이미지는 ECR push + ACCOUNT_ID 치환 후 정상 배포)
 4. 관측 CD:      kubectl apply -f gitops/argocd/app-monitoring.yaml   # ArgoCD가 kube-prometheus-stack 배포
    (전제: infra/monitoring apply 완료 — Grafana IRSA 역할이 values 파일에 이미 반영돼 있음)
-5. 테스트/데모 후: ArgoCD App 삭제 → infra destroy (비용 규율)
+5. 테스트/데모 후: ArgoCD App 삭제 → infra destroy (비용 규율, './infra/deploy.ps1 -Action destroy')
 ```
 
 ## 폴더
@@ -64,8 +65,7 @@ gitops/
 ├── monitoring/
 │   └── kube-prometheus-stack-values.yaml   Grafana IRSA(CloudWatch 추가 데이터소스)+리소스 축소 오버라이드
 └── autoscaling/
-    ├── karpenter.yaml            NodePool + EC2NodeClass (spot·consolidation·상한)
-    └── hpa.yaml                  member·product HPA (파드층)
+    └── hpa.yaml                  member·product HPA (파드층). ※ 노드층 Karpenter(NodePool·EC2NodeClass)는 infra/karpenter terraform 레이어로 이관됨(2026-07-03)
 ```
 
 **app-monitoring.yaml은 app-target.yaml과 소스 구조가 다르다** — app-target은 "이 레포 = 원본 K8s 매니페스트"이지만, app-monitoring은 "이 레포 = Helm values만, 차트 본체는 공식 `prometheus-community` 리포"인 **멀티소스 Application**(ArgoCD 2.6+ 기능, `$values` 참조로 두 소스를 묶음). `grafana_irsa_role_arn`(IAM 역할 이름이 고정값이라 apply→destroy를 반복해도 안 바뀜, `infra/monitoring/README.md` §참고)이 values 파일에 이미 하드코딩돼 있어 재apply 때마다 값을 다시 쓸 필요가 없다.

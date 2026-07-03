@@ -16,11 +16,12 @@ terraform {
   required_version = ">= 1.10" # S3 네이티브 락(use_lockfile) 지원
 
   required_providers {
-    aws     = { source = "hashicorp/aws", version = "~> 5.95" } # NAT은 raw 리소스(모듈 충돌 회피)
-    random  = { source = "hashicorp/random", version = "~> 3.6" }
-    tls     = { source = "hashicorp/tls", version = "~> 4.0" }
-    helm    = { source = "hashicorp/helm", version = "~> 2.12" }      # Karpenter 컨트롤러 설치(karpenter.tf)
-    kubectl = { source = "gavinbunney/kubectl", version = "~> 1.14" } # Karpenter CRD(NodePool·EC2NodeClass) 적용
+    aws    = { source = "hashicorp/aws", version = "~> 5.95" } # NAT은 raw 리소스(모듈 충돌 회피)
+    random = { source = "hashicorp/random", version = "~> 3.6" }
+    tls    = { source = "hashicorp/tls", version = "~> 4.0" }
+    # ⚠️ helm·kubectl provider는 여기 없음 — shared는 '순수 AWS 폴대'로 유지(라이브 클러스터 비의존).
+    #    Karpenter(컨트롤러 helm + NodePool CRD)는 infra/karpenter 레이어가 별도로 소유(2026-07-03 분리).
+    #    shared는 Karpenter가 노드를 띄울 서브넷·SG에 `karpenter.sh/discovery` 태그만 부착한다(아래 VPC·EKS).
   }
 
   backend "s3" {
@@ -52,6 +53,12 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
+locals {
+  # EKS 클러스터명 = Karpenter discovery 태그 값. 한 곳에서 정의해 세 참조(cluster_name·서브넷태그·
+  # 노드SG태그)가 항상 일치하도록 함 — 어긋나면 infra/karpenter가 서브넷/SG를 못 찾아 조용히 0대 프로비저닝.
+  cluster_name = "${var.project}-shared"
+}
+
 
 # =============================================================================
 # [VPC] 2 AZ · NAT Gateway 끔(비용, 22번) · S3·DynamoDB Gateway Endpoint(무료)
@@ -73,8 +80,8 @@ module "vpc" {
 
   public_subnet_tags = { "kubernetes.io/role/elb" = 1 } # EKS LB 디스커버리
   private_subnet_tags = {
-    "kubernetes.io/role/internal-elb" = 1                       # EKS 내부 LB
-    "karpenter.sh/discovery"          = "${var.project}-shared" # Karpenter가 노드 띄울 서브넷 발견(karpenter.tf)
+    "kubernetes.io/role/internal-elb" = 1                  # EKS 내부 LB
+    "karpenter.sh/discovery"          = local.cluster_name # Karpenter가 노드 띄울 서브넷 발견(infra/karpenter가 이 태그로 조회)
   }
 }
 
@@ -133,6 +140,12 @@ resource "aws_security_group" "nat" {
 }
 
 resource "aws_instance" "nat" {
+  # destroy 레이스 방지(2026-07-03 라이브 실측): IGW detach가 NAT의 public IP 매핑 해제와 경합해
+  # "has some mapped public address(es)" DependencyViolation으로 실패할 수 있음. module.vpc 전체(IGW 포함)에
+  # 의존을 걸면 destroy 역순에서 NAT 인스턴스가 IGW보다 '항상 먼저' 완전히 삭제돼 경합이 사라진다.
+  # (생성 순서엔 무해 — NAT는 어차피 VPC 서브넷 필요.)
+  depends_on = [module.vpc]
+
   ami                         = data.aws_ami.fck_nat.id
   instance_type               = "t4g.micro" # 프리티어 적격 타입만 허용되는 계정 제약 — t4g.nano는 부적격이라 RunInstances 거부됨(2026-07-03 apply 교훈). t4g.micro=적격·무료·동일 ARM.
   subnet_id                   = module.vpc.public_subnets[0]
@@ -173,7 +186,7 @@ module "eks" {
   # 클러스터 조인에 실패하는 레이스 방지(2026-07-03 apply 교훈: NAT 실패→노드그룹 CREATE_FAILED)
   depends_on = [aws_route.private_nat]
 
-  cluster_name    = "${var.project}-shared"
+  cluster_name    = local.cluster_name
   cluster_version = var.eks_version
 
   vpc_id     = module.vpc.vpc_id
@@ -182,8 +195,8 @@ module "eks" {
   cluster_endpoint_public_access = true # 데모 편의. TODO: IP allowlist 또는 private 전환
   enable_irsa                    = true # 파드 키리스(D5)
 
-  # Karpenter가 노드에 붙일 SG를 태그로 발견(karpenter.tf의 EC2NodeClass securityGroupSelectorTerms)
-  node_security_group_tags = { "karpenter.sh/discovery" = "${var.project}-shared" }
+  # Karpenter가 노드에 붙일 SG를 태그로 발견(infra/karpenter의 EC2NodeClass securityGroupSelectorTerms)
+  node_security_group_tags = { "karpenter.sh/discovery" = local.cluster_name }
 
   authentication_mode                      = "API_AND_CONFIG_MAP"
   enable_cluster_creator_admin_permissions = true
