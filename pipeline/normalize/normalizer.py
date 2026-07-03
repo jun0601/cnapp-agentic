@@ -309,6 +309,49 @@ def _parse_trivy(raw: dict, cloud_hint: str) -> List[dict]:
     return findings
 
 
+# ── kube-bench 파서 (KSPM, custom 포맷) ────────────────────────────────
+# kube-bench는 노드/클러스터 스코프 도구라 원생 출력엔 파드 귀속 정보가 없다
+# — 스캐너(scanners/workload/kube_bench.py KubeBenchScanner._build_envelope)가
+# raw_inline에 얹어준 target_resource로 resource_id를 만든다(모델링 단순화,
+# 그 파일 모듈 docstring 참고). kube-bench는 severity를 안 내놓음(CIS
+# 벤치마크는 pass/fail + scored만) — control-catalog의 severity_default를 쓴다.
+def _parse_kube_bench(raw: dict, cloud_hint: str) -> List[dict]:
+    """kube-bench CIS 벤치마크 JSON(Controls[].controls.tests[].results[]) → finding 목록."""
+    target = raw.get("target_resource", "unknown")
+    rid = f"aws:eks_pod:{target}"
+    ts = raw.get("timestamp") or _now()
+
+    findings: List[dict] = []
+    for group in raw.get("Controls", []):
+        controls = group.get("controls", group)
+        for test in controls.get("tests", []):
+            for result in test.get("results", []):
+                test_number = result.get("test_number", "")
+                source_key = f"kube-bench:{test_number}"
+                control_id = lookup_control(source_key) or "INTERNAL-UNKNOWN-001"
+                catalog_meta = _CATALOG.get("controls", {}).get(control_id, {})
+                severity_id = catalog_meta.get("severity_default", 3)
+
+                status_raw = str(result.get("status", "FAIL")).upper()
+                status = "open" if status_raw == "FAIL" else "remediated"
+                dedup = f"{rid}|{control_id}"
+
+                findings.append(_make_finding(
+                    cloud=cloud_hint,
+                    resource_id=rid,
+                    resource_type="eks_pod",
+                    control_id=control_id,
+                    title=f"{result.get('test_desc', test_number)} ({target})",
+                    severity_id=severity_id,
+                    status=status,
+                    source_key=source_key,
+                    dedup_key=dedup,
+                    first_seen=ts,
+                    last_seen=ts,
+                ))
+    return findings
+
+
 # ── finding 조립 헬퍼 ─────────────────────────────────────────────────
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -411,8 +454,10 @@ class Normalizer:
             return _parse_ocsf(raw, cloud_hint)
         if fmt == "trivy-json":
             return _parse_trivy(raw, cloud_hint)
-        # custom(manifest scan 등)은 이미 정규화된 finding dict로 간주
         if fmt == "custom":
+            if source == "kube-bench":
+                return _parse_kube_bench(raw, cloud_hint)
+            # 그 외 custom(manifest scan 등)은 이미 정규화된 finding dict로 간주
             if "finding_id" in raw:
                 return [raw]
         return []

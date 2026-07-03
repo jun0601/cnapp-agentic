@@ -38,15 +38,20 @@ scanners/
 ├── cspm/                   (준형 — 설정·데이터·AWS 권한 — 완료 ✅)
 │   ├── cspm.py    ★ CSPMScanner — Security Hub·Macie(ASFF) + Prowler(AWS/Azure CLI 공용) → 계약⑤ envelope
 │   └── run_demo.py   데모 + 골든 정합 검증
-├── workload/               (진우 — 워크로드 취약점 — 완료 ✅)
-│   ├── trivy.py   ★ TrivyScanner — 컨테이너 이미지 CVE 스캔
-│   └── run_demo.py   데모 + 골든 정합 검증
+├── workload/               (진우 — 워크로드 취약점·KSPM — 완료 ✅)
+│   ├── trivy.py       ★ TrivyScanner — 컨테이너 이미지 CVE 스캔
+│   ├── kube_bench.py  ★ KubeBenchScanner — CIS Kubernetes 벤치마크(KSPM) → 계약⑤ envelope
+│   └── run_demo.py    데모 + 골든 정합 검증(Trivy·kube-bench 둘 다)
 └── ciem/                   (진우 — 신원·권한 — 완료 ✅)
     ├── entra.py      ★ EntraCIEMScanner — Prowler entra_id_* 결과 → 계약⑤ envelope
     └── run_demo.py   데모 + 골든 정합 검증 (f8·f9·f16·f17 4종)
 ```
 
-> **미착수:** Inspector·kube-bench — infra apply 후 구현 예정.
+> **Inspector:** 별도 스캐너 코드 불필요 — Inspector finding은 Security Hub API로 올라와서
+> `scanners/cspm/cspm.py`의 `CSPMScanner.scan_securityhub()`(ASFF 공통 파서)가 이미 커버함
+> (2026-07-03 확인). 남은 건 AWS 계정에서 Inspector 서비스를 켜는 것뿐(순수 infra 항목).
+> **Defender for Cloud:** Azure 리소스 secure score라 계정에서 실제로 켜야 나옴 — 데모 시연
+> 시간대만 활성화(코드로 미리 만들 수 있는 부분 없음).
 
 ---
 
@@ -59,7 +64,7 @@ python -m scanners.ciem.run_demo
 python -m scanners.cspm.run_demo
 ```
 
-**출력 요약(workload):** mock Trivy JSON(3 CVE) → `TrivyScanner.scan_from_json()` → 계약⑤ envelope → `Normalizer`로 변환 → `INTERNAL-VULN-KEV-001` 매핑, resource_id 캐논 확인, pillar=vuln → 골든 정합 OK ✅
+**출력 요약(workload):** mock Trivy JSON(3 CVE) → `TrivyScanner.scan_from_json()` → 계약⑤ envelope → `Normalizer`로 변환 → `INTERNAL-VULN-KEV-001` 매핑, resource_id 캐논 확인, pillar=vuln → 골든 정합 OK ✅ / mock kube-bench JSON(product·member·order) → `KubeBenchScanner.scan_from_json()` → 계약⑤ envelope → `Normalizer`로 변환 → `INTERNAL-KSPM-PRIVILEGED-001` 매핑, f2·f13 골든 일치, PASS→remediated 전환 확인 → 골든 정합 OK ✅
 
 **출력 요약(ciem):** mock Prowler Azure 체크 4건(과도권한 App·위험 consent·SP 무만료 cred·설정 미스컨피그) → `EntraCIEMScanner.scan_from_json()` → 계약⑤ envelope → `Normalizer`로 변환 → 4개 INTERNAL-ENTRA-* control_id 매핑, golden f8·f9·f16·f17과 resource_id/severity/pillar 일치 → 골든 정합 OK ✅
 
@@ -105,6 +110,48 @@ envelope = scanner.scan_from_json(trivy_json_dict, image="shop/product:latest")
 ### 버그 이력
 
 - **ArtifactName 태그 미제거**: `shop/product:latest` → `:latest`가 `resource_id`에 붙어 mock과 불일치 → `rsplit(":", 1)` 후 태그 세그먼트(`/` 없는 마지막)를 제거하도록 수정.
+
+---
+
+## 🔬 4.5. kube-bench KSPM 스캐너 상세 — [workload/kube_bench.py](workload/kube_bench.py)
+
+> **모델링 단순화(중요):** kube-bench는 원래 노드/클러스터 스코프 도구라 특정 파드를 지목하지
+> 않는다(같은 control의 대체 소스 `trivy-k8s:KSV*`가 실제로는 파드별 매니페스트 스캔에 더
+> 적합). 골든 시나리오(파드별 Pod Security 위반, f2·f13)를 재현하기 위해 "이 점검 실행이 어떤
+> 워크로드를 대표하는가"를 호출자가 `target` 파라미터로 지정하는 방식으로 데모 단순화했다 —
+> Trivy가 `image`를 파라미터로 받는 것과 동일한 패턴.
+
+### mock/CI 경로 (kubectl 없이)
+
+```python
+scanner = KubeBenchScanner()
+envelope = scanner.scan_from_json(kube_bench_json, target="shop/product")
+```
+
+### 실 스캔 경로 (kubectl + 실 EKS 클러스터 필요)
+
+```python
+scanner = KubeBenchScanner()
+envelope = scanner.scan_cluster(target="shop/product")
+```
+
+내부적으로 aquasecurity 공식 패턴의 kube-bench Job(`--targets node,policies --json`)을 `kubectl apply`로 배포하고, `kubectl wait`로 완료를 기다린 뒤 `kubectl logs`로 JSON 결과를 회수하고 Job을 정리한다. kubectl 미설치·클러스터 미접속 시 `KubeBenchScanError` 발생. **⚠️ EKS 미apply라 미검증**(Trivy의 `scan_image()`와 동일한 처지 — apply 후 실클러스터로 검증 필요).
+
+### 봉투화 출력 (계약⑤)
+
+```json
+{
+  "envelope_id": "<uuid>",
+  "source": "kube-bench",
+  "source_format": "custom",
+  "cloud_hint": "aws",
+  "scan_batch_id": "kube-bench-shop-product-20260703-100000",
+  "ingested_at": "2026-07-03T10:00:00Z",
+  "raw_inline": { "Controls": [ ... ], "target_resource": "shop/product" }
+}
+```
+
+`source_format`이 기존 asff/ocsf/prowler-json/trivy-json 어디에도 안 맞아 `"custom"`으로 봉투화 — 정규화부(`pipeline/normalize/normalizer.py`)가 `source=="kube-bench"`일 때만 `_parse_kube_bench`로 분기(그 외 custom은 기존처럼 이미 정규화된 finding dict로 간주). kube-bench는 severity를 안 내놓기 때문에(CIS 벤치마크는 pass/fail + scored만) `_parse_kube_bench`는 control-catalog의 `severity_default`를 그대로 쓴다.
 
 ---
 
@@ -160,8 +207,10 @@ subprocess 실행 로직은 `scanners/cspm/cspm.py`의 `CSPMScanner.scan_prowler
 | 지금 (목업) | 실배포 | 위치 |
 |---|---|---|
 | `scan_from_json(mock_trivy_json)` | `scan_image("ECR이미지:tag")` | workload/trivy.py |
+| `scan_from_json(mock_kube_bench_json, target)` | `scan_cluster(target)` | workload/kube_bench.py |
 | `scan_from_json(mock_prowler_check)` | `scan_prowler(checks="entra_id_*")` | ciem/entra.py |
 | run_demo 직접 실행 | ECR push 이벤트(EventBridge) → Lambda → `scan_image()` → SQS | infra/target |
+| run_demo 직접 실행 | CronJob/EventBridge Scheduler → `scan_cluster()` → SQS(EKS apply 후) | infra/target |
 | run_demo 직접 실행 | GitHub Actions cron(Prowler SP OIDC) → `scan_prowler()` → SQS | manual-infra §3.6.3 |
 
 **스캐너 로직(trivy.py·entra.py)은 무변** — Lambda/cron 핸들러에서 각 스캐너 클래스를 호출하기만 하면 된다.
@@ -198,6 +247,6 @@ subprocess 실행 로직은 `scanners/cspm/cspm.py`의 `CSPMScanner.scan_prowler
 | Macie (S3 PII) | cspm(data) | AWS | 준형 | ✅ 완료(Security Hub ASFF 경유) |
 | IAM Access Analyzer | ciem | AWS | 준형 | Prowler AWS 체크로 커버(별도 API 미구현) |
 | Prowler entra_id_* | ciem | Azure | 진우 | ✅ 완료(`scanners/ciem/`) |
-| Inspector | vuln | AWS | 진우 | infra apply 후 |
-| kube-bench | kspm | AWS/EKS | 진우 | infra apply 후 |
+| kube-bench (CIS 벤치마크) | kspm | AWS/EKS | 진우 | ✅ 완료(`scanners/workload/kube_bench.py`, mock 검증. 실 경로는 EKS apply 후 검증) |
+| Inspector | vuln | AWS | 진우 | 별도 코드 불필요 — `scan_securityhub()`가 이미 커버, 계정에서 서비스만 켜면 됨 |
 | Defender for Cloud | cspm·vuln | Azure | 진우 | 데모 때만 |
