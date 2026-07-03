@@ -47,7 +47,7 @@ variable "acm_certificate_arn" {
 
 # --- 조치(HITL) 연동 ---
 variable "remediation_state_machine_arn" {
-  description = "infra/engine output remediation_state_machine_arn. approver 승인 시 console-backend가 StartExecution. 미정 시 빈값(권한 전체 허용 안 함)."
+  description = "infra/backend output remediation_state_machine_arn. approver 승인 시 console-backend가 StartExecution. 미정 시 빈값(권한 전체 허용 안 함)."
   type        = string
   default     = ""
 }

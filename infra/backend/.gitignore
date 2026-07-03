@@ -2,6 +2,7 @@
 .terraform.lock.hcl
 *.tfstate
 *.tfstate.*
+*.tfplan
 *.tfvars
 !*.tfvars.example
 build/

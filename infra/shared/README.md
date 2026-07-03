@@ -51,4 +51,4 @@ terraform destroy   # 비용 0
 
 ## 다음 레이어
 
-이 출력을 `terraform_remote_state`로 읽어 `infra/target`·`infra/console`·`infra/pipeline`·`infra/engine`(전부 준형/영역 주인, **코드 완성·validate 통과**)이 위에 쌓는다. `infra/slice`는 레이어가 아닌 저비용 검증 픽스처(독립).
+이 출력을 `terraform_remote_state`로 읽어 `infra/target`·`infra/backend`·`infra/console`·`infra/monitoring`(전부 준형/영역 주인, **코드 완성·validate 통과**)이 위에 쌓는다. `infra/slice`는 레이어가 아닌 저비용 검증 픽스처(독립).

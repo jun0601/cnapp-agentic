@@ -56,15 +56,6 @@ data "terraform_remote_state" "shared" {
   }
 }
 
-data "terraform_remote_state" "pipeline" {
-  backend = "s3"
-  config = {
-    bucket = var.tfstate_bucket
-    key    = "infra/pipeline/terraform.tfstate"
-    region = var.region
-  }
-}
-
 data "terraform_remote_state" "console" {
   backend = "s3"
   config = {
@@ -74,11 +65,11 @@ data "terraform_remote_state" "console" {
   }
 }
 
-data "terraform_remote_state" "engine" {
+data "terraform_remote_state" "backend" {
   backend = "s3"
   config = {
     bucket = var.tfstate_bucket
-    key    = "infra/engine/terraform.tfstate"
+    key    = "infra/backend/terraform.tfstate"
     region = var.region
   }
 }
@@ -97,9 +88,9 @@ locals {
   # 레이어 순서(console이 monitoring보다 항상 먼저 apply)상 이 값은 항상 존재함.
   cloudfront_distribution_id = data.terraform_remote_state.console.outputs.cloudfront_distribution_id
 
-  # 계정ID가 이름에 붙어 재구성이 안 되는 리소스 2종은 engine의 실제 output을 그대로 참조.
-  remediation_sfn_arn = data.terraform_remote_state.engine.outputs.remediation_state_machine_arn
-  audit_bucket_name   = data.terraform_remote_state.engine.outputs.audit_bucket
+  # 계정ID가 이름에 붙어 재구성이 안 되는 리소스 2종은 backend의 실제 output을 그대로 참조.
+  remediation_sfn_arn = data.terraform_remote_state.backend.outputs.remediation_state_machine_arn
+  audit_bucket_name   = data.terraform_remote_state.backend.outputs.audit_bucket
 
   # Lambda 6종(2026-07-02 조치 실행기 추가로 5→6). 새 Lambda 추가 시 여기만 늘리면
   # 대시보드 위젯·에러 알람(for_each) 둘 다 자동 반영됨(스켈레톤 목적).

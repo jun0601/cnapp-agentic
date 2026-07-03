@@ -162,7 +162,7 @@ gitops/
 
 ```
 0. infra/shared (EKS OIDC)
-1. infra/pipeline · infra/console · infra/engine  (Lambda·SQS·ALB·Step Functions·S3 감사버킷 확정)
+1. infra/backend · infra/console  (Lambda·SQS·ALB·Step Functions·S3 감사버킷 확정)
 2. gitops: ArgoCD 설치 → kube-prometheus-stack(app-monitoring.yaml) → Prometheus/Grafana 기동
 3. infra/monitoring apply → grafana_irsa_role_arn 출력
 4. gitops/monitoring/kube-prometheus-stack-values.yaml의 SA annotation에 3번 출력값 채워 재적용
@@ -296,7 +296,7 @@ output "cloudtrail_cwl_role_arn"  { value = aws_iam_role.cloudtrail_cwl.arn }
 
 ### Grafana 쪽 — 새 위젯 없이 Logs Insights 쿼리만
 
-필터 대상 IAM 역할은 확인 완료: **`cnapp-agentic-engine-orchestrator`**(Evidence/Bedrock 실 호출 Lambda 역할, `infra/engine/main.tf`). 예시 쿼리:
+필터 대상 IAM 역할은 확인 완료: **`cnapp-agentic-engine-orchestrator`**(Evidence/Bedrock 실 호출 Lambda 역할, `infra/backend/main.tf`). 예시 쿼리:
 
 ```
 fields eventTime, eventName, userIdentity.sessionContext.sessionIssuer.userName, requestParameters

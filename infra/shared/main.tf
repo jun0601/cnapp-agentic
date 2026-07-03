@@ -371,7 +371,7 @@ resource "aws_iam_role" "github_ci" {
 
 
 # =============================================================================
-# [IAM-ENGINE] 엔진 정책 2종 — 계약과 동기화. 실행 역할(Lambda)은 infra/engine에서 attach
+# [IAM-ENGINE] 엔진 정책 2종 — 계약과 동기화. 실행 역할(Lambda)은 infra/backend에서 attach
 #  (1) Evidence read-only = contracts/evidence-allowlist.json과 1:1 (변경 API 없음, 17번)
 #  (2) Bedrock invoke
 # =============================================================================

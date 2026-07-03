@@ -303,19 +303,19 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
      infra/target     준형   취약 워크로드+의도적 결함 (휘발성 — 토글하며 apply/destroy 잦음, 격리)  ✅ 코드
      infra/console    준형   ALB(authenticate-cognito)·Cognito SAML·console Lambda·CloudFront (ACM 없으면 HTTP로 apply·count 가드)  ✅ 코드
      infra/scanners   각 주인  스캔 IAM 역할·서비스 활성화(Config/SecurityHub/Inspector…)  (미구현)
-     infra/pipeline   각 주인  EventBridge·SQS·ingest/정규화 Lambda  ✅ 코드
-     infra/engine     각 주인  상관·오케스트레이터 Lambda·Bedrock IAM·조치 Step Functions + remediation 실행기·감사 S3 Object Lock  ✅ 코드
+     infra/backend    각 주인  수집·정규화(SQS·ingest/normalize) + 상관·오케스트레이터 Lambda(2-pass) + 조치 SFn·감사 S3 Object Lock  ✅ 코드 (구 pipeline+engine 병합 2026-07-03)
+     infra/monitoring 진우    Grafana IRSA·대시보드17·CloudTrail→Logs 배관·Teams 알림  ✅ 코드 (shared+backend+console 다음, 마지막)
    ※ 배포 코드 상세·apply 규율은 infra/README.md, 실코드 스왑(핸들러)은 각 컴포넌트 handler.py / engine/remediation.py
 
   (별도) infra/slice  준형   ★아키텍처 레이어 아님 = 엔진 실 tool-use 최소비용(<$1) 검증용 '일회용 픽스처'
                             (공개 S3 1개 + 가짜 PII 1개, EKS/RDS 무관 독립 스택). Phase1 실검증에 사용.
 ```
 
-> **infra/slice는 위 3개(target/console) + 데이터평면 2개(pipeline/engine)와 종류가 다르다.** 아키텍처 레이어가
+> **infra/slice는 위 레이어들(target/backend/console/monitoring)과 종류가 다르다.** 아키텍처 레이어가
 > 아니라 **크라운주얼("AI가 실 API 호출")을 몇 센트·2분으로 재현/회귀 검증하는 disposable 픽스처**다. target도 같은
 > 공개-S3 시나리오를 갖지만 EKS 풀스택(~20분·비용)이 딸려오므로, 저비용 재현용으로 slice를 별도 유지한다(코드로 두는
 > 비용=$0, apply 때만 과금). **"디렉터리 최소화" 원칙은 아키텍처 레이어 과분할 방지에 적용**되며 slice는 그 대상이 아니다.
-> Lambda 3영역(pipeline/engine/console-backend)은 **배포 가능한 스텁 + 실코드 스왑 포인트**(archive_file)로 구현 —
+> Lambda(backend[ingest·normalize·correlation·orchestrator·remediation]·console-backend)는 **배포 가능한 스텁 + 실코드 스왑 포인트**(archive_file)로 구현 —
 > 로직은 `run_e2e`/`run_real`로 로컬 검증됨, 인프라는 '프로덕션 배관 모양'.
 
 | 폴더 | 쪼개기(준형/진우) | terraform | 비고 |
@@ -324,7 +324,9 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 | `infra/shared` | 준형 | ✅ 기반 | 최초 apply, 전 영역 의존 |
 | `infra/target` | 준형 | ✅ | 휘발성·격리 |
 | `infra/console` | 준형 | ✅ | 준형 apply(콘솔 앱 소유). SSO는 진우 Entra App Reg(manual-infra §3) 연동 |
-| `infra/{scanners,pipeline,engine,rag,attackpath}` | 영역 주인 | ✅ 영역 단위 | 영역 안 반반은 같은 state 공유 |
+| `infra/backend` | 각 주인 | ✅ | 수집·정규화+상관·오케스트레이터+조치 SFn·감사 (구 pipeline+engine 병합 2026-07-03) |
+| `infra/monitoring` | 진우 | ✅ | 관측(대시보드·CloudTrail·Teams) — shared+backend+console 후 |
+| `infra/{scanners,rag,attackpath}` | 영역 주인 | ✅ 영역 단위 | (미구현) 영역 안 반반은 같은 state 공유 |
 | `scanners/` | cspm 준형 / workload·ciem 진우 | ❌ 코드 | 병렬(둘 다 finding 뱉음). ciem/ 신설(Prowler entra_id_*) |
 | `pipeline/` | ingest 준형 / normalize 진우 | ❌ 코드 | 이음새=계약⑤ |
 | `engine/` | core 공유 / triage·evidence 준형 / hypothesis·reasoning 진우 | ❌ 코드 | 핸드오프=계약⑦ |

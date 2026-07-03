@@ -1,20 +1,32 @@
 # =============================================================================
-# infra/engine — 에이전틱 분석 평면 + 조치(HITL) (레이어드: shared·pipeline 다음)
-# project-draft §4.6 · §17(HITL) · console-app-design §6
+# infra/backend — 분석 백엔드 평면 (레이어드: shared 다음, 나머지와 병렬)
+# project-draft §4.6 · console-app-design §9·§6 · §17(HITL)
 #
-# 흐름(2-pass, console-app-design §14):
-#   정규화 배치 완료(cnapp.findings.batch.completed)
-#     → 상관 Lambda(attackpath): R1~R5 규칙 → attack-path 그래프 upsert(RDS)
-#     → PutEvents(cnapp.attackpath / correlation.completed)
-#     → 오케스트레이터 Lambda(engine): Triage→Hypothesis→Evidence(tool-use)→Reasoning
-#        → case(계약⑦) upsert(RDS)  [Evidence는 Bedrock + read-only allowlist]
+# ★ 원래 infra/pipeline + infra/engine 두 레이어를 하나로 합친 것(2026-07-03).
+#   "데이터 평면(수집·정규화)"과 "추론 평면(상관·오케스트레이터·조치)"은 둘 다
+#   shared만 참조하는 백엔드 Lambda 뭉치라, 레이어를 나눌 실익보다 단순함이 큼.
+#   코드 폴더(pipeline/·engine/·attackpath/)는 그대로 — 이건 '배포 껍데기'만 합친 것.
 #
-# 조치(HITL): 콘솔 approver 승인 → console-backend가 이 Step Functions StartExecution
-#     → 검증 → remediation Lambda(격상 역할, 변경 API) → 감사 기록
+# 전체 흐름(2-pass, console-app-design §14):
+#   [스캐너 findings] → EventBridge → ingest Lambda → SQS
+#     → normalize Lambda(SQS 소비) → OCSF-lite 정규화 → RDS(pgvector)
+#     → PutEvents(cnapp.findings.batch.completed)
+#     → 상관 Lambda(attackpath): R1~R5 → attack-path 그래프 upsert(RDS)
+#     → PutEvents(cnapp.attackpath.correlation.completed)
+#     → 오케스트레이터 Lambda: Triage→Hypothesis→Evidence(Bedrock tool-use)→Reasoning
+#        → case(계약⑦) upsert(RDS)
 #
-# ⚠️ Lambda 패키지 = 배포 가능한 스텁(실코드 스왑 포인트 = archive_file). run_e2e/run_real로 로컬 검증됨.
+# 조치(HITL, §17): 콘솔 approver 승인 → console-backend가 remediation SFn StartExecution
+#     → 검증 → remediation Lambda(격상 역할, 변경 API) → 불변 감사(S3 Object Lock)
 #
-# 구역: [TF·BACKEND] [PROVIDER] [SHARED refs] [IAM] [LAMBDA 분석] [EVENTBRIDGE] [REMEDIATION SFn]
+# ⚠️ 모든 Lambda 패키지 = '배포 가능한 스텁'(index.handler). 실 apply/CI에서
+#    각 코드(pipeline/·attackpath/·engine/ handler.py + psycopg2 레이어)로 교체
+#    (swap 포인트 = archive_file.source). 로직은 run_e2e/run_real로 로컬 검증됨.
+#
+# 구역: [TF·BACKEND][PROVIDER][SHARED refs][공통 IAM·SG]
+#       [데이터 평면: SQS·ingest·normalize·EventBridge]
+#       [추론 평면: correlation·orchestrator·2-pass EventBridge]
+#       [조치(HITL): 감사 S3·remediation Lambda·Step Functions]
 # =============================================================================
 
 terraform {
@@ -25,7 +37,7 @@ terraform {
   }
   backend "s3" {
     bucket       = "cnapp-agentic-tfstate"
-    key          = "infra/engine/terraform.tfstate"
+    key          = "infra/backend/terraform.tfstate"
     region       = "ap-northeast-2"
     encrypt      = true
     use_lockfile = true
@@ -38,7 +50,7 @@ provider "aws" {
     tags = {
       Project   = var.project
       Env       = var.env
-      Layer     = "engine"
+      Layer     = "backend"
       ManagedBy = "terraform"
     }
   }
@@ -47,7 +59,7 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-# infra/shared 출력 참조(VPC·RDS·엔진 IAM 정책 2종)
+# infra/shared 출력 참조(VPC·private subnet·RDS·엔진 IAM 정책 2종)
 data "terraform_remote_state" "shared" {
   backend = "s3"
   config = {
@@ -68,7 +80,8 @@ locals {
 }
 
 # =============================================================================
-# [IAM] 공통 assume + 로그/VPC/Secrets 베이스
+# [공통 IAM·SG] Lambda assume + 모든 백엔드 Lambda가 공유하는 egress SG
+#   (pipeline·engine 시절 SG 2개가 동일 egress-all이라 하나로 통합)
 # =============================================================================
 data "aws_iam_policy_document" "lambda_assume" {
   statement {
@@ -80,6 +93,20 @@ data "aws_iam_policy_document" "lambda_assume" {
   }
 }
 
+# 모든 VPC 배치 Lambda(normalize·correlation·orchestrator·remediation)의 공용 egress SG
+resource "aws_security_group" "lambda" {
+  name        = "${var.project}-backend-lambda"
+  description = "backend Lambda egress (normalize/correlation/orchestrator/remediation)"
+  vpc_id      = local.vpc_id
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# 상관/오케스트레이터/조치 역할 공통 베이스(로그 + RDS secret + PutEvents)
 data "aws_iam_policy_document" "base" {
   statement {
     sid       = "Logs"
@@ -98,18 +125,213 @@ data "aws_iam_policy_document" "base" {
   }
 }
 
-# analysis Lambda용 SG(egress만)
-resource "aws_security_group" "lambda" {
-  name        = "${var.project}-engine-lambda"
-  description = "engine analysis Lambda egress"
-  vpc_id      = local.vpc_id
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+# =============================================================================
+# ▓▓▓ 데이터 평면 (구 infra/pipeline) ▓▓▓
+# 흐름: EventBridge(Security Hub Imported) → ingest Lambda → SQS → normalize Lambda
+# =============================================================================
+
+# --- [SQS] ingest → normalize 버퍼(재시도·백프레셔) + DLQ ---
+resource "aws_sqs_queue" "ingest_dlq" {
+  name                      = "${var.project}-ingest-dlq"
+  message_retention_seconds = 1209600 # 14일
+  sqs_managed_sse_enabled   = true
+}
+
+resource "aws_sqs_queue" "ingest" {
+  name                       = "${var.project}-ingest"
+  visibility_timeout_seconds = 180 # normalize Lambda timeout(60) 이상
+  message_retention_seconds  = 345600
+  sqs_managed_sse_enabled    = true
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.ingest_dlq.arn
+    maxReceiveCount     = 5
+  })
+}
+
+# --- [IAM] ingest 역할: 로그 + SQS 송신(EventBridge가 호출) ---
+resource "aws_iam_role" "ingest" {
+  name               = "${var.project}-pipeline-ingest"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+}
+
+data "aws_iam_policy_document" "ingest" {
+  statement {
+    sid       = "Logs"
+    actions   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = ["arn:aws:logs:${var.region}:${local.account_id}:*"]
+  }
+  statement {
+    sid       = "SendToQueue"
+    actions   = ["sqs:SendMessage"]
+    resources = [aws_sqs_queue.ingest.arn]
   }
 }
+
+resource "aws_iam_role_policy" "ingest" {
+  name   = "ingest"
+  role   = aws_iam_role.ingest.id
+  policy = data.aws_iam_policy_document.ingest.json
+}
+
+# --- [IAM] normalize 역할: 로그 + SQS 소비 + Secrets(RDS) + VPC + PutEvents ---
+resource "aws_iam_role" "normalize" {
+  name               = "${var.project}-pipeline-normalize"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "normalize_vpc" {
+  role       = aws_iam_role.normalize.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+data "aws_iam_policy_document" "normalize" {
+  statement {
+    sid       = "Logs"
+    actions   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = ["arn:aws:logs:${var.region}:${local.account_id}:*"]
+  }
+  statement {
+    sid       = "ConsumeQueue"
+    actions   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
+    resources = [aws_sqs_queue.ingest.arn]
+  }
+  statement {
+    sid       = "ReadDbSecret"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [local.rds_secret_arn]
+  }
+  statement {
+    sid       = "EmitBatchEvent"
+    actions   = ["events:PutEvents"]
+    resources = ["arn:aws:events:${var.region}:${local.account_id}:event-bus/default"]
+  }
+}
+
+resource "aws_iam_role_policy" "normalize" {
+  name   = "normalize"
+  role   = aws_iam_role.normalize.id
+  policy = data.aws_iam_policy_document.normalize.json
+}
+
+# --- [LAMBDA] ingest·normalize (배포 가능 스텁 · 실코드 스왑 포인트) ---
+data "archive_file" "ingest" {
+  type        = "zip"
+  output_path = "${path.module}/build/ingest.zip"
+  source {
+    filename = "index.py"
+    content  = <<-PY
+      # 실코드 스왑 = handler "pipeline.ingest.handler.handler"(pipeline 패키지 번들, boto3만/RDS 불요).
+      # 지금은 배포 가능한 스텁(이벤트 로깅). 실코드는 pipeline/ingest/handler.py에 있음.
+      import json
+      def handler(event, context):
+          print("ingest:", json.dumps(event)[:500])
+          return {"ok": True}
+    PY
+  }
+}
+
+data "archive_file" "normalize" {
+  type        = "zip"
+  output_path = "${path.module}/build/normalize.zip"
+  source {
+    filename = "index.py"
+    content  = <<-PY
+      # 실코드 스왑 = handler "pipeline.normalize.handler.handler"(pipeline 패키지 + psycopg2 레이어).
+      # findings 테이블 필요 → 스키마 infra/shared/db/schema.sql 선적용. 실코드는 pipeline/normalize/handler.py.
+      import json
+      def handler(event, context):
+          print("normalize records:", len(event.get("Records", [])))
+          return {"ok": True}
+    PY
+  }
+}
+
+resource "aws_cloudwatch_log_group" "ingest" {
+  name              = "/aws/lambda/${var.project}-ingest"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_cloudwatch_log_group" "normalize" {
+  name              = "/aws/lambda/${var.project}-normalize"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_lambda_function" "ingest" {
+  function_name    = "${var.project}-ingest"
+  role             = aws_iam_role.ingest.arn
+  runtime          = "python3.12"
+  handler          = "index.handler"
+  filename         = data.archive_file.ingest.output_path
+  source_code_hash = data.archive_file.ingest.output_base64sha256
+  timeout          = 30
+  memory_size      = 256
+  environment {
+    variables = {
+      QUEUE_URL = aws_sqs_queue.ingest.url
+    }
+  }
+  depends_on = [aws_cloudwatch_log_group.ingest]
+}
+
+resource "aws_lambda_function" "normalize" {
+  function_name    = "${var.project}-normalize"
+  role             = aws_iam_role.normalize.arn
+  runtime          = "python3.12"
+  handler          = "index.handler"
+  filename         = data.archive_file.normalize.output_path
+  source_code_hash = data.archive_file.normalize.output_base64sha256
+  timeout          = 60
+  memory_size      = 512
+  vpc_config {
+    subnet_ids         = local.private_subnets
+    security_group_ids = [aws_security_group.lambda.id]
+  }
+  environment {
+    variables = {
+      DB_HOST        = local.rds_endpoint
+      DB_SECRET_ARN  = local.rds_secret_arn
+      EVENT_BUS_NAME = "default"
+    }
+  }
+  depends_on = [aws_cloudwatch_log_group.normalize, aws_iam_role_policy_attachment.normalize_vpc]
+}
+
+# SQS → normalize (event source mapping)
+resource "aws_lambda_event_source_mapping" "sqs_to_normalize" {
+  event_source_arn = aws_sqs_queue.ingest.arn
+  function_name    = aws_lambda_function.normalize.arn
+  batch_size       = 10
+}
+
+# --- [EVENTBRIDGE] Security Hub Findings Imported(기본 버스) → ingest Lambda ---
+#   (Prowler S3 드롭·커스텀 소스는 ingest가 S3 이벤트로도 받음 — pipeline/ingest 참조)
+resource "aws_cloudwatch_event_rule" "securityhub_imported" {
+  name        = "${var.project}-securityhub-imported"
+  description = "Security Hub Findings Imported → ingest"
+  event_pattern = jsonencode({
+    source        = ["aws.securityhub"]
+    "detail-type" = ["Security Hub Findings - Imported"]
+  })
+}
+
+resource "aws_cloudwatch_event_target" "securityhub_to_ingest" {
+  rule      = aws_cloudwatch_event_rule.securityhub_imported.name
+  target_id = "ingest"
+  arn       = aws_lambda_function.ingest.arn
+}
+
+resource "aws_lambda_permission" "eventbridge_ingest" {
+  statement_id  = "AllowEventBridgeInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.ingest.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.securityhub_imported.arn
+}
+
+# =============================================================================
+# ▓▓▓ 추론 평면 (구 infra/engine 분석부) ▓▓▓
+# 2-pass: batch.completed → correlation(attackpath) → correlation.completed → orchestrator
+# =============================================================================
 
 # --- 상관 Lambda 역할(attackpath) ---
 resource "aws_iam_role" "correlation" {
@@ -126,7 +348,7 @@ resource "aws_iam_role_policy_attachment" "correlation_vpc" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
-# --- 오케스트레이터 Lambda 역할(engine: Evidence tool-use + Bedrock) ---
+# --- 오케스트레이터 Lambda 역할(Evidence tool-use + Bedrock) ---
 resource "aws_iam_role" "orchestrator" {
   name               = "${var.project}-engine-orchestrator"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
@@ -150,9 +372,7 @@ resource "aws_iam_role_policy_attachment" "orchestrator_bedrock" {
   policy_arn = local.bedrock_invoke_policy_arn
 }
 
-# =============================================================================
-# [LAMBDA 분석] 상관 + 오케스트레이터 (배포 가능 스텁 · 실코드 스왑 포인트)
-# =============================================================================
+# --- [LAMBDA 분석] 상관 + 오케스트레이터 (배포 가능 스텁 · 실코드 스왑 포인트) ---
 data "archive_file" "correlation" {
   type        = "zip"
   output_path = "${path.module}/build/correlation.zip"
@@ -237,11 +457,9 @@ resource "aws_lambda_function" "orchestrator" {
   depends_on = [aws_cloudwatch_log_group.orchestrator, aws_iam_role_policy_attachment.orchestrator_vpc]
 }
 
-# =============================================================================
-# [EVENTBRIDGE] 2-pass 트리거 체인 (기본 버스)
+# --- [EVENTBRIDGE] 2-pass 트리거 체인 (기본 버스) ---
 #   ① cnapp.findings.batch.completed → correlation
 #   ② cnapp.attackpath.correlation.completed → orchestrator
-# =============================================================================
 resource "aws_cloudwatch_event_rule" "batch_completed" {
   name        = "${var.project}-batch-completed"
   description = "정규화 배치 완료 → 상관"
@@ -285,9 +503,10 @@ resource "aws_lambda_permission" "eb_orchestrator" {
 }
 
 # =============================================================================
-# [REMEDIATION SFn] HITL 조치 — 콘솔 approver 승인 시 console-backend가 StartExecution
+# ▓▓▓ 조치 (HITL — 구 infra/engine 조치부) ▓▓▓
+#   콘솔 approver 승인 → console-backend가 remediation SFn StartExecution
 #   MVP 카탈로그 3종(project-draft §24): S3 public block · SG 0.0.0.0 제거 · IAM diff
-#   ⚠️ 격상 역할(변경 API)은 이 경로에서만 — 콘솔/엔진 분석 역할은 read-only(§17)
+#   ⚠️ 격상 역할(변경 API)은 이 경로에서만 — 콘솔/분석 역할은 read-only(§17)
 # =============================================================================
 
 # [AUDIT] 불변 감사 로그 — S3 Object Lock. 조치 실행기가 조치 레코드를 여기에 저장(§17, 사후 변조 불가).

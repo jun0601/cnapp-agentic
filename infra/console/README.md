@@ -17,7 +17,7 @@
 |---|---|---|
 | `acm_certificate_arn` | ALB 443 인증서 (authenticate-cognito는 **HTTPS 필수**) | 도메인 + ACM 발급 |
 | `saml_metadata_url` | Entra ID SAML 메타데이터 | 진우 Entra App Reg(SSO), manual-infra §3 |
-| `remediation_state_machine_arn` | 조치 SM ARN | `infra/engine` output |
+| `remediation_state_machine_arn` | 조치 SM ARN | `infra/backend` output |
 | console-backend `dist/` | Lambda 패키지 | `cd apps/console-backend && npm ci && npm run build` |
 
 - `saml_metadata_url` 빈값이면 SAML IdP 없이 apply(로컬/데모 초기). 채우면 Entra 페더레이션 활성.
@@ -38,5 +38,5 @@ terraform destroy
 ```
 
 ## 의존
-- **선행:** `infra/shared`(VPC·RDS·Bedrock 정책). (선택) `infra/engine`(조치 SM ARN).
+- **선행:** `infra/shared`(VPC·RDS·Bedrock 정책). (선택) `infra/backend`(조치 SM ARN).
 - **연동:** 진우 Entra App Reg(SSO SAML IdP) — SSO는 준형 Cognito ↔ 진우 Entra.

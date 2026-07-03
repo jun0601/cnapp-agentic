@@ -298,8 +298,8 @@ API가 있는 곳은 ① 스캐너↔클라우드 API(읽기) ② console-backen
 - **ALB + 리스너 규칙(`authenticate-cognito` 액션) → Lambda 타깃 그룹**(타깃 EKS와 별개 환경). ACM 인증서 없이도 apply되게 HTTPS 리스너는 `count` 가드 + HTTP 폴백(단계별 apply)
 - **console-backend Lambda 함수**(read-only 실행 역할) + 로그 그룹
 - **RDS PostgreSQL t3.micro**(pgvector extension 활성화) — `engine/`과 공유, 관제 전용 경계(타깃 워크로드 비접근). Lambda와 동일 VPC private subnet 배치(VPC Lambda 방식)
-- Step Functions 상태 머신 — **조치 카탈로그 MVP 3종 확정(§24): S3 public block · open SG(0.0.0.0) 제거 · IAM diff**. 상태머신 본체는 [`infra/engine`](../infra/engine/)에 있고 콘솔은 승인 시 `StartExecution`만 트리거
-- IAM: 콘솔용 read-only 롤 / 조치 실행용 격상 롤 분리(별도 정책) — 격상 롤은 `infra/engine`의 remediation Lambda에만
+- Step Functions 상태 머신 — **조치 카탈로그 MVP 3종 확정(§24): S3 public block · open SG(0.0.0.0) 제거 · IAM diff**. 상태머신 본체는 [`infra/backend`](../infra/backend/)에 있고 콘솔은 승인 시 `StartExecution`만 트리거
+- IAM: 콘솔용 read-only 롤 / 조치 실행용 격상 롤 분리(별도 정책) — 격상 롤은 `infra/backend`의 remediation Lambda에만
 
 ---
 
