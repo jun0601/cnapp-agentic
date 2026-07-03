@@ -70,6 +70,8 @@
 | 트리아지 게이트 | FindingsEvaluated / FindingsEscalated(카운터 2개, 비율은 대시보드에서 계산) | EMF 커스텀 메트릭 | **완료(2026-07-03)** — 동일 파일 | ✅ 위젯·알람·계측 전부 완료 |
 | 판정 분포·위험도 | Verdict(confirmed/inconclusive)·RiskLevel(CRITICAL 등) 디멘션별 카운트 | EMF 커스텀 메트릭 | **완료(2026-07-03)** — 동일 파일(`case["evidence_meta"]["verdict"]`·`case["reasoning"]["risk_level"]`) | ✅ 위젯·계측 완료 |
 | 판정까지 걸린 시간 | TimeToVerdictMs | EMF 커스텀 메트릭 | **완료(2026-07-03)** — `run()` 시작 `t0=time.time()` + return 직전 계측 | ✅ 위젯·계측 완료 |
+| **케이스별 Bedrock 토큰(=비용 귀속)** | `BedrockInputTokens`/`BedrockOutputTokens`(케이스 1건 전체 합, Converse 응답 `usage` 누적) | EMF 커스텀 메트릭 | **완료(2026-07-03, §15)** — `engine/evidence/bedrock_planner.py`(usage 캡처) → `EvidenceOutput` → `orchestrator.py` | ✅ 위젯·계측 완료. 위 "case당 추정 비용"(계정 전체 native 지표)과 달리 **트리아지를 통과해 실제로 조사한 케이스만의 토큰** — 정확한 건별 값은 CloudWatch Logs Insights로 `CaseId` 검색(§15.3) |
+| **read-only tool별 호출 횟수** | `ToolInvocations`(Dimension=`Tool`) | EMF 커스텀 메트릭 | **완료(2026-07-03, §15)** — `orchestrator.py`의 `_emit_tool_usage_metrics`, `EvidenceOutput.plan`(기존 필드, 신규 캡처 불요) 집계 | ✅ 위젯(SEARCH 기반 Tool별 분포)·계측 완료 |
 | (보너스) 판단 근거 리플레이 | 프롬프트·응답 전문 | Bedrock model invocation logging → S3 | 아니오(AWS 기능 on/off만) — **상시 X, 데모 캡처 구간만** | ⬜ 미착수(보너스) |
 | (보너스) 분산 트레이싱 | ingest→normalize→correlation→orchestrator 요청 1건의 전체 경로 | AWS X-Ray | 각 Lambda에 X-Ray SDK 계측 필요(선택) | ⬜ 미착수(보너스) |
 
@@ -117,6 +119,8 @@ def _emit_case_metrics(case: dict, findings_n: int, escalated_n: int, elapsed_ms
 
 `run()` 맨 앞에 `t0 = time.time()`, `return` 직전에 `_emit_case_metrics(c, len(findings), len(escalated), (time.time()-t0)*1000)` — 실제로 이렇게 두 줄만 추가됨(`engine/reasoning/orchestrator.py`). 새 pip 의존성·Lambda 레이어 변경 없음(EMF는 stdout 규약일 뿐). `run_demo`·`run_e2e` 무회귀 확인(Lambda 밖이라 미발행).
 
+> **2026-07-03 갱신**: `_emit_case_metrics`에 `BedrockInputTokens`/`BedrockOutputTokens` 파라미터가 추가되고, 케이스마다 tool-use 내역을 별도 EMF 라인으로 찍는 `_emit_tool_usage_metrics`가 새로 생겼다 — 위 코드 스니펫은 최초 구현 시점 스냅샷이라 최신 버전은 §15 참고.
+
 #### 3.2 비용 위젯 (metric math, 코드 계측 없이 대시보드에서만)
 
 Bedrock native `InputTokenCount`·`OutputTokenCount`(모델별)에 단가를 곱하는 CloudWatch metric math 식 — 예: `(m_in/1000)*u_in_price + (m_out/1000)*u_out_price`. 단가는 하드코딩하지 말고 `variables.tf`에 `bedrock_haiku_price_in/out`·`bedrock_sonnet_price_in/out` 변수로 빼서, 가격이 바뀌면 대시보드가 아니라 변수만 갱신. (2026-07 기준 시세 대략 Haiku $1/$5, Sonnet $3~10/M 토큰대 — **apply 시점에 AWS Bedrock 가격 페이지에서 재확인 필수**, 리전별·크로스리전 추론 시 +10% 프리미엄 붙을 수 있음.)
@@ -128,12 +132,12 @@ Bedrock native `InputTokenCount`·`OutputTokenCount`(모델별)에 단가를 곱
 | 리소스 | 용도 | 상태 |
 |---|---|---|
 | `aws_iam_role.grafana` + policy | Grafana ServiceAccount(IRSA) → CloudWatch/Logs read-only | ✅ 있음 |
-| `aws_cloudwatch_dashboard.platform` | ①②③ 전 축 시각화(**22개** 위젯 — Lambda 6·인프라 8·Bedrock 2·비용 1·엔진 EMF 4·CloudFront 1, §14 재검산) | ✅ 완료(2026-07-03) |
+| `aws_cloudwatch_dashboard.platform` | ①②③ 전 축 시각화(**24개** 위젯 — Lambda 6·인프라 8·Bedrock 2·비용 1·엔진 EMF 6·CloudFront 1, §14·§15 재검산) | ✅ 완료(2026-07-03) |
 | Bedrock 지표 위젯(모델별) + 비용 metric math | 축③ 1단 | ✅ 완료(2026-07-03) |
-| EMF 커스텀 메트릭 위젯 4종(3종 무디멘션 총계·1종 SEARCH 기반 분포) | 축③ 2단 | ✅ 위젯·계측 둘 다 완료(§13) |
+| EMF 커스텀 메트릭 위젯 6종(4종 무디멘션 총계·1종 SEARCH 기반 판정분포·1종 SEARCH 기반 tool분포) | 축③ 2단 | ✅ 위젯·계측 둘 다 완료(§13·§15) |
 | Step Functions·감사 S3·remediation Lambda 위젯 | ②의 누락 3종 | ✅ 완료(2026-07-03) |
 | CloudTrail→CWLogs 배관(로그그룹·IAM 역할) | §10 | ✅ 완료(2026-07-03) |
-| Teams 알림(SNS·Lambda·시크릿·알람 6종) | §11 | ✅ 완료(2026-07-03) |
+| Teams 알림(SNS·Lambda·시크릿·알람 7종 — Bedrock 비용 가드레일 포함) | §11·§15 | ✅ 완료(2026-07-03) |
 
 ---
 
@@ -185,16 +189,16 @@ gitops/
 - [x] S3 감사 버킷(Object Lock) 위젯 추가
 - [x] RDS FreeStorageSpace·SQS ApproximateAgeOfOldestMessage 위젯 추가
 - [x] Bedrock(`AWS/Bedrock`, ModelId 디멘션) 위젯 신규 추가 + 비용 metric math 위젯(§2③.2)
-- [x] `CnappAgentic/Engine` 네임스페이스 CloudWatch 위젯 4종(무디멘션 총계 3종 + SEARCH 기반 분포 1종, §13 수정 반영) 대시보드에 추가 — 계측 전까진 No data(정상)
+- [x] `CnappAgentic/Engine` 네임스페이스 CloudWatch 위젯 6종(무디멘션 총계 4종 + SEARCH 기반 판정분포 1종 + SEARCH 기반 tool분포 1종, §13·§15 반영) 대시보드에 추가 — 계측 전까진 No data(정상)
 - [x] CloudTrail → CloudWatch Logs 배관(§10) — 로그그룹·IAM 역할·output 2종
-- [x] Teams 알림 전체 스택(§11) — SNS·Lambda(실코드)·시크릿·구독·알람 6종
+- [x] Teams 알림 전체 스택(§11) — SNS·Lambda(실코드)·시크릿·구독·알람 7종(§15에서 Bedrock 비용 가드레일 추가)
 - [x] `terraform fmt`/`init -backend=false`/`validate` 3종 전부 통과(§12)
+- [x] `engine/reasoning/orchestrator.py`의 `_emit_case_metrics` 계측(§2③.1) — **완료(당일 후속)**, 아래 항목에서 완료로 이동
+- [x] 케이스별 Bedrock 비용(토큰) EMF + tool별 breakdown EMF + Bedrock 비용 알람(§15) — `engine/evidence/bedrock_planner.py`·`evidence.py`·`core/case.py`·`reasoning/orchestrator.py` 4개 파일
 
 **이 폴더 밖이라 구현 안 함 — 기록만(§12 "외부 폴더 후속 작업" 참고):**
 
-- [ ] `engine/reasoning/orchestrator.py`(진우 단독 소유이지만 `infra/monitoring` 밖)의 `run()`에 `_emit_case_metrics` 계측 추가(§2③.1) — 위 EMF 위젯·알람이 이걸 기다리는 중
-- [ ] `gitops/argocd/app-monitoring.yaml` + `gitops/monitoring/kube-prometheus-stack-values.yaml` 신설
-- [ ] `infra/console/outputs.tf`에 `cloudfront_distribution_id` output 추가 — 추가되면 `infra/monitoring/variables.tf`의 `cloudfront_distribution_id` 기본값을 remote_state 참조로 교체해 위젯 자동 활성화(지금은 빈 값이라 위젯 생략)
+- [ ] `gitops/argocd/app-monitoring.yaml` + `gitops/monitoring/kube-prometheus-stack-values.yaml` 신설 — `grafana_irsa_role_arn`이 apply 후 실제 값으로 나와야 착수 가능(진짜 blocked)
 - [ ] (선택) `infra/shared/db/schema.sql`에 `grafana_ro` 읽기전용 Postgres 롤 추가(§9 실무 디테일) — Grafana의 3번째 데이터소스(Postgres)로 tool-use 분포·MTTR 등 직접 SQL 조회하고 싶을 때만 필요, 지금 3축 설계엔 없어도 무방
 - [ ] apply 후: CloudTrail 콘솔에서 `cloudtrail_log_group_arn`/`cloudtrail_cwl_role_arn`을 기존 트레일에 1회 수동 연결(§10)
 - [ ] apply 후: `teams_webhook_secret_arn`에 로테이션된 새 webhook URL을 `aws secretsmanager put-secret-value`로 1회 수동 주입
@@ -338,6 +342,7 @@ aws_cloudwatch_metric_alarm × N                  # 아래 표, alarm_actions = 
 | Bedrock 에러 | `AWS/Bedrock` InvocationClientErrors/ServerErrors > 0 | AI 조사 자체가 멈췄다는 신호 |
 | RDS 연결 포화 | DatabaseConnections > 임계치 | 조용히 장애로 번지기 전에 |
 | (커스텀) escalate율 0 지속 | `CnappAgentic/Engine` FindingsEscalated 합이 N분간 0인데 FindingsEvaluated > 0 | 트리아지 게이트가 조용히 다 걸러버리는 회귀(§2③ EMF) 감지 |
+| (커스텀, §15) Bedrock 비용 가드레일 | 토큰×단가 metric math(시간당) > `var.bedrock_hourly_cost_alarm_usd`(기본 $1.0) | 무한루프·비정상 다량 tool-use 조기 감지 — 정밀 예산 통제가 아니라 안전망 |
 
 나머지(ALB 5xx, CloudFront 등)는 알람보다 대시보드 관찰로 충분 — 전부 알람 걸면 데모 중 알림 폭탄이라 위 표 정도로 시작.
 
@@ -411,4 +416,39 @@ python -m py_compile lambda_src/teams_notifier.py → 통과
 
 `terraform fmt`/`init -backend=false`/`validate` 재통과(`infra/monitoring`·`infra/console` 둘 다) 확인.
 
-**부수 발견 — 위젯 개수 오기재.** 이 김에 `main.tf`의 `type = "metric"` 위젯을 실제로 다시 세어보니(Lambda 6종은 `for` 루프 1개가 6개 위젯을 만들고, Bedrock 2종도 각 `for` 루프 1개가 모델 수만큼 만드는 걸 그동안 "루프문 1줄=위젯 1개"로 착각해 계속 축소 집계했었다), §3·§12.1 등에 반복해서 적었던 "17개"(CloudFront 추가 후 "18개")가 **처음부터 잘못된 숫자**였음을 발견 — 실제로는 **22개**(Lambda 6 + 인프라 8 + Bedrock 2 + 비용 1 + 엔진 EMF 4 + CloudFront 1). §3 표는 이 문서에서 정정했고, `CLAUDE.md`·루트 `README.md`·`troubleshooting.md`에 남아있는 "17위젯" 언급은 그 시점 기록(changelog)이라 그대로 두되, 살아있는 현재상태 문서(루트 README 구현현황 표 등)는 별도로 정정이 필요하다.
+**부수 발견 — 위젯 개수 오기재.** 이 김에 `main.tf`의 `type = "metric"` 위젯을 실제로 다시 세어보니(Lambda 6종은 `for` 루프 1개가 6개 위젯을 만들고, Bedrock 2종도 각 `for` 루프 1개가 모델 수만큼 만드는 걸 그동안 "루프문 1줄=위젯 1개"로 착각해 계속 축소 집계했었다), §3·§12.1 등에 반복해서 적었던 "17개"(CloudFront 추가 후 "18개")가 **처음부터 잘못된 숫자**였음을 발견 — 실제로는 **22개**(Lambda 6 + 인프라 8 + Bedrock 2 + 비용 1 + 엔진 EMF 4 + CloudFront 1, §15에서 24개로 다시 늘어남). §3 표는 이 문서에서 정정했고, `CLAUDE.md`·루트 `README.md`·`troubleshooting.md`에 남아있는 "17위젯" 언급은 그 시점 기록(changelog)이라 그대로 두되, 살아있는 현재상태 문서(루트 README 구현현황 표 등)는 별도로 정정이 필요하다.
+
+---
+
+## 15. AI 관측 3종 추가 (2026-07-03, 후속) — 비용 알람·케이스별 비용·tool별 breakdown
+
+§7(알려진 갭)에서 "있으면 좋지만 급하진 않다"로 남겨뒀던 3가지를 전부 코드로 채움. 셋 다 apply·EKS 없이 지금 만들 수 있는 순수 코드 변경이었다(§2③가 이미 "케이스 단위 지표는 `Orchestrator.run()` 안에서 다 뽑아낼 수 있다"고 정리해둔 것의 연장선).
+
+### 15.1 비용 알람 (`bedrock_cost_high`)
+
+지금까지 §3.2 비용 위젯은 **보기만 하는 것**이었지 임계값 초과 시 알려주는 알람이 아니었음 — 이 프로젝트가 비용 통제를 핵심 원칙으로 삼는데 정작 Bedrock 비용엔 가드레일이 없던 공백. `main.tf`에 `aws_cloudwatch_metric_alarm.bedrock_cost_high` 신설 — 비용 위젯과 **동일한 metric math 식**(토큰×단가)을 재사용하되 `period`만 300(위젯, 추세용)→3600(알람, 시간당 예산 개념)으로 바꿔 스파이크 오탐을 줄임. 임계값은 새 변수 `var.bedrock_hourly_cost_alarm_usd`(기본 $1.0/시간 — 정밀 예산 통제가 아니라 "무한루프·비정상 다량 호출" 조기 감지용 안전망, 데모 규모 기준 여유값). Teams 알림 경로(SNS→Lambda)에 그대로 연결.
+
+### 15.2 케이스별 Bedrock 토큰 (비용 귀속)
+
+문제: 기존 비용 위젯(§3.2)은 **계정×모델 전체 합산**이라 "이 조사 하나에 얼마 썼는지"를 알 수 없었음. 해결 경로(전부 `infra/monitoring` 밖 — engine 파일 3개 수정):
+
+1. `engine/evidence/bedrock_planner.py`(`BedrockEvidenceAgent.investigate()`) — Bedrock `converse()` 응답에는 이미 `usage.inputTokens`/`outputTokens`가 들어있는데 그동안 안 꺼내 씀. tool-use 루프는 케이스 1건당 여러 번 반복 호출되므로(LLM이 도구를 여러 번 쓸 수 있어서) **루프 반복마다 누적**해야 케이스 전체 토큰이 나옴 — 초기 구현 때 놓치기 쉬운 지점.
+2. `engine/evidence/evidence.py` — `EvidenceOutput`에 `input_tokens`/`output_tokens: int = 0` 필드 추가(규칙 플래너 `EvidenceAgent`는 LLM을 안 써서 기본값 0 그대로 반환 — 회귀 없음).
+3. `engine/core/case.py` — `set_evidence()`에 `tokens: int = 0` 파라미터 추가, `case.schema.json`이 **처음부터 정의해뒀지만 지금까지 항상 0으로 방치돼 있던** `model_trace[].tokens`(설명: "단계별 Bedrock 모델·토큰, 비용 추적")에 실제 값을 채움 — 새 스키마 필드가 아니라 **기존 계약의 미사용 필드를 메운 것**.
+4. `engine/reasoning/orchestrator.py` — `_emit_case_metrics`에 `BedrockInputTokens`/`BedrockOutputTokens` 파라미터·EMF 메트릭 추가(기존 `Dimensions=[[], ["Verdict","RiskLevel"]]` 그대로 재사용, 집계용).
+
+**설계 결정 — CaseId는 지표 Dimension으로 넣지 않음.** 케이스마다 값이 달라 무한정 늘어나는 카디널리티라 안티패턴(CloudWatch 커스텀 메트릭 요금도 유니크 dimension 조합당 과금). 대신 EMF 로그 원본엔 `CaseId`가 필드로 이미 찍히므로, **"이 케이스 하나에 얼마 썼는지"는 CloudWatch Logs Insights로 로그를 `CaseId`로 검색해서 본다** — 지표(위젯)는 집계용, 로그(Logs Insights)는 케이스 단위 드릴다운용으로 역할을 분리.
+
+### 15.3 tool별 호출 breakdown
+
+`EvidenceOutput.plan`(`(tool, resource_id)` 목록)이 **이미 존재하는 필드**였음 — 규칙 플래너·LLM 플래너 둘 다 채우고 있었는데 "설명용"으로만 쓰이고 관측엔 한 번도 안 흘러갔던 걸 발견. `orchestrator.py`에 `_emit_tool_usage_metrics(case_id, plan)` 신설 — `Counter`로 tool별 호출 횟수를 집계해 **tool마다 별도 EMF 라인**을 찍음(`Dimensions=[["Tool"]]`). EMF는 한 로그 라인 = 한 Dimension 값 세트라, 케이스 하나에서 tool 여러 종류가 호출됐으면 총계 지표처럼 한 줄로 못 묶고 tool 수만큼 라인이 필요함 — 판정 분포 위젯과 마찬가지로 대시보드에선 `SEARCH('{CnappAgentic/Engine,Tool} MetricName="ToolInvocations"', 'Sum', 300)`로 Tool별 시계열을 펼쳐서 봄.
+
+### 15.4 위젯 레이아웃 갱신
+
+엔진 EMF 위젯 2개(케이스별 토큰·tool breakdown)를 기존 4개 뒤, CloudFront 앞에 삽입 — `y = bedrock_rows_end_y + 18`(가로 2개), CloudFront는 `+ 24`로 밀림. 대시보드 총 위젯 **22개 → 24개**(엔진 EMF 4종 → 6종). §3·§12.1 표 갱신 완료.
+
+### 15.5 검증
+
+오프라인 fake Bedrock 클라이언트로 2턴 tool-use 루프(1턴째 tool 2개 호출+usage 500/120, 2턴째 end_turn+usage 300/80)를 재현해 `input_tokens==800`·`output_tokens==200`(누적 확인)·`model_trace[-1]["tokens"]==1000`·EMF 출력 JSON 형태(총계 라인 1개 + tool별 라인 2개) 전부 확인. `engine.run_demo`·`run_e2e`·`contracts validate` 무회귀(Lambda 밖이라 미발행 그대로). `infra/monitoring` `fmt`+`init -backend=false`+`validate` 재통과.
+
+⚠️ 위 §7 알려진 갭과 동일한 한계 — 실 Bedrock/Lambda가 돌아가기 전까진 이 6개 EMF 위젯·`bedrock_cost_high` 알람 다 "No data"/`INSUFFICIENT_DATA`가 정상.

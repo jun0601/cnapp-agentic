@@ -43,7 +43,10 @@ def set_reasoning(case: dict, narrative: str, risk_level: str, recommended_actio
     return case
 
 
-def set_evidence(case: dict, evidence: List[dict], tool_calls: int, confidence: float, verdict: str) -> dict:
+def set_evidence(
+    case: dict, evidence: List[dict], tool_calls: int, confidence: float, verdict: str,
+    tokens: int = 0,
+) -> dict:
     case["evidence"] = evidence
     case["evidence_meta"] = {
         "tool_calls_count": tool_calls,
@@ -51,7 +54,9 @@ def set_evidence(case: dict, evidence: List[dict], tool_calls: int, confidence: 
         "verdict": verdict,
     }
     case["stage"] = "evidence"
-    _trace(case, "evidence", "haiku")
+    # model_trace[].tokens는 계약⑦에 처음부터 있던 필드(비용 추적용)인데 지금까지 항상 0으로
+    # 방치돼 있었음 — BedrockEvidenceAgent가 실 usage를 채워주면 여기로 흘러들어온다.
+    _trace(case, "evidence", "haiku", tokens=tokens)
     return case
 
 

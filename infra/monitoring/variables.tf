@@ -66,6 +66,12 @@ variable "bedrock_sonnet_price_out_per_1k" {
   default     = 0.015
 }
 
+variable "bedrock_hourly_cost_alarm_usd" {
+  description = "Bedrock 시간당 추정비용 알람 임계값(USD) — 정밀 예산 통제가 아니라 무한루프·비정상 다량 호출을 조기에 잡는 안전망. 데모 규모 기준 여유값(가격 변수 재확인 시 함께 점검)"
+  type        = number
+  default     = 1.0
+}
+
 variable "rds_connections_alarm_threshold" {
   description = "RDS DatabaseConnections 알람 임계치(db.t3.micro 기준 여유값)"
   type        = number

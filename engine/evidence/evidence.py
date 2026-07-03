@@ -29,7 +29,12 @@ class EvidenceOutput:
     tool_calls_count: int
     confidence_score: float
     verdict: str               # confirmed | inconclusive | refuted
-    plan: List[Tuple[str, str]]  # (tool, resource_id) 조사 계획(설명용)
+    plan: List[Tuple[str, str]]  # (tool, resource_id) 조사 계획 — 관측(tool별 EMF)에도 재사용
+    # Bedrock 토큰(비용 관측용, case.schema.json model_trace[].tokens — 15번 Haiku/Sonnet
+    # 배정 문서가 이미 정의해뒀지만 지금까지 항상 0이었던 필드). 규칙 플래너(이 클래스)는
+    # LLM을 안 써서 0 고정 — BedrockEvidenceAgent만 실제 값을 채운다.
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 def plan_investigation(findings: List[dict]) -> List[Tuple[str, str]]:

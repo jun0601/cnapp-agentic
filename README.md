@@ -2,7 +2,7 @@
 
 > 멀티클라우드(**AWS = 워크로드의 주인 / Azure = 신원의 주인(Entra ID)**) 환경의 설정부터 워크로드·IaC 코드까지 **code-to-cloud 보안 위험을 점검·통합·상관분석**하고, 그 위에 **에이전틱 AI(Bedrock 멀티에이전트 + RAG)**로 발견 항목을 설명·우선순위화·자동 개선하는 CNAPP형 보안 플랫폼.
 >
-> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 문서·공통 계약 정합 완료 · **구현 진행 중** — 공통 계약(INTERNAL control 14종·골든 목업·CI 게이트) + 공유 인프라 스캐폴드 + TF state 부트스트랩 + **관제 앱(`apps/console`) 8화면 목업 동작** + **타깃 앱(`apps/target`) shop 포털·member 서비스 실행** + 결함 IaC(`infra/target`) + **엔진 5단계 능동조사·attack-path 상관·정규화부·RAG·Trivy 스캐너(목업 동작)** + **❤️ 엔진 실 tool-use(Phase1) 실검증 완료**(실 Bedrock Claude Haiku가 실 S3를 스스로 read-only 조사 → CONFIRMED, 2026-07-02) + **🔗 Phase2 end-to-end 배선 관통**(스캐너→정규화→상관→엔진→RAG `run_e2e.py`) + **관제 백엔드(`apps/console-backend`)·배포 인프라 6층(`infra/`)·pgvector 스키마·Lambda 핸들러** 코드 완성 + **📊 운영 관측(`infra/monitoring`) 코드 완성**(대시보드 22위젯·CloudTrail 연동·Teams 알림·엔진 EMF 계측, 2026-07-03) (전 terraform `validate` 통과). **다음 = 단계별 실 apply**(apply→검증→destroy).
+> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 문서·공통 계약 정합 완료 · **구현 진행 중** — 공통 계약(INTERNAL control 14종·골든 목업·CI 게이트) + 공유 인프라 스캐폴드 + TF state 부트스트랩 + **관제 앱(`apps/console`) 8화면 목업 동작** + **타깃 앱(`apps/target`) shop 포털·member 서비스 실행** + 결함 IaC(`infra/target`) + **엔진 5단계 능동조사·attack-path 상관·정규화부·RAG·Trivy 스캐너(목업 동작)** + **❤️ 엔진 실 tool-use(Phase1) 실검증 완료**(실 Bedrock Claude Haiku가 실 S3를 스스로 read-only 조사 → CONFIRMED, 2026-07-02) + **🔗 Phase2 end-to-end 배선 관통**(스캐너→정규화→상관→엔진→RAG `run_e2e.py`) + **관제 백엔드(`apps/console-backend`)·배포 인프라 6층(`infra/`)·pgvector 스키마·Lambda 핸들러** 코드 완성 + **📊 운영 관측(`infra/monitoring`) 코드 완성**(대시보드 24위젯·CloudTrail 연동·Teams 알림·엔진 EMF 계측, 2026-07-03) (전 terraform `validate` 통과). **다음 = 단계별 실 apply**(apply→검증→destroy).
 
 ### 📂 이 레포는 무엇인가 / docs 안내
 
@@ -129,7 +129,7 @@ cnapp-agentic/
     ├── console/              ✅ S3+CloudFront·ALB(authenticate-cognito)→Lambda·Cognito SSO(count 가드)
     ├── pipeline/             ✅ EventBridge→SQS→ingest/normalize Lambda
     ├── engine/               ✅ 상관·오케스트레이터 Lambda·Bedrock IAM·조치 SFn + remediation 실행기·감사 Object Lock
-    ├── monitoring/           ✅ 운영 관측(진우) — Grafana IRSA·CloudWatch 대시보드 22위젯·CloudTrail 연동·Teams 알림
+    ├── monitoring/           ✅ 운영 관측(진우) — Grafana IRSA·CloudWatch 대시보드 24위젯·CloudTrail 연동·Teams 알림
     ├── slice/                ✅ 엔진 실 tool-use 최소비용 검증 픽스처(Phase1 — 레이어 아님)
     └── {scanners,rag,attackpath} ⬜ 영역별 terraform(미구현 — 데모 핵심 경로 밖)
 
@@ -152,7 +152,7 @@ cnapp-agentic/
 | 영역 | 준형 | 준형 진행(목업) | 진우 | 진우 진행(목업) | 🚀 실(real) 전환 |
 |---|---|---|---|---|---|
 | 🖥️ **앱 & 환경 세팅** | 타깃 앱 · 관제 앱 **2개 개발** | ✅ 목업 동작(콘솔 8화면 · 타깃 member+포털) | **AWS/Azure 환경**(M365·Entra 데모 테넌트·계정 초기) | 🔄 AWS 계정 ✅ / Azure 테넌트 진행중 | ⬜ apply 시 배포(Phase2~) · Azure 테넌트·AWS 계정은 실물 ✅ |
-| 🏗️ **공유 인프라 · 토대** | `infra/` 6층(shared·target·console·pipeline·engine·monitoring) · CI/CD · Shift-Left | 🔨 코드 완성·`validate` 통과(apply 전) | 모니터링·운영관제(Grafana·CloudTrail) | ✅ 코드 완성(`infra/monitoring`, 대시보드 22위젯·CloudTrail 연동·Teams 알림) | ⬜ apply 전(TF state 버킷만 실물 ✅) |
+| 🏗️ **공유 인프라 · 토대** | `infra/` 6층(shared·target·console·pipeline·engine·monitoring) · CI/CD · Shift-Left | 🔨 코드 완성·`validate` 통과(apply 전) | 모니터링·운영관제(Grafana·CloudTrail) | ✅ 코드 완성(`infra/monitoring`, 대시보드 24위젯·CloudTrail 연동·Teams 알림) | ⬜ apply 전(TF state 버킷만 실물 ✅) |
 | 🔍 **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ✅ 목업 동작(`scanners/cspm`, 골든 5종) | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM(`scanners/ciem`) | ✅ Trivy·kube-bench(f2·f13 골든) ✅ · Entra CIEM ✅(f8·f9·f16·f17 골든) · Inspector는 별도 코드 불필요(scan_securityhub 경유) · Defender만 남음(데모 때만) | ⬜ Phase2 첫 실스캐너(scan_securityhub/scan_prowler 실계정) → Phase3 확장 |
 | 📥 **수집 · 정규화** | 수집부 (EventBridge→SQS) | ✅ 목업 동작(`pipeline/ingest`) | 정규화부 (Lambda→OCSF) | ✅ 목업 동작(`pipeline/normalize`) | ⬜ Phase2(Lambda 배포 + 실 finding) |
 | 📚 **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ✅ 목업 동작(`rag/corpus`, 계약⑥ 24청크) | 검색 · LLM 답변 생성 | ✅ 목업 동작(`rag/retrieval`) | ⬜ Phase3(pgvector 적재 + Bedrock 임베딩) |
@@ -179,7 +179,7 @@ cnapp-agentic/
 | 🏗️ **공유 인프라 (`infra/shared`·`infra/target`)** | ✅ **스캐폴드** — VPC·NAT Instance·EKS(spot·IRSA)·ECR·RDS pgvector·OIDC·Evidence/Bedrock IAM + 결함 IaC 토글(f3·f4·f6). `terraform validate`/`fmt` 통과. apply는 게이트 후 |
 | 🚚 **배포 인프라 (`infra/console`·`pipeline`·`engine`)** | ✅ **코드 완성** — console(ALB authenticate-cognito→Lambda·Cognito SAML SSO·S3+CloudFront)·pipeline(EventBridge→SQS→정규화 Lambda)·engine(상관·오케스트레이터 Lambda + evidence/bedrock 정책 + **remediation Step Functions·실행기(`engine/remediation.py`)·감사 S3 Object Lock**). `fmt`+`validate` 3개 통과. Lambda=배포 가능 스텁+실코드 스왑 포인트. apply 전 TODO: ACM 인증서·Entra SAML 메타데이터·SM ARN. **slice=레이어 아닌 저비용 픽스처(문서 명시)** |
 | 🗄️ **DB 스키마 + Lambda wrapper** | ✅ **코드 완성** — `infra/shared/db/schema.sql`(pgvector 6테이블: findings·attack_paths·cases·finding_explanations·remediation_requests·rag_chunks, 계약①③⑦⑥ 도출·멱등) + 핸들러 wrapper 4종(ingest·normalize·correlation·orchestrator, 기존 로직 재사용 + RDS I/O + 2-pass 발행, engine은 `REAL_TOOLS=1`이면 실 Bedrock tool-use). py_compile+import OK. ⬜ 실 RDS 대상 SQL은 apply 세션에서 라이브 검증 |
-| 📊 **운영 관측 (`infra/monitoring`)** | ✅ **코드 완성(2026-07-03)** — Grafana IRSA(CloudWatch read-only) + CloudWatch Dashboard **22위젯**(Lambda 6종·SQS·RDS·ALB·Step Functions(remediation)·S3 감사버킷·Cognito·Bedrock 호출/에러/토큰(모델별)+비용 metric math·엔진 EMF 4종·CloudFront 1) + **CloudTrail→CloudWatch Logs 배관**(트레일 자체는 수동 유지) + **Teams 알림 풀스택**(SNS·Lambda 실코드·시크릿·알람 6종). `engine/reasoning/orchestrator.py`에 EMF 계측 추가로 엔진 축 위젯·트리아지 알람도 실데이터 받을 준비 완료. `fmt`+`init`+`validate` 3개 통과. CloudFront 위젯은 `infra/console`의 `cloudfront_distribution_id` output 연결 완료로 게이트 해제 |
+| 📊 **운영 관측 (`infra/monitoring`)** | ✅ **코드 완성(2026-07-03)** — Grafana IRSA(CloudWatch read-only) + CloudWatch Dashboard **24위젯**(Lambda 6종·SQS·RDS·ALB·Step Functions(remediation)·S3 감사버킷·Cognito·Bedrock 호출/에러/토큰(모델별)+비용 metric math·엔진 EMF 6종(트리아지·tool-use·확신도·판정시간·**케이스별 토큰·tool별 breakdown**)·CloudFront 1) + **CloudTrail→CloudWatch Logs 배관**(트레일 자체는 수동 유지) + **Teams 알림 풀스택**(SNS·Lambda 실코드·시크릿·알람 7종 — Bedrock 에러·**Bedrock 비용 가드레일** 포함) + **AI 관측 3종 추가**(비용 알람·`bedrock_planner.py` 토큰 캡처→case당 비용 EMF·tool별 호출 breakdown EMF). `engine/reasoning/orchestrator.py`·`engine/evidence/bedrock_planner.py`에 계측 추가로 엔진 축 위젯·트리아지 알람도 실데이터 받을 준비 완료. `fmt`+`init`+`validate` 3개 통과. CloudFront 위젯은 `infra/console`의 `cloudfront_distribution_id` output 연결 완료로 게이트 해제 |
 | 📦 **TF state 부트스트랩** | ✅ `cnapp-agentic-tfstate` 버킷(manual-infra §2) · **Bedrock 모델 액세스 ✅**(manual-infra §4) |
 | ⚙️ **CI/CD (`.github/workflows/ci.yml`·`gitops/`)** | ✅ **코드 세팅** — CI(GitHub Actions: 10개 데모·run_e2e·validate 회귀 + Trivy/Checkov Shift-Left, $0) · CD(ArgoCD Application) + 오토스케일링(Karpenter spot·consolidation / HPA) 선언형. ⬜ CD/오토스케일 **실적용은 EKS apply 세션**(비용 규율). 근거 = cost-strategy §2.7 |
 | ⏭️ **다음 = 단계별 실 apply** | ⬜ **예정** — 코드(앱·엔진·인프라 6층·스키마·wrapper)는 준비 완료. `apply→검증→destroy` 사이클로 실전환(EKS 첫 apply 직전 확인, `infra/monitoring`은 나머지 5층 apply 후). SSO 라이브는 도메인+ACM 확보 후 |

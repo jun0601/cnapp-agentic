@@ -26,15 +26,24 @@ _INVESTIGATION_ORDER = [
 ]
 
 
-def _emit_case_metrics(case: dict, findings_n: int, escalated_n: int, elapsed_ms: float) -> None:
+def _emit_case_metrics(
+    case: dict, findings_n: int, escalated_n: int, elapsed_ms: float,
+    input_tokens: int = 0, output_tokens: int = 0,
+) -> None:
     """EMF(Embedded Metric Format) 한 줄 — infra/monitoring 대시보드·알람(CnappAgentic/Engine
-    네임스페이스)이 이 로그 라인을 파싱한다. 별도 의존성·비용 없음(infra/monitoring/README.md
-    §2③.1 스켈레톤 그대로).
+    네임스페이스)이 이 로그 라인을 파싱한다(계측은 이미 여기 존재 — Lambda 밖 로컬 실행에서만
+    미발행이라 run_demo/run_e2e 콘솔엔 안 찍힌다). 별도 의존성·비용 없음.
 
     Dimensions에 빈 세트([])와 ["Verdict","RiskLevel"]를 함께 선언 — 한 줄로 ① 무디멘션 집계
     시계열(대시보드 총계 위젯·알람이 SEARCH 없이 직접 조회 가능 — CloudWatch 알람은 SEARCH를
     지원하지 않음) ② Verdict×RiskLevel 세부분해 시계열을 동시에 발행한다(EMF 표준 기능, 추가
     print 불필요).
+
+    input_tokens/output_tokens: 케이스 1건(=Evidence investigate() 1회 호출) 전체의 Bedrock
+    토큰 합 — 규칙 플래너(EvidenceAgent)는 LLM을 안 써서 항상 0. 이 값 자체로 "케이스별 비용"을
+    보는 게 아니라(카디널리티 폭발 방지 — CaseId는 지표 Dimension이 아니라 로그 필드로만 둠),
+    CloudWatch Logs Insights로 이 EMF 로그 라인을 CaseId로 직접 검색해서 조회한다
+    (infra/monitoring/README.md §2③.3 참고).
     """
     if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
         return  # Lambda 밖(run_demo/run_e2e 로컬 실행)에선 콘솔 스팸 방지 위해 미발행
@@ -52,6 +61,8 @@ def _emit_case_metrics(case: dict, findings_n: int, escalated_n: int, elapsed_ms
                     {"Name": "ToolCallsPerCase", "Unit": "Count"},
                     {"Name": "ConfidenceScore", "Unit": "None"},
                     {"Name": "TimeToVerdictMs", "Unit": "Milliseconds"},
+                    {"Name": "BedrockInputTokens", "Unit": "Count"},
+                    {"Name": "BedrockOutputTokens", "Unit": "Count"},
                 ],
             }],
         },
@@ -63,8 +74,40 @@ def _emit_case_metrics(case: dict, findings_n: int, escalated_n: int, elapsed_ms
         "ToolCallsPerCase": meta.get("tool_calls_count", 0),
         "ConfidenceScore": meta.get("confidence_score", 0.0),
         "TimeToVerdictMs": elapsed_ms,
+        "BedrockInputTokens": input_tokens,
+        "BedrockOutputTokens": output_tokens,
     }
     print(json.dumps(emf))
+
+
+def _emit_tool_usage_metrics(case_id: str, plan: List[Tuple[str, str]]) -> None:
+    """어떤 read-only 툴이 몇 번 호출됐는지(tool별 breakdown) — 별도 EMF 라인.
+
+    EMF는 한 로그 라인 = 한 Dimension 값 세트라, 케이스 하나에서 tool이 여러 종류
+    호출됐으면 tool마다 라인을 하나씩 찍어야 한다(총계 위젯처럼 한 줄로 묶을 수 없음
+    — Dimensions=[["Tool"]]로 CloudWatch가 Tool별 시계열을 자동으로 쪼개준다).
+    """
+    if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        return
+    counts: Dict[str, int] = {}
+    for tool, _resource_id in plan:
+        counts[tool] = counts.get(tool, 0) + 1
+    ts = int(time.time() * 1000)
+    for tool, count in counts.items():
+        emf = {
+            "_aws": {
+                "Timestamp": ts,
+                "CloudWatchMetrics": [{
+                    "Namespace": "CnappAgentic/Engine",
+                    "Dimensions": [["Tool"]],
+                    "Metrics": [{"Name": "ToolInvocations", "Unit": "Count"}],
+                }],
+            },
+            "Tool": tool,
+            "CaseId": case_id,
+            "ToolInvocations": count,
+        }
+        print(json.dumps(emf))
 
 
 class Orchestrator:
@@ -145,11 +188,16 @@ class Orchestrator:
             ev_out.tool_calls_count,
             ev_out.confidence_score,
             ev_out.verdict,
+            tokens=ev_out.input_tokens + ev_out.output_tokens,
         )
 
         # ── ④ Reasoning ───────────────────────────────────────────
         rsn = self._rsn.analyze(c, fmap)
         case_mod.set_reasoning(c, rsn["narrative"], rsn["risk_level"], rsn["recommended_actions"])
 
-        _emit_case_metrics(c, len(findings), len(escalated), (time.time() - t0) * 1000)
+        _emit_case_metrics(
+            c, len(findings), len(escalated), (time.time() - t0) * 1000,
+            input_tokens=ev_out.input_tokens, output_tokens=ev_out.output_tokens,
+        )
+        _emit_tool_usage_metrics(case_id, ev_out.plan)
         return c, escalated, case_findings

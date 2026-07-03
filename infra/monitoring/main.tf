@@ -394,13 +394,17 @@ resource "aws_cloudwatch_dashboard" "platform" {
           }
         },
       ],
-      # --- 축③ 2단: 에이전트 행동(EMF 커스텀, CnappAgentic/Engine) — y=bedrock_rows_end_y+6~+18 ---
-      # ⚠️ 아래 4개 위젯은 engine/reasoning/orchestrator.py(진우 소유)에 README §2③.1의
-      #    _emit_case_metrics 계측이 추가되기 전까지 "No data"로 보임 — 정상(계측 코드는 이 레이어 밖).
+      # --- 축③ 2단: 에이전트 행동(EMF 커스텀, CnappAgentic/Engine) — y=bedrock_rows_end_y+6~+24 ---
+      # engine/reasoning/orchestrator.py(진우 소유)의 _emit_case_metrics·_emit_tool_usage_metrics가
+      # 이 네임스페이스로 EMF를 발행한다(2026-07-03 계측 완료). ⚠️ 다만 두 함수 다 Lambda 밖(로컬
+      # run_demo/run_e2e)에선 미발행이라, orchestrator가 실제로 Lambda로 배포돼 실 finding을
+      # 처리하기 전까지는 아래 6개 위젯이 "No data"로 보이는 게 정상(계측 부재가 아니라 미가동).
       #    _emit_case_metrics가 Dimensions=[[], ["Verdict","RiskLevel"]] 둘 다 발행하므로,
       #    총계 위젯은 무디멘션 메트릭을 직접 참조(SEARCH 불요 — 알람에서도 재사용 가능한 형태로 통일).
       #    분포(판정 분포) 위젯만 SEARCH로 Verdict×RiskLevel 조합별 세부 시계열을 펼쳐서 보여준다
-      #    (SEARCH는 대시보드에선 정상 지원 — 알람에서만 금지).
+      #    (SEARCH는 대시보드에선 정상 지원 — 알람에서만 금지). 케이스별 정확한 비용/사용 tool은
+      #    CaseId를 지표 Dimension으로 안 두고(카디널리티 폭발 방지) CloudWatch Logs Insights로
+      #    이 EMF 로그를 CaseId로 직접 검색해서 본다(README §2③.3).
       [
         {
           type = "metric", x = 0, y = local.bedrock_rows_end_y + 6, width = 12, height = 6
@@ -450,11 +454,39 @@ resource "aws_cloudwatch_dashboard" "platform" {
             period = 300
           }
         },
+        {
+          # 케이스별 Bedrock 토큰(비용) — 계정 전체 집계인 축③ 1단과 달리 "엔진이 조사할 때
+          # 실제로 태운 토큰"만 잡음(트리아지 게이트를 통과한 케이스 한정). 정확한 건별 값은
+          # CloudWatch Logs Insights로 이 네임스페이스 로그를 CaseId로 조회.
+          type = "metric", x = 0, y = local.bedrock_rows_end_y + 18, width = 12, height = 6
+          properties = {
+            title  = "엔진: 케이스별 Bedrock 토큰 사용량(전체 합)"
+            region = var.region
+            metrics = [
+              ["CnappAgentic/Engine", "BedrockInputTokens", { stat = "Sum" }],
+              ["CnappAgentic/Engine", "BedrockOutputTokens", { stat = "Sum" }],
+            ]
+            period = 300
+          }
+        },
+        {
+          # tool별 breakdown — _emit_tool_usage_metrics가 Dimensions=[["Tool"]]로 발행하므로
+          # SEARCH로 Tool 값별 시계열을 펼침(판정 분포 위젯과 동일 패턴).
+          type = "metric", x = 12, y = local.bedrock_rows_end_y + 18, width = 12, height = 6
+          properties = {
+            title  = "엔진: read-only tool별 호출 횟수(어떤 API를 조사에 썼는지)"
+            region = var.region
+            metrics = [
+              [{ expression = "SEARCH('{CnappAgentic/Engine,Tool} MetricName=\"ToolInvocations\"', 'Sum', 300)", label = "", id = "t1" }],
+            ]
+            period = 300
+          }
+        },
       ],
       # --- CloudFront(2026-07-03: infra/console output 추가로 게이트 해제, 상시 포함) ---
       [
         {
-          type = "metric", x = 0, y = local.bedrock_rows_end_y + 18, width = 12, height = 6
+          type = "metric", x = 0, y = local.bedrock_rows_end_y + 24, width = 12, height = 6
           properties = {
             title  = "CloudFront: 요청수 / 4xx·5xx 에러율"
             region = "us-east-1" # CloudFront 지표는 엣지 위치와 무관하게 항상 us-east-1에 발행
@@ -679,6 +711,47 @@ resource "aws_cloudwatch_metric_alarm" "bedrock_errors" {
       metric_name = "InvocationServerErrors"
       dimensions  = { ModelId = local.bedrock_model_ids[0] }
       period      = 300
+      stat        = "Sum"
+    }
+  }
+}
+
+# 비용 가드레일 — 정밀 청구액 알람이 아니라 "무한루프·비정상 다량 호출"을 조기에 잡는 안전망.
+# 위 "Bedrock 추정 비용" 위젯(y=bedrock_rows_end_y)과 동일한 metric math(토큰×단가)를 재사용,
+# period만 300(위젯, 추세 확인용)→3600(알람, 시간당 예산 개념)으로 바꿔 스파이크성 오탐을 줄인다.
+resource "aws_cloudwatch_metric_alarm" "bedrock_cost_high" {
+  alarm_name          = "${var.project}-monitoring-bedrock-cost-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  threshold           = var.bedrock_hourly_cost_alarm_usd
+  alarm_description   = "Bedrock 추정 비용이 시간당 임계값 초과 — 무한루프·비정상 다량 tool-use 조기 감지(가드레일, 정밀 청구액 아님)"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+  treat_missing_data  = "notBreaching"
+
+  metric_query {
+    id          = "cost"
+    expression  = "(m1/1000)*${var.bedrock_haiku_price_in_per_1k} + (m2/1000)*${var.bedrock_haiku_price_out_per_1k}"
+    label       = "Haiku 추정비용(USD, 1시간)"
+    return_data = true
+  }
+  metric_query {
+    id = "m1"
+    metric {
+      namespace   = "AWS/Bedrock"
+      metric_name = "InputTokenCount"
+      dimensions  = { ModelId = local.bedrock_model_ids[0] }
+      period      = 3600
+      stat        = "Sum"
+    }
+  }
+  metric_query {
+    id = "m2"
+    metric {
+      namespace   = "AWS/Bedrock"
+      metric_name = "OutputTokenCount"
+      dimensions  = { ModelId = local.bedrock_model_ids[0] }
+      period      = 3600
       stat        = "Sum"
     }
   }

@@ -143,6 +143,8 @@ class BedrockEvidenceAgent:
         ]
         results: List[ToolResult] = []
         plan: List[Tuple[str, str]] = []
+        total_input_tokens = 0
+        total_output_tokens = 0
 
         for _ in range(self.max_iterations):
             resp = self._client.converse(
@@ -152,6 +154,12 @@ class BedrockEvidenceAgent:
                 toolConfig=self._tool_config,
                 inferenceConfig={"maxTokens": 1024, "temperature": 0.0},
             )
+            # 비용 관측(케이스별 토큰) — Converse 응답의 usage는 이 호출 1회분이라 루프
+            # 반복마다 누적해야 이 investigate() 호출(=케이스 1건) 전체 토큰이 나온다.
+            usage = resp.get("usage") or {}
+            total_input_tokens += usage.get("inputTokens", 0)
+            total_output_tokens += usage.get("outputTokens", 0)
+
             out_msg = resp["output"]["message"]
             messages.append(out_msg)
 
@@ -189,6 +197,8 @@ class BedrockEvidenceAgent:
             confidence_score=confidence,
             verdict=verdict,
             plan=plan,
+            input_tokens=total_input_tokens,
+            output_tokens=total_output_tokens,
         )
 
     def _run_tool(self, api: str, resource_id: str):
