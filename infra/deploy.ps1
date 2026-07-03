@@ -114,8 +114,39 @@ function Invoke-Layer {
   }
 }
 
+# helm 'wait=true' can pass even when the controller fast-panics at startup
+# (observed 2026-07-03: chart 1.1.1 on K8s 1.34 -> instant panic -> CrashLoopBackOff,
+#  yet helm_release and terraform apply both went green). terraform green != controller
+# healthy, so after the karpenter layer applies we gate on the actual Deployment rollout.
+function Test-KarpenterHealth {
+  if (-not (Get-Command kubectl -ErrorAction SilentlyContinue)) {
+    Write-Host "WARN: kubectl not found -- skipping karpenter health gate. Verify manually:" -ForegroundColor Yellow
+    Write-Host "      kubectl get pods -n kube-system -l app.kubernetes.io/name=karpenter" -ForegroundColor Yellow
+    return
+  }
+
+  # Resolve cluster name from the shared layer's state (no hardcoding).
+  Push-Location (Join-Path $InfraRoot 'shared')
+  try { $cluster = (& terraform output -raw eks_cluster_name 2>$null) } finally { Pop-Location }
+  if (-not $cluster) {
+    Write-Host "WARN: could not read eks_cluster_name from shared state -- skipping health gate." -ForegroundColor Yellow
+    return
+  }
+
+  & aws eks update-kubeconfig --name $cluster --region ap-northeast-2 | Out-Null
+  Write-Host "--- [karpenter] health gate: waiting for controller rollout (max 180s) ---" -ForegroundColor Green
+  & kubectl rollout status deployment/karpenter -n kube-system --timeout=180s
+  if ($LASTEXITCODE -ne 0) {
+    & kubectl get pods -n kube-system -l app.kubernetes.io/name=karpenter
+    & kubectl logs -n kube-system -l app.kubernetes.io/name=karpenter --tail=20
+    throw "[karpenter] controller is NOT healthy (rollout did not complete) -- terraform was green but the pod is failing. See logs above (common cause: chart version incompatible with the cluster K8s version)."
+  }
+  Write-Host "[karpenter] controller healthy (rollout complete)" -ForegroundColor Green
+}
+
 foreach ($l in $layers) {
   Invoke-Layer -L $l -Act $Action
+  if ($l -eq 'karpenter' -and $Action -eq 'apply') { Test-KarpenterHealth }
   Write-Host ""
 }
 
