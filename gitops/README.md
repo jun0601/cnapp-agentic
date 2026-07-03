@@ -10,7 +10,7 @@
 
 | | 무엇 | 언제 | 비용 |
 |---|---|---|---|
-| **CI** (`.github/workflows/ci.yml`) | 코드 회귀(run_demo·run_e2e·validate) + Shift-Left 스캔(Trivy·Checkov) | 매 push·PR | **$0** (GitHub Actions, 인프라 무관) |
+| **CI** (`.github/workflows/ci.yml`) | 코드 회귀(run_demo·run_e2e·validate) + Shift-Left 스캔(Trivy·Checkov) | **PR(→main)·수동**(2026-07-04, main 직접 push엔 미실행 — 노이즈 감소) | **$0** (GitHub Actions, 인프라 무관) |
 | **CD** (이 폴더, ArgoCD) | Git 매니페스트 → EKS 배포·동기화·self-heal | EKS 살아있을 때 | EKS 시간과금(데모 세션만) |
 
 - **CI는 항상 켜져 있어도 공짜** → 2인 병렬 회귀 방지 + Shift-Left(차별점)를 상시 증명.

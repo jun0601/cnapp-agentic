@@ -1,18 +1,19 @@
 name: ci
 
-# CI (Shift-Left) — 매 push·PR마다:
+# CI (Shift-Left) — PR(→main)에서만 실행 + 필요 시 수동(workflow_dispatch):
 #   ① checks(하드 게이트): 전 영역 run_demo + run_e2e + contracts validate가 전부 exit 0 이어야 통과.
-#      → 2인 병렬 작업의 회귀(머지 충돌·계약 위반)를 즉시 잡는다.
+#      → 2인 병렬 작업의 회귀(머지 충돌·계약 위반)를 PR 시점에 잡는다.
 #   ② shift-left(리포트): Trivy(IaC/Dockerfile 미스컨피그·CVE) + Checkov(Terraform)로 스캔.
 #      ⚠️ 이 레포는 '의도적 취약' 타깃(infra/target·apps/target)을 포함하므로 여기선 report 모드(soft-fail).
 #         실서비스 파이프라인이면 hard-gate(exit 1)로 프로덕션 배포 차단이 정석(project-draft §18).
+# ⚠️ main 직접 push엔 안 돌린다(2026-07-04 결정) — 직접 push가 잦아 노이즈만 컸음. 안전망은 PR에서.
+#    로컬 회귀(run_demo/validate)는 각자 push 전 돌리는 게 1차 방어. 수동 실행은 Actions 탭 Run workflow.
 # CD(배포)는 ArgoCD GitOps(gitops/) — 살아있는 EKS 필요라 CI(코드쪽·$0)와 분리. gitops/README 참조.
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   checks:

@@ -100,7 +100,7 @@
 
 | | 무엇 | 언제 | 비용 | 근거 |
 |---|---|---|---|---|
-| **CI** (GitHub Actions) | 코드 회귀(run_demo·run_e2e·validate) + Shift-Left 스캔(Trivy·Checkov) | 매 push·PR | **$0** (인프라 무관) | 항상 켜도 공짜 → 2인 병렬 회귀 방지 + 차별점(Shift-Left) 상시 증명 |
+| **CI** (GitHub Actions) | 코드 회귀(run_demo·run_e2e·validate) + Shift-Left 스캔(Trivy·Checkov) | **PR·수동**(main 직접 push엔 미실행) | **$0** (인프라 무관) | 공짜지만 main 직접 push마다 도는 건 노이즈라 PR 게이트로(2026-07-04) |
 | **CD** (ArgoCD GitOps) | Git 매니페스트 → EKS 배포·self-heal | EKS 살아있을 때 | EKS 시간과금 | 살아있는 클러스터 필요 → `apply→데모→destroy` 사이클로만 |
 
 **CD = ArgoCD 선택 근거:** GitOps 표준 · pull 기반(CI에 클러스터 키 안 밀어넣음, 키리스 정합) · self-heal(드리프트 자동복구, §19 #3) · 데모 UI · cosign 서명 강제 훅(D17). 대안(Flux 경량·UI약 / GH Actions push=GitOps 아님·드리프트 교정 없음)보다 우위.
