@@ -202,13 +202,22 @@ class RealToolExecutor(ToolExecutor):
             )
         return handler(tool, resource_id)
 
+    def _no_bucket(self, tool: str, resource_id: str) -> ToolResult:
+        """버킷이 존재하지 않을 때(NoSuchBucket) 중립 결과. 조사 전체를 크래시시키지 않는다
+        (2026-07-04 라이브 실측: 버킷 하나 없으면 GetBucketAcl 등이 예외를 던져 investigate가 죽음)."""
+        return ToolResult(tool, resource_id, "버킷이 존재하지 않음(NoSuchBucket) — 이 증거는 생략",
+                          False, {"error": "NoSuchBucket"}, self._now())
+
     def _get_bucket_policy(self, tool: str, resource_id: str) -> ToolResult:
         bucket = self._bucket_name(resource_id)
         try:
             resp = self._s3.get_bucket_policy(Bucket=bucket)
             policy = json.loads(resp["Policy"])
         except self._ClientError as e:
-            if e.response["Error"]["Code"] == "NoSuchBucketPolicy":
+            code = e.response["Error"]["Code"]
+            if code == "NoSuchBucket":
+                return self._no_bucket(tool, resource_id)
+            if code == "NoSuchBucketPolicy":
                 return ToolResult(tool, resource_id, "버킷 정책 없음 — 공개 statement 미발견",
                                   False, {}, self._now())
             raise
@@ -226,7 +235,10 @@ class RealToolExecutor(ToolExecutor):
             resp = self._s3.get_public_access_block(Bucket=bucket)
             cfg = resp["PublicAccessBlockConfiguration"]
         except self._ClientError as e:
-            if e.response["Error"]["Code"] == "NoSuchPublicAccessBlockConfiguration":
+            code = e.response["Error"]["Code"]
+            if code == "NoSuchBucket":
+                return self._no_bucket(tool, resource_id)
+            if code == "NoSuchPublicAccessBlockConfiguration":
                 # PAB 미설정 = 공개 차단이 아예 없음(위험)
                 return ToolResult(tool, resource_id, "public access block 미설정(차단 없음)",
                                   True, {}, self._now())
@@ -241,7 +253,12 @@ class RealToolExecutor(ToolExecutor):
 
     def _get_bucket_acl(self, tool: str, resource_id: str) -> ToolResult:
         bucket = self._bucket_name(resource_id)
-        resp = self._s3.get_bucket_acl(Bucket=bucket)
+        try:
+            resp = self._s3.get_bucket_acl(Bucket=bucket)
+        except self._ClientError as e:
+            if e.response["Error"]["Code"] == "NoSuchBucket":
+                return self._no_bucket(tool, resource_id)
+            raise
         # AllUsers/AuthenticatedUsers grantee = ACL 레벨 공개(정책과 별개 공개 표면)
         public_uris = ("http://acs.amazonaws.com/groups/global/AllUsers",
                        "http://acs.amazonaws.com/groups/global/AuthenticatedUsers")

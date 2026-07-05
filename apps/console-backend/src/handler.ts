@@ -21,9 +21,12 @@ interface AlbResult {
   body: string
 }
 
+// ⚠️ ALB는 statusDescription을 "<코드> <사유구>"(예: "200 OK") 형식으로 요구한다.
+// "200"만 주면 ALB가 응답을 거부해 502를 낸다(2026-07-04 라이브 실측 — Lambda는 정상인데 ALB만 502).
+const REASON: Record<number, string> = { 200: 'OK', 202: 'Accepted', 400: 'Bad Request', 403: 'Forbidden', 404: 'Not Found', 500: 'Internal Server Error' }
 const json = (statusCode: number, body: unknown): AlbResult => ({
   statusCode,
-  statusDescription: `${statusCode}`,
+  statusDescription: `${statusCode} ${REASON[statusCode] ?? 'OK'}`,
   isBase64Encoded: false,
   headers: { 'Content-Type': 'application/json; charset=utf-8' },
   body: JSON.stringify(body),

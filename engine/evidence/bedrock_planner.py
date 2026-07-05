@@ -214,6 +214,11 @@ class BedrockEvidenceAgent:
             return None, [{"text": "차단: " + str(e)}], "error"
         except NotImplementedError as e:
             return None, [{"text": "미구현: " + str(e)}], "error"
+        except Exception as e:  # noqa: BLE001
+            # 실 API 오류(리소스 없음·권한·서비스 오류 등)를 error toolResult로 되돌려 조사 지속.
+            # 도구 하나 실패가 investigate 전체를 크래시시키면 안 됨(2026-07-04 라이브 실측: NoSuchBucket).
+            # LLM은 이 오류를 보고 다른 도구/리소스로 조정한다.
+            return None, [{"text": "도구 실행 오류: " + str(e)[:300]}], "error"
         content = [
             {"json": {"summary": r.result_summary, "confirms": r.confirms, "raw": r.raw}}
         ]
