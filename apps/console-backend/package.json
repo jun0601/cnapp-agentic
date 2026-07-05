@@ -12,6 +12,7 @@
   },
   "//": "build = esbuild 번들(pg를 dist/handler.js에 인라인 → VPC Lambda에서 real pg 경로 동작). @aws-sdk/*는 Node20 Lambda 런타임에 이미 포함되어 external. typecheck 선행으로 타입 게이트 유지.",
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.600.0",
     "@aws-sdk/client-secrets-manager": "^3.600.0",
     "pg": "^8.12.0"
   },

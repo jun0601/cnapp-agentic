@@ -124,6 +124,50 @@ export async function getAttackPath(id: string): Promise<AttackPath | null> {
   return mockPaths().find((p) => p.attack_path_id === id) ?? null
 }
 
+// ── /chat 자연어 질의 → RAG 답변(§8) ─────────────────────────────────
+// mock: 템플릿 에코 / real: Titan Embed v2 → pgvector cosine top_k → Sonnet converse.
+// rag/(Python)와 동일 파이프라인의 TS판 — 같은 rag_chunks 테이블·같은 Titan 모델(벡터 정합).
+const EMBED_MODEL = 'amazon.titan-embed-text-v2:0'
+const CHAT_MODEL = 'global.anthropic.claude-sonnet-4-5-20250929-v1:0' // rag/answer_gen.py와 동일
+
+export async function chatAnswer(q: string): Promise<{ answer: string; refs: string[] }> {
+  if (USE_MOCK || !q) return { answer: `(mock) "${q}" 에 대한 RAG 응답 자리`, refs: [] }
+
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { BedrockRuntimeClient, InvokeModelCommand, ConverseCommand } =
+    require('@aws-sdk/client-bedrock-runtime') as typeof import('@aws-sdk/client-bedrock-runtime')
+  const br = new BedrockRuntimeClient({})
+
+  // 1) 질의 임베딩(Titan v2, 1024-dim) — 적재부와 동일 모델
+  const eResp = await br.send(
+    new InvokeModelCommand({
+      modelId: EMBED_MODEL,
+      body: JSON.stringify({ inputText: q, dimensions: 1024, normalize: true }),
+    }),
+  )
+  const embedding = JSON.parse(Buffer.from(eResp.body).toString('utf-8')).embedding as number[]
+  const vec = '[' + embedding.map((v) => v.toFixed(6)).join(',') + ']'
+
+  // 2) pgvector cosine top_k
+  const r = await (await pool()).query(
+    'SELECT chunk_id, text FROM rag_chunks ORDER BY embedding <=> $1::vector LIMIT 4',
+    [vec],
+  )
+  const chunks = r.rows as { chunk_id: string; text: string }[]
+
+  // 3) Sonnet converse(검색 청크를 system 컨텍스트로)
+  const context = chunks.map((c, i) => `【지식베이스 ${i + 1}】\n${c.text}`).join('\n\n')
+  const cResp = await br.send(
+    new ConverseCommand({
+      modelId: CHAT_MODEL,
+      system: [{ text: `당신은 클라우드 보안 전문가입니다. 아래 지식베이스를 참고해 한국어로 답하세요.\n\n${context}` }],
+      messages: [{ role: 'user', content: [{ text: q }] }],
+    }),
+  )
+  const answer = cResp.output?.message?.content?.[0]?.text ?? '(응답 없음)'
+  return { answer, refs: chunks.map((c) => c.chunk_id) }
+}
+
 // scores·audit·compliance는 MVP에선 상수/배치 산출(§15.2). 실 전환 시 scores/audit/compliance 조회.
 export function getScores() {
   return {

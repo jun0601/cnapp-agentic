@@ -220,8 +220,8 @@ contracts/rag-chunk.schema.json
 | 지금 (목업) | 실배포 | 파일 |
 |---|---|---|
 | `CorpusLoader(mock=True)` — 결정적 벡터 + dry-run | `CorpusLoader(mock=False, pg_dsn=...)` — Titan Embed v2 + pgvector UPSERT | corpus/loader.py |
-| `RAGRetriever(mock=True)` — control_id 직접 매핑 | `RAGRetriever(mock=False)` — Titan Embed v2 + pgvector cosine | retrieval/retriever.py |
-| `RAGAnswerGenerator(mock=True)` — 템플릿 | `RAGAnswerGenerator(mock=False)` — Bedrock Claude Sonnet | retrieval/answer_gen.py |
+| `RAGRetriever(mock=True)` — control_id 직접 매핑 | ✅**구현됨**(2026-07-04) `RAGRetriever(mock=False, pg_dsn=...)` — Titan Embed v2로 쿼리 임베딩 → `embedding <=> vec`(pgvector cosine) top_k. 적재부와 동일 Titan 모델(벡터 정합) | retrieval/retriever.py |
+| `RAGAnswerGenerator(mock=True)` — 템플릿 | ✅**구현됨** `RAGAnswerGenerator(mock=False)` — Bedrock Sonnet converse(청크+evidence를 프롬프트에) + `usage.totalTokens` 캐처 | retrieval/answer_gen.py |
 
 **전제조건(실배포 전):**
 1. `PG_DSN` 환경변수 — RDS pgvector DSN

@@ -74,8 +74,8 @@ export async function handler(event: AlbEvent): Promise<AlbResult> {
       }
       if (path === '/chat') {
         const body = safeJson(event.body) as { q?: string }
-        // 실 전환: Bedrock RAG 응답. 지금은 에코 placeholder.
-        return json(200, { answer: `(mock) "${body.q ?? ''}"에 대한 RAG 응답 자리` })
+        // 자연어 질의 → RAG(Titan 임베딩 → pgvector → Sonnet). mock이면 템플릿 에코.
+        return json(200, await data.chatAnswer(body.q ?? ''))
       }
     }
 

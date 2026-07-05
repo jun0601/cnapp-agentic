@@ -89,11 +89,11 @@ class RAGAnswerGenerator:
             explanation = _mock_explanation(finding, chunks, evidence)
             model_trace = {"stage": "rag_answer", "model": "mock", "tokens": 0}
         else:
-            explanation = self._bedrock_generate(finding, chunks, evidence)
+            explanation, tokens = self._bedrock_generate(finding, chunks, evidence)
             model_trace = {
                 "stage": "rag_answer",
                 "model": _BEDROCK_MODEL_ID,
-                "tokens": -1,  # 실 호출 후 response["usage"]["totalTokens"]로 채움
+                "tokens": tokens,  # converse usage.totalTokens (비용 귀속 관측 — infra/monitoring §15)
             }
 
         return {
@@ -104,8 +104,8 @@ class RAGAnswerGenerator:
 
     def _bedrock_generate(
         self, finding: dict, chunks: list[dict], evidence: list[dict]
-    ) -> str:
-        """실배포: Bedrock Claude Sonnet converse 호출 (boto3 지연 import)."""
+    ) -> tuple[str, int]:
+        """실배포: Bedrock Claude Sonnet converse 호출 → (설명 텍스트, 사용 토큰). boto3 지연 import."""
         import boto3  # 지연 import — 목업 환경 영향 없음
 
         chunk_texts = "\n\n".join(
@@ -146,4 +146,6 @@ class RAGAnswerGenerator:
             system=[{"text": system_prompt}],
             messages=[{"role": "user", "content": [{"text": user_prompt}]}],
         )
-        return response["output"]["message"]["content"][0]["text"]
+        text = response["output"]["message"]["content"][0]["text"]
+        tokens = int(response.get("usage", {}).get("totalTokens", 0))
+        return text, tokens
