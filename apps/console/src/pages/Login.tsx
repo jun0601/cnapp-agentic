@@ -26,20 +26,32 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
-      <div className="w-full max-w-md">
-        <div className="rounded-2xl border border-slate-700/50 bg-white p-8 shadow-2xl">
-          {/* 로고 + 타이틀 */}
-          <div className="flex flex-col items-center text-center">
-            <img src="/favicon.svg" alt="" className="h-14 w-14" />
-            <h1 className="mt-3 text-xl font-bold text-slate-900">CNAPP 관제</h1>
-            <p className="mt-1 text-sm text-slate-500">멀티클라우드 보안 관제 플랫폼</p>
-          </div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4">
+      {/* 배경 글로우 */}
+      <div className="pointer-events-none absolute -top-32 left-1/4 h-80 w-80 rounded-full bg-brand-600/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 right-1/4 h-80 w-80 rounded-full bg-violet-600/15 blur-3xl" />
 
+      <div className="relative w-full max-w-md animate-fade-up">
+        {/* 브랜드 로고(카드 밖·상단) */}
+        <div className="mb-6 flex flex-col items-center text-center">
+          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-600 to-violet-600 text-3xl shadow-glow">
+            🛡️
+          </span>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-white">CNAPP 관제</h1>
+          <p className="mt-1 text-sm text-slate-400">에이전틱 AI 기반 멀티클라우드 보안 플랫폼</p>
+          {/* 멀티클라우드 신뢰 배지 */}
+          <div className="mt-3 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-amber-300">☁️ AWS</span>
+            <span className="text-slate-600">+</span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-sky-300">⊞ Azure Entra</span>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white p-8 shadow-2xl">
           {/* 로그인 버튼 — 실환경에선 IdP 리다이렉트. 목업에선 기본 역할(VITE_MOCK_ROLE)로 입장. */}
           <button
             onClick={() => loginAs(getRole())}
-            className="mt-7 flex w-full items-center justify-center gap-2 rounded-lg bg-azure px-4 py-3 font-medium text-white transition hover:brightness-110"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-azure to-sky-600 px-4 py-3 font-semibold text-white shadow-lg shadow-sky-600/20 transition hover:brightness-110 active:scale-[0.99]"
           >
             <span className="text-lg">⊞</span> Microsoft Entra ID로 로그인
           </button>

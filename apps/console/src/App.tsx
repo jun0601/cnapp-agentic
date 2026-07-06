@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Navigate } from 'react-router-dom'
+import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom'
 import { IS_MOCK, useRole, setRole, needsLogin, type Role } from '@/lib/auth'
 import { userEmail, logout, isAuthenticated } from '@/lib/oidc'
 
@@ -60,6 +60,7 @@ function UserMenu() {
 }
 
 export default function App() {
+  const location = useLocation()
   // 실환경(옵션 B): 미인증이면 로그인 화면으로. 목업은 항상 통과(needsLogin=false).
   if (needsLogin()) return <Navigate to="/login" replace />
   return (
@@ -109,7 +110,8 @@ export default function App() {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      {/* key=pathname → 라우트 전환마다 진입 fade-up 재생(프리미엄 감) */}
+      <main key={location.pathname} className="mx-auto max-w-7xl animate-fade-up px-4 py-6">
         <Outlet />
       </main>
     </div>
