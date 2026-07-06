@@ -20,6 +20,10 @@ spec:
         - name: product
           # f1: KEV 취약 이미지(product/Dockerfile로 빌드, build-images.yml이 push)
           image: "066107819776.dkr.ecr.ap-northeast-2.amazonaws.com/cnapp-agentic/product:latest"
+          # placeholder 파드 keep-alive. (product는 스캔 대상 이미지가 목적이지 기능 서비스가 아님)
+          # 현재 ECR 이미지는 Dockerfile exec-form 함정으로 CMD가 깨져 있어(수정 커밋됨, 재빌드 전)
+          # 명시적 command로 우회. 이미지 재빌드 후엔 이 줄 없어도 동작.
+          command: ["sleep", "infinity"]
           ports: [{ containerPort: 8080 }]
           # ── f2 결함: 과도 권한 파드(privileged) ──
           securityContext:

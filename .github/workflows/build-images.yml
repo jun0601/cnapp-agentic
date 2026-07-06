@@ -24,11 +24,11 @@ env:
 
 jobs:
   build-push:
-    name: build & push (member, product)
+    name: build & push (member, product, order)
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [member, product]
+        service: [member, product, order]
     steps:
       - uses: actions/checkout@v5
 

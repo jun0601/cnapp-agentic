@@ -138,6 +138,20 @@ resource "aws_cloudfront_distribution" "front" {
     origin_access_control_id = aws_cloudfront_origin_access_control.front.id
   }
 
+  # API 오리진 = console-backend ALB. SPA(HTTPS)가 HTTP ALB를 직접 부르면 브라우저가
+  # mixed-content로 차단하므로, CloudFront가 같은 오리진(HTTPS)으로 /api/*를 ALB에 프록시한다.
+  # (CloudFront는 뷰어에 HTTPS, 오리진(ALB)엔 HTTP로 통신 — ALB에 cert 없어도 됨)
+  origin {
+    domain_name = aws_lb.this.dns_name
+    origin_id   = "alb-api"
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
   default_cache_behavior {
     target_origin_id       = "s3-front"
     viewer_protocol_policy = "redirect-to-https"
@@ -145,6 +159,17 @@ resource "aws_cloudfront_distribution" "front" {
     cached_methods         = ["GET", "HEAD"]
     # AWS 관리 캐시 정책 CachingOptimized
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+  }
+
+  # /api/* → ALB(console-backend). 캐싱 금지(API 응답) + 뷰어 헤더/쿼리/쿠키 전달(Authorization 포함).
+  ordered_cache_behavior {
+    path_pattern             = "/api/*"
+    target_origin_id         = "alb-api"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # managed CachingDisabled
+    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # managed AllViewer
   }
 
   # SPA 라우팅: 없는 경로는 index.html로(클라이언트 라우터가 처리)
