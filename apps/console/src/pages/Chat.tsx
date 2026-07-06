@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
-import { useChat } from '@/api/queries'
+import { useChat, type ChatRef } from '@/api/queries'
 
 // AI 보안 어시스턴트 — RAG(Titan 임베딩 → pgvector → Bedrock Haiku). 실 지식베이스 근거로 답변.
 // "챗봇 탈출"의 얼굴: 사용자가 자연어로 물으면 실제 벡터 검색 + LLM이 근거와 함께 답한다.
@@ -7,7 +7,7 @@ import { useChat } from '@/api/queries'
 interface Msg {
   role: 'user' | 'ai'
   text: string
-  refs?: string[]
+  refs?: ChatRef[]
   error?: boolean
 }
 
@@ -67,11 +67,19 @@ function Bubble({ m }: { m: Msg }) {
           {m.error ? <p className="text-sm text-rose-600">{m.text}</p> : <RichText text={m.text} />}
         </div>
         {m.refs && m.refs.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-slate-400">지식베이스 근거</span>
-            {m.refs.map((r) => (
-              <span key={r} className="rounded-full border border-indigo-100 bg-indigo-50 px-2 py-0.5 font-mono text-[10px] text-indigo-600">{r}</span>
-            ))}
+          <div className="mt-2 space-y-1.5">
+            <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+              <span className="rounded bg-violet-100 px-1.5 py-0.5 font-semibold text-violet-600">pgvector</span>
+              코사인 유사도 검색으로 찾은 근거 {m.refs.length}건
+            </span>
+            <div className="grid gap-1 sm:grid-cols-2">
+              {m.refs.map((r, i) => (
+                <div key={i} className="rounded-lg border border-indigo-100 bg-indigo-50/40 px-2.5 py-1.5">
+                  <span className="font-mono text-[10px] font-semibold text-indigo-600">{r.control}</span>
+                  <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">{r.snippet}…</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -110,7 +118,13 @@ export default function Chat() {
             AI 보안 어시스턴트
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">RAG · 실 지식베이스</span>
           </h1>
-          <p className="text-xs text-slate-500">Titan 임베딩 → pgvector 검색 → Bedrock 답변. 근거 청크와 함께 대답합니다.</p>
+          <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px]">
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-600">Titan 임베딩</span>
+            <span className="text-slate-300">→</span>
+            <span className="rounded bg-violet-100 px-1.5 py-0.5 font-semibold text-violet-600">pgvector 코사인 검색</span>
+            <span className="text-slate-300">→</span>
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-600">Bedrock 답변</span>
+          </div>
         </div>
       </div>
 

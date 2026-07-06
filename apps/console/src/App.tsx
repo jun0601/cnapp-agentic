@@ -22,7 +22,7 @@ function RoleSwitcher() {
       <select
         value={role}
         onChange={(e) => setRole(e.target.value as Role)}
-        className="rounded border border-slate-300 bg-white px-2 py-1 text-slate-700"
+        className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-slate-700 shadow-sm outline-none focus:border-brand-400"
         title="개발용 역할 전환 (실데이터에선 Cognito custom:groups로 판정)"
       >
         <option value="viewer">viewer</option>
@@ -37,22 +37,20 @@ function UserMenu() {
   const role = useRole()
   const email = userEmail()
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2.5">
       <div className="hidden flex-col items-end leading-tight sm:flex">
         <span className="max-w-[180px] truncate text-xs font-medium text-slate-700" title={email ?? ''}>
           {email ?? '사용자'}
         </span>
         <span
-          className={`text-[10px] font-semibold uppercase tracking-wide ${
-            role === 'approver' ? 'text-emerald-600' : 'text-slate-400'
-          }`}
+          className={`text-[10px] font-semibold uppercase tracking-wide ${role === 'approver' ? 'text-emerald-600' : 'text-slate-400'}`}
         >
           {role}
         </span>
       </div>
       <button
         onClick={() => logout()}
-        className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
+        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
       >
         로그아웃
       </button>
@@ -64,22 +62,30 @@ export default function App() {
   // 실환경(옵션 B): 미인증이면 로그인 화면으로. 목업은 항상 통과(needsLogin=false).
   if (needsLogin()) return <Navigate to="/login" replace />
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100/60 text-slate-900">
+      <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-2.5">
-          <span className="flex items-center gap-2 font-bold">
-            <img src="/favicon.svg" alt="" className="h-6 w-6" />
-            <span className="text-slate-900">CNAPP 관제</span>
+          {/* 로고 마크 */}
+          <span className="flex shrink-0 items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-violet-600 text-base text-white shadow-glow">
+              🛡️
+            </span>
+            <span className="hidden flex-col leading-none md:flex">
+              <span className="text-[15px] font-bold tracking-tight text-slate-900">CNAPP 관제</span>
+              <span className="text-[10px] text-slate-400">멀티클라우드 보안 플랫폼</span>
+            </span>
           </span>
-          <nav className="ml-2 flex gap-1 text-sm">
+
+          {/* 내비 — 활성 pill */}
+          <nav className="ml-1 flex gap-0.5 overflow-x-auto text-sm">
             {NAV.map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
                 end={n.end}
                 className={({ isActive }) =>
-                  `rounded-md px-3 py-1.5 transition ${
-                    isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+                  `whitespace-nowrap rounded-lg px-3 py-1.5 font-medium transition ${
+                    isActive ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                   }`
                 }
               >
@@ -87,14 +93,16 @@ export default function App() {
               </NavLink>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-3">
+
+          <div className="ml-auto flex shrink-0 items-center gap-3">
             <RoleSwitcher />
             <span
-              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
                 IS_MOCK ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
               }`}
             >
-              {IS_MOCK ? '목업 모드 (MSW)' : '실데이터'}
+              <span className={`h-1.5 w-1.5 rounded-full ${IS_MOCK ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+              {IS_MOCK ? '목업' : '실데이터'}
             </span>
             {!IS_MOCK && isAuthenticated() && <UserMenu />}
           </div>

@@ -70,9 +70,13 @@ export function useCompliance() {
 
 // AI 어시스턴트(RAG) — 자연어 질의 → Titan 임베딩 → pgvector 검색 → Bedrock(Haiku) 답변.
 // 백엔드 POST /chat({q}) → {answer, refs[]}. 실 지식베이스(rag_chunks) 근거로 답변.
+export interface ChatRef {
+  control: string
+  snippet: string
+}
 export function useChat() {
   return useMutation({
-    mutationFn: (q: string) => apiPost<{ answer: string; refs: string[] }>('/chat', { q }),
+    mutationFn: (q: string) => apiPost<{ answer: string; refs: ChatRef[] }>('/chat', { q }),
   })
 }
 

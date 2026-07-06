@@ -134,7 +134,11 @@ const EMBED_MODEL = 'amazon.titan-embed-text-v2:0'
 // (엔진 evidence도 같은 Haiku 프로파일 — bedrock_planner.DEFAULT_MODEL_ID와 정합)
 const CHAT_MODEL = process.env.CHAT_MODEL_ID ?? 'global.anthropic.claude-haiku-4-5-20251001-v1:0'
 
-export async function chatAnswer(q: string): Promise<{ answer: string; refs: string[] }> {
+export interface ChatRef {
+  control: string // 근거 청크의 control_id(예: INTERNAL-S3-PUBLIC-001) — 없으면 chunk_id 앞 8자
+  snippet: string // 청크 텍스트 미리보기
+}
+export async function chatAnswer(q: string): Promise<{ answer: string; refs: ChatRef[] }> {
   if (USE_MOCK || !q) return { answer: `(mock) "${q}" 에 대한 RAG 응답 자리`, refs: [] }
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -154,10 +158,10 @@ export async function chatAnswer(q: string): Promise<{ answer: string; refs: str
 
   // 2) pgvector cosine top_k
   const r = await (await pool()).query(
-    'SELECT chunk_id, text FROM rag_chunks ORDER BY embedding <=> $1::vector LIMIT 4',
+    "SELECT chunk_id, text, metadata->>'control_id' AS control_id FROM rag_chunks ORDER BY embedding <=> $1::vector LIMIT 4",
     [vec],
   )
-  const chunks = r.rows as { chunk_id: string; text: string }[]
+  const chunks = r.rows as { chunk_id: string; text: string; control_id: string | null }[]
 
   // 3) Sonnet converse(검색 청크를 system 컨텍스트로)
   const context = chunks.map((c, i) => `【지식베이스 ${i + 1}】\n${c.text}`).join('\n\n')
@@ -169,7 +173,13 @@ export async function chatAnswer(q: string): Promise<{ answer: string; refs: str
     }),
   )
   const answer = cResp.output?.message?.content?.[0]?.text ?? '(응답 없음)'
-  return { answer, refs: chunks.map((c) => c.chunk_id) }
+  return {
+    answer,
+    refs: chunks.map((c) => ({
+      control: c.control_id ?? `chunk:${c.chunk_id.slice(0, 8)}`,
+      snippet: c.text.replace(/\s+/g, ' ').trim().slice(0, 90),
+    })),
+  }
 }
 
 // scores·audit·compliance는 MVP에선 상수/배치 산출(§15.2). 실 전환 시 scores/audit/compliance 조회.
