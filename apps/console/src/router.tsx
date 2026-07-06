@@ -7,6 +7,7 @@ import AttackPath from './pages/AttackPath'
 import Remediation from './pages/Remediation'
 import Compliance from './pages/Compliance'
 import Audit from './pages/Audit'
+import Chat from './pages/Chat'
 import Login from './pages/Login'
 import Callback from './pages/Callback'
 
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
       { path: 'remediation', element: <Remediation /> },
       { path: 'compliance', element: <Compliance /> },
       { path: 'audit', element: <Audit /> },
+      { path: 'chat', element: <Chat /> },
     ],
   },
 ])

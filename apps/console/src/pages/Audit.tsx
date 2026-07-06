@@ -32,13 +32,12 @@ export default function Audit() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">감사로그</h1>
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">🔒 불변 (S3 Object Lock)</span>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">감사로그</h1>
+          <p className="mt-0.5 text-sm text-slate-500">모든 판정·조치·스캔·인증을 시간순 불변 기록 (Object Lock S3 조회)</p>
+        </div>
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">🔒 불변 (S3 Object Lock)</span>
       </div>
-
-      <p className="text-sm text-slate-500">
-        모든 판정·조치·스캔·인증을 시간순으로 불변 기록합니다. (실데이터: Object Lock S3에서 조회)
-      </p>
 
       {/* 액션 필터 */}
       <div className="flex flex-wrap gap-1.5 text-xs">
@@ -46,9 +45,9 @@ export default function Audit() {
           <button
             key={a}
             onClick={() => setAction(a)}
-            className={`rounded-full px-3 py-1 ${
-              action === a ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
-            } border border-slate-200`}
+            className={`rounded-full border px-3 py-1 font-medium transition ${
+              action === a ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+            }`}
           >
             {a === 'all' ? '전체' : ACTION_META[a].label}
           </button>

@@ -36,7 +36,7 @@ function ActionRow({
         <p className="text-sm font-medium text-slate-800">{a.title}</p>
         <p className="truncate font-mono text-xs text-slate-400">{f.resource_id}</p>
       </div>
-      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">
+      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
         {a.mode === 'auto' ? '자동 실행' : '제안만'}
       </span>
       {decision ? (
@@ -52,7 +52,7 @@ function ActionRow({
           <button
             disabled={!canApprove || pending}
             onClick={() => onDecide(f.finding_id, 'approved')}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-40"
             title={canApprove ? '승인 → Step Functions 실행' : 'approver 권한 필요'}
           >
             {pending ? '처리 중…' : '승인'}
@@ -60,7 +60,7 @@ function ActionRow({
           <button
             disabled={!canApprove || pending}
             onClick={() => onDecide(f.finding_id, 'rejected')}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm enabled:hover:bg-slate-50 disabled:opacity-40"
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 enabled:hover:bg-slate-50 disabled:opacity-40"
           >
             거부
           </button>
@@ -95,15 +95,18 @@ export default function Remediation() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <h1 className="text-xl font-bold">조치 승인 (HITL)</h1>
-        <span
-          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-            canApprove ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-          }`}
-        >
-          {role}
-        </span>
+      <div>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">조치 승인 (HITL)</h1>
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+              canApprove ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            {role}
+          </span>
+        </div>
+        <p className="mt-0.5 text-sm text-slate-500">승인 시 Step Functions 실행 · 감사로그 불변 기록 (read-only first)</p>
       </div>
 
       {!canApprove && (
