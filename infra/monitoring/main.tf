@@ -624,6 +624,162 @@ resource "aws_sns_topic_subscription" "teams_notifier" {
 }
 
 # =============================================================================
+# [일일 비용 알림] 매일 09:00 KST(=00:00 UTC) 전날 사용 비용을 Cost Explorer로 조회해 Teams 발행.
+#   CloudWatch 알람이 아니라 능동 Lambda — Cost Explorer는 "임계값 초과"가 아니라 "매일 정기 리포트"
+#   개념이라 알람 모델과 안 맞는다(항상 무언가는 보고할 값이 있음).
+#   ⚠️ Cost Explorer API 엔드포인트는 계정 리전과 무관하게 us-east-1 고정(AWS 제약, lambda_src 주석 참고).
+# =============================================================================
+resource "aws_cloudwatch_log_group" "daily_cost_notifier" {
+  name              = "/aws/lambda/${var.project}-monitoring-daily-cost-notifier"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_iam_role" "daily_cost_notifier" {
+  name               = "${var.project}-monitoring-daily-cost-notifier"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "daily_cost_notifier_logs" {
+  role       = aws_iam_role.daily_cost_notifier.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+data "aws_iam_policy_document" "daily_cost_notifier" {
+  statement {
+    sid       = "ReadCostExplorer"
+    actions   = ["ce:GetCostAndUsage"]
+    resources = ["*"] # Cost Explorer는 리소스 레벨 권한 미지원(계정 전체 대상 API)
+  }
+  statement {
+    sid       = "PublishAlert"
+    actions   = ["sns:Publish"]
+    resources = [aws_sns_topic.alerts.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "daily_cost_notifier" {
+  name   = "cost-explorer-and-publish"
+  role   = aws_iam_role.daily_cost_notifier.id
+  policy = data.aws_iam_policy_document.daily_cost_notifier.json
+}
+
+data "archive_file" "daily_cost_notifier" {
+  type        = "zip"
+  source_file = "${path.module}/lambda_src/daily_cost_notifier.py"
+  output_path = "${path.module}/build/daily_cost_notifier.zip"
+}
+
+resource "aws_lambda_function" "daily_cost_notifier" {
+  function_name    = "${var.project}-monitoring-daily-cost-notifier"
+  role             = aws_iam_role.daily_cost_notifier.arn
+  runtime          = "python3.12"
+  handler          = "daily_cost_notifier.handler"
+  filename         = data.archive_file.daily_cost_notifier.output_path
+  source_code_hash = data.archive_file.daily_cost_notifier.output_base64sha256
+  timeout          = 30
+  memory_size      = 128
+  environment {
+    variables = {
+      SNS_TOPIC_ARN = aws_sns_topic.alerts.arn
+    }
+  }
+  depends_on = [aws_cloudwatch_log_group.daily_cost_notifier]
+}
+
+resource "aws_cloudwatch_event_rule" "daily_cost_schedule" {
+  name                = "${var.project}-monitoring-daily-cost-schedule"
+  description         = "매일 09:00 KST 전날 비용 리포트(daily_cost_notifier 트리거)"
+  schedule_expression = "cron(0 0 * * ? *)" # UTC 00:00 = KST 09:00
+}
+
+resource "aws_cloudwatch_event_target" "daily_cost_schedule" {
+  rule = aws_cloudwatch_event_rule.daily_cost_schedule.name
+  arn  = aws_lambda_function.daily_cost_notifier.arn
+}
+
+resource "aws_lambda_permission" "eventbridge_invoke_daily_cost_notifier" {
+  statement_id  = "AllowEventBridgeInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.daily_cost_notifier.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.daily_cost_schedule.arn
+}
+
+# =============================================================================
+# [콘솔 로그인 알림] CloudTrail(ConsoleLogin) → CloudWatch Logs 구독 필터 → Lambda → Teams(사용자명 포함)
+#   CloudWatch 알람은 메트릭 임계값만 담아 "누가 로그인했는지"를 못 실어 나른다 — 로그 구독 필터로
+#   CloudTrail 원본 레코드(userIdentity.userName 등)를 그대로 Lambda에 넘겨야 사용자명이 나온다.
+#   기존 [CLOUDTRAIL] 구역의 로그그룹(aws_cloudwatch_log_group.cloudtrail)을 그대로 구독한다.
+# =============================================================================
+resource "aws_cloudwatch_log_group" "login_notifier" {
+  name              = "/aws/lambda/${var.project}-monitoring-login-notifier"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_iam_role" "login_notifier" {
+  name               = "${var.project}-monitoring-login-notifier"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "login_notifier_logs" {
+  role       = aws_iam_role.login_notifier.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+data "aws_iam_policy_document" "login_notifier" {
+  statement {
+    sid       = "PublishAlert"
+    actions   = ["sns:Publish"]
+    resources = [aws_sns_topic.alerts.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "login_notifier" {
+  name   = "publish"
+  role   = aws_iam_role.login_notifier.id
+  policy = data.aws_iam_policy_document.login_notifier.json
+}
+
+data "archive_file" "login_notifier" {
+  type        = "zip"
+  source_file = "${path.module}/lambda_src/login_notifier.py"
+  output_path = "${path.module}/build/login_notifier.zip"
+}
+
+resource "aws_lambda_function" "login_notifier" {
+  function_name    = "${var.project}-monitoring-login-notifier"
+  role             = aws_iam_role.login_notifier.arn
+  runtime          = "python3.12"
+  handler          = "login_notifier.handler"
+  filename         = data.archive_file.login_notifier.output_path
+  source_code_hash = data.archive_file.login_notifier.output_base64sha256
+  timeout          = 15
+  memory_size      = 128
+  environment {
+    variables = {
+      SNS_TOPIC_ARN = aws_sns_topic.alerts.arn
+    }
+  }
+  depends_on = [aws_cloudwatch_log_group.login_notifier]
+}
+
+resource "aws_lambda_permission" "cwl_invoke_login_notifier" {
+  statement_id  = "AllowCloudWatchLogsInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.login_notifier.function_name
+  principal     = "logs.${var.region}.amazonaws.com"
+  source_arn    = "${aws_cloudwatch_log_group.cloudtrail.arn}:*"
+}
+
+resource "aws_cloudwatch_log_subscription_filter" "login_notifier" {
+  name            = "${var.project}-monitoring-console-login"
+  log_group_name  = aws_cloudwatch_log_group.cloudtrail.name
+  filter_pattern  = "{ $.eventName = \"ConsoleLogin\" }"
+  destination_arn = aws_lambda_function.login_notifier.arn
+  depends_on      = [aws_lambda_permission.cwl_invoke_login_notifier]
+}
+
+# =============================================================================
 # [알람] 알림 피로 방지 — 진짜 조치가 필요한 것만(README §11 후보 표)
 # =============================================================================
 resource "aws_cloudwatch_metric_alarm" "sqs_dlq" {

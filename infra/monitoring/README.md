@@ -507,3 +507,32 @@ aws cloudtrail update-trail --name cnapp-org-trail \
 - `kubectl apply -f gitops/argocd/app-monitoring.yaml`로 실제 Grafana 배포·CloudWatch 데이터소스 연결 확인
 - `engine`/`backend` Lambda가 실제로 finding을 처리하기 시작하면 EMF 위젯·알람 실데이터 재확인
 - `kube_bench.scan_cluster()`/`trivy.scan_image()` 등 EKS 필요한 실 스캐너 경로 검증(별도 작업, `scanners/workload/README` 참고)
+
+## 17. 일일 비용 알림 + 콘솔 로그인 알림 (2026-07-06 추가)
+
+사용자 요청("아침 9시마다 하루 사용 비용 알림 + 로그인 감지, 로그인은 사용자 이름 포함") 반영. 둘 다 **CloudWatch 알람이 아니라 능동 Lambda**로 구현 — 이유는 각 절 참고. 두 Lambda 모두 같은 `aws_sns_topic.alerts`에 발행해 기존 `teams_notifier`(§11) 경로를 그대로 재사용한다(신규 SNS 구독 불필요).
+
+### 17.1 일일 비용 알림 (`daily_cost_notifier`)
+
+- **왜 알람이 아니라 Lambda인가:** CloudWatch 알람은 "임계값 초과 여부"만 판단하는 모델이라 "매일 정기 리포트"(항상 보고할 값이 있음)와 안 맞는다. 대신 EventBridge 스케줄로 매일 트리거되는 Lambda가 Cost Explorer에서 전날 비용을 직접 조회해 SNS로 발행.
+- **스케줄:** `aws_cloudwatch_event_rule.daily_cost_schedule` — `cron(0 0 * * ? *)`(UTC 00:00 = **KST 09:00**).
+- **⚠️ Cost Explorer 리전 제약:** `ce:GetCostAndUsage` API 엔드포인트는 계정/Lambda 리전과 무관하게 **us-east-1 고정**(AWS 자체 제약) — `lambda_src/daily_cost_notifier.py`가 `boto3.client("ce", region_name="us-east-1")`로 명시. Lambda 함수 자체는 그대로 서울에 배포.
+- **IAM:** `ce:GetCostAndUsage`는 리소스 레벨 권한을 지원하지 않아 `Resource = "*"`(Cost Explorer API 자체의 제약, 계정 전체 대상 조회라 스코프를 더 좁힐 수 없음) + `sns:Publish`(alerts 토픽 ARN만).
+- **메시지:** `{"kind": "custom", "title": "💰 어제 AWS 사용 비용", "body": "YYYY-MM-DD 사용 비용: X.XXXX USD"}`.
+
+### 17.2 콘솔 로그인 알림 (`login_notifier`)
+
+- **왜 알람이 아니라 로그 구독 필터인가:** CloudWatch 알람은 메트릭 값(숫자)만 다뤄서 "누가 로그인했는지"(사용자명)를 실어 나를 수 없다. 반면 **CloudWatch Logs 구독 필터(subscription filter)**는 매칭된 로그 이벤트 원본을 그대로 Lambda에 전달하므로, CloudTrail의 `ConsoleLogin` 레코드에 있는 `userIdentity.userName`을 직접 뽑아낼 수 있다.
+- **배관:** 기존 `aws_cloudwatch_log_group.cloudtrail`(§10, 이미 CloudTrail→CloudWatch Logs로 흐르고 있음)을 **그대로 구독** — 신규 CloudTrail 설정 불필요. `aws_cloudwatch_log_subscription_filter.login_notifier`의 `filter_pattern = "{ $.eventName = \"ConsoleLogin\" }"`이 로그인 이벤트만 걸러 `login_notifier` Lambda를 invoke.
+- **사용자명 추출 로직**(`lambda_src/login_notifier.py` `_extract_user`): `userIdentity.type == "Root"`면 `"root"`, IAM 사용자면 `userIdentity.userName`(예: `jw_kim`), SSO/federated·assumed-role이면 `userIdentity.arn`의 마지막 세그먼트로 폴백.
+- **로그인 성공/실패 둘 다 알림** — `responseElements.ConsoleLogin`(`Success`/`Failure`)을 그대로 보여줌(실패 로그인 시도도 보안상 알아야 할 정보라 필터링하지 않음).
+- **권한:** `aws_lambda_permission.cwl_invoke_login_notifier`가 `logs.${var.region}.amazonaws.com`에 invoke를 허용(source_arn = CloudTrail 로그그룹 ARN + `:*`) — Logs 구독 필터가 Lambda를 목적지로 쓸 때는 별도 IAM role 불필요, 이 리소스 기반 권한만 있으면 된다.
+- **메시지:** `{"kind": "custom", "title": "🔐 AWS 콘솔 로그인 감지", "body": "사용자: jw_kim\n결과: ✅ Success\nIP: ...\n시각(UTC): ..."}`.
+
+### 17.3 `teams_notifier.py` 확장
+
+기존 `_to_teams_card()`는 CloudWatch 알람 JSON(`AlarmName`/`NewStateValue`/`NewStateReason`)만 가정했다 — 위 두 Lambda가 발행하는 커스텀 메시지(`{"kind": "custom", "title", "body"}`)는 이 shape이 아니므로, `kind == "custom"`이면 알람 파싱을 건너뛰고 title+body를 바로 카드 텍스트로 만들도록 분기 추가(기존 알람 처리 경로는 완전히 무변경).
+
+### 17.4 검증
+
+`terraform fmt`(변경 없음) + `terraform validate` 통과 + `python -m py_compile`(3개 Lambda 파일) 통과. **실 apply·실 로그인/비용 발생 검증은 아직 안 함** — 다음 apply 세션에서: ① `daily_cost_notifier`를 콘솔에서 수동 1회 Invoke(스케줄 대기 없이 테스트) ② 아무 IAM 사용자로 AWS 콘솔 로그인해서 Teams 알림 도착 확인.

@@ -21,6 +21,11 @@ def _get_webhook_url() -> str:
 
 
 def _to_teams_card(alarm: dict) -> dict:
+    if alarm.get("kind") == "custom":
+        # daily_cost_notifier·login_notifier처럼 CloudWatch 알람이 아닌 능동 발행 메시지.
+        title = alarm.get("title", "알림")
+        body = alarm.get("body", "")
+        return {"text": f"**{title}**\n\n{body}"}
     name = alarm.get("AlarmName", "unknown-alarm")
     state = alarm.get("NewStateValue", "")
     reason = alarm.get("NewStateReason", "")
