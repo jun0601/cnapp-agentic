@@ -88,7 +88,7 @@ CloudWatch가 이미 데이터소스로 연결돼 있으니(§IRSA 배선), 그 
 
 | 대시보드 | 패널 | 데이터소스 |
 |---|---|---|
-| **EKS 개요** | 노드/파드/비정상파드/네임스페이스 수 → 노드별 CPU·메모리 → 파드별 CPU·메모리 top10 → 노드별 파드 개수(bin-packing)·비정상 파드 목록 → 네임스페이스별 재시작 횟수(이 순서로 배치) | Prometheus |
+| **EKS 개요** | 노드/파드/비정상파드/네임스페이스 수 → 노드별 CPU·메모리 → 파드별 CPU·메모리 top10 → 노드별 파드 개수(bin-packing)·비정상 파드 목록 → 네임스페이스별 재시작 횟수 → **Karpenter 노드 수(capacity-type별)·생성/종료 추이(사유별, 2026-07-06 추가·⚠️실클러스터 메트릭명 미검증)**(이 순서로 배치) | Prometheus |
 | **애플리케이션** | Lambda 6종(호출·에러·쓰로틀·지연) 개별 패널, ALB(요청·지연·5xx), Cognito(로그인), CloudFront(요청·4xx·5xx) | CloudWatch |
 | **인프라(데이터·메시징)** | RDS(CPU·연결·스토리지·IOPS), SQS(큐 깊이·DLQ·백로그 나이), Step Functions(remediation 실행 결과), S3 감사버킷(객체수·크기) | CloudWatch |
 | **AI(Bedrock·엔진)** | Bedrock(호출·지연·에러·토큰·추정비용), 엔진 EMF 전종(트리아지 게이트·tool-use·확신도·판정시간·판정분포·케이스별토큰·tool별breakdown) | CloudWatch |

@@ -407,6 +407,79 @@ data:
             "overrides": []
           },
           "id": 11
+        },
+        {
+          "type": "timeseries",
+          "title": "Karpenter 노드 수(capacity-type별)",
+          "gridPos": {
+            "x": 0,
+            "y": 36,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "count by (label_karpenter_sh_capacity_type) (kube_node_labels{label_karpenter_sh_capacity_type!=\"\"})",
+              "legendFormat": "{{label_karpenter_sh_capacity_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 12
+        },
+        {
+          "type": "timeseries",
+          "title": "Karpenter: 노드 생성/종료 추이(사유별, 10분 증가량)",
+          "gridPos": {
+            "x": 12,
+            "y": 36,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum by (reason) (increase(karpenter_nodeclaims_created_total[10m]))",
+              "legendFormat": "생성: {{reason}}",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum by (reason) (increase(karpenter_nodeclaims_terminated_total[10m]))",
+              "legendFormat": "종료: {{reason}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 13
         }
       ]
     }
