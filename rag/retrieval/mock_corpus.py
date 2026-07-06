@@ -94,6 +94,47 @@ _CORPUS: dict[str, list[dict]] = {
             },
         },
     ],
+    "INTERNAL-KSPM-CLUSTERADMIN-001": [
+        {
+            "chunk_id": "c1200000-0000-4000-8000-000000000001",
+            "text": (
+                "cluster-admin ClusterRole은 쿠버네티스에서 가장 강력한 권한(모든 "
+                "리소스에 대한 모든 동작)을 부여합니다. 이 역할을 사람 계정·서비스 "
+                "어카운트·그룹에 필요 이상으로 바인딩하면(CIS Kubernetes Benchmark "
+                "5.1.1 계열 위반), 해당 주체가 침해될 경우 클러스터 전체가 즉시 "
+                "장악됩니다. kubectl get clusterrolebindings로 cluster-admin "
+                "바인딩 대상을 점검해야 합니다."
+            ),
+            "metadata": {
+                "control_id": "INTERNAL-KSPM-CLUSTERADMIN-001",
+                "cloud": "aws",
+                "service": "EKS",
+                "framework": "CIS",
+                "severity": 2,
+                "lifecycle": "runtime",
+                "remediable": False,
+            },
+        },
+        {
+            "chunk_id": "c1200000-0000-4000-8000-000000000002",
+            "text": (
+                "조치: cluster-admin 바인딩을 꼭 필요한 관리자로만 좁히고, "
+                "일반 워크로드·CI 서비스 어카운트에는 네임스페이스 범위의 최소 "
+                "권한 Role을 별도로 정의해 RoleBinding으로 부여합니다(최소 권한 "
+                "원칙). EKS에서는 aws-auth ConfigMap·access entry의 그룹 매핑도 "
+                "함께 점검해 system:masters 남용이 없는지 확인합니다."
+            ),
+            "metadata": {
+                "control_id": "INTERNAL-KSPM-CLUSTERADMIN-001",
+                "cloud": "aws",
+                "service": "EKS",
+                "framework": "CIS",
+                "severity": 2,
+                "lifecycle": "runtime",
+                "remediable": False,
+            },
+        },
+    ],
     "INTERNAL-IAM-OVERPRIV-001": [
         {
             "chunk_id": "c4000000-0000-4000-8000-000000000001",
