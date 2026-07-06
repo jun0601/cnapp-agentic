@@ -23,12 +23,23 @@ interface AlbResult {
 
 // ⚠️ ALB는 statusDescription을 "<코드> <사유구>"(예: "200 OK") 형식으로 요구한다.
 // "200"만 주면 ALB가 응답을 거부해 502를 낸다(2026-07-04 라이브 실측 — Lambda는 정상인데 ALB만 502).
-const REASON: Record<number, string> = { 200: 'OK', 202: 'Accepted', 400: 'Bad Request', 403: 'Forbidden', 404: 'Not Found', 500: 'Internal Server Error' }
+const REASON: Record<number, string> = { 200: 'OK', 202: 'Accepted', 204: 'No Content', 400: 'Bad Request', 403: 'Forbidden', 404: 'Not Found', 500: 'Internal Server Error' }
+
+// CORS — CloudFront 오리진(도메인)만 화이트리스트(와일드카드 * 금지, §보안 하드닝 #4).
+// 정상 흐름은 CloudFront /api 프록시라 same-origin이라 CORS가 발동하지 않지만, 직접 호출/프리플라이트에
+// 방어적으로 특정 오리진만 명시. 허용 오리진 = infra/console이 ALLOWED_ORIGIN env로 주입(기본 커스텀 도메인).
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? 'https://cnapp-agentic.cloud'
+const corsHeaders = (): Record<string, string> => ({
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+  Vary: 'Origin',
+})
 const json = (statusCode: number, body: unknown): AlbResult => ({
   statusCode,
   statusDescription: `${statusCode} ${REASON[statusCode] ?? 'OK'}`,
   isBase64Encoded: false,
-  headers: { 'Content-Type': 'application/json; charset=utf-8' },
+  headers: { 'Content-Type': 'application/json; charset=utf-8', ...corsHeaders() },
   body: JSON.stringify(body),
 })
 
@@ -37,6 +48,11 @@ export async function handler(event: AlbEvent): Promise<AlbResult> {
   // ALB 리스너가 /api/* 로 라우팅하면 접두 제거(프론트 API_BASE 기본 /api)
   const path = (event.path || '/').replace(/^\/api(?=\/|$)/, '') || '/'
   const q = event.queryStringParameters ?? {}
+
+  // CORS 프리플라이트(브라우저 OPTIONS) — 본문 없이 CORS 헤더만 반환.
+  if (method === 'OPTIONS') {
+    return { statusCode: 204, statusDescription: '204 No Content', isBase64Encoded: false, headers: corsHeaders(), body: '' }
+  }
 
   try {
     // ── GET ──
@@ -65,7 +81,7 @@ export async function handler(event: AlbEvent): Promise<AlbResult> {
       const rem = path.match(/^\/remediations\/([^/]+)\/(approve|reject)$/)
       if (rem) {
         // 조치 승인/반려는 approver만(HITL, §7·§17). 콘솔은 SFn StartExecution만 트리거.
-        if (roleFromHeaders(event.headers) !== 'approver') {
+        if ((await roleFromHeaders(event.headers)) !== 'approver') {
           return json(403, { error: 'approver 권한 필요(조치 승인은 보안관리자만)' })
         }
         // 실 전환: Step Functions StartExecution(승인 시). 지금은 트리거 확인만.

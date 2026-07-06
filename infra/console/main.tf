@@ -127,6 +127,48 @@ resource "aws_cloudfront_origin_access_control" "front" {
   signing_protocol                  = "sigv4"
 }
 
+# 🔐 보안 응답 헤더(#5) — HSTS·CSP·nosniff·frame DENY·referrer. 뷰어 응답에 강제 주입.
+#   CSP connect-src에 Cognito Hosted UI 도메인 포함(oidc.ts가 /oauth2/token으로 코드↔토큰 교환) + 'self'(/api).
+#   ⚠️ CSP는 SPA 동작에 민감 — apply 후 브라우저 콘솔에서 위반(로그인·API·렌더) 없는지 실확인 필요.
+resource "aws_cloudfront_response_headers_policy" "security" {
+  name = "${var.project}-console-security-headers"
+  security_headers_config {
+    strict_transport_security {
+      access_control_max_age_sec = 31536000 # 1년
+      include_subdomains         = true
+      preload                    = true
+      override                   = true
+    }
+    content_type_options {
+      override = true # X-Content-Type-Options: nosniff
+    }
+    frame_options {
+      frame_option = "DENY" # 클릭재킹 차단(X-Frame-Options: DENY)
+      override     = true
+    }
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = true
+    }
+    content_security_policy {
+      override = true
+      content_security_policy = join("; ", [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'", # Vite/React 인라인 스타일
+        "img-src 'self' data:",
+        "font-src 'self' data:",
+        # /api(같은 오리진) + Cognito Hosted UI(토큰 교환)로만 XHR/fetch 허용
+        "connect-src 'self' https://${var.cognito_domain_prefix}.auth.${var.region}.amazoncognito.com",
+        "frame-ancestors 'none'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+      ])
+    }
+  }
+}
+
 resource "aws_cloudfront_distribution" "front" {
   enabled             = true
   default_root_object = "index.html"
@@ -158,7 +200,8 @@ resource "aws_cloudfront_distribution" "front" {
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD"]
     # AWS 관리 캐시 정책 CachingOptimized
-    cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id # 🔐 HSTS·CSP·nosniff·frame(#5)
   }
 
   # /api/* → ALB(console-backend). 캐싱 금지(API 응답) + 뷰어 헤더/쿼리/쿠키 전달(Authorization 포함).
@@ -384,6 +427,12 @@ resource "aws_lambda_function" "backend" {
       DB_HOST       = local.rds_endpoint
       DB_SECRET_ARN = local.rds_secret_arn
       SFN_ARN       = local.sfn_arn
+      # 🔐 보안 하드닝(#3 JWT 검증): Bearer ID 토큰을 Cognito JWKS로 서명·aud·exp 검증(auth.ts).
+      #   COGNITO_CLIENT_ID = SPA 앱 클라이언트(ID 토큰의 aud). enable_custom_domain=false면 SPA 로그인
+      #   경로가 없어 빈값(그때 auth.ts는 fail-closed=viewer). (#4 CORS 허용 오리진도 함께 주입)
+      COGNITO_USER_POOL_ID = aws_cognito_user_pool.this.id
+      COGNITO_CLIENT_ID    = var.enable_custom_domain ? aws_cognito_user_pool_client.spa[0].id : ""
+      ALLOWED_ORIGIN       = var.enable_custom_domain ? "https://${var.domain_name}" : "https://${aws_cloudfront_distribution.front.domain_name}"
     }
   }
   depends_on = [aws_cloudwatch_log_group.backend, aws_iam_role_policy_attachment.backend_vpc]
