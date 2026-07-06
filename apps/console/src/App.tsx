@@ -6,6 +6,7 @@ const NAV = [
   { to: '/', label: '대시보드', end: true },
   { to: '/findings', label: 'Findings' },
   { to: '/attack-paths', label: 'Attack-path' },
+  { to: '/chat', label: '🤖 AI 어시스턴트' },
   { to: '/remediation', label: '조치' },
   { to: '/compliance', label: '컴플라이언스' },
   { to: '/audit', label: '감사로그' },

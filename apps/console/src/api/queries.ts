@@ -68,6 +68,14 @@ export function useCompliance() {
   })
 }
 
+// AI 어시스턴트(RAG) — 자연어 질의 → Titan 임베딩 → pgvector 검색 → Bedrock(Haiku) 답변.
+// 백엔드 POST /chat({q}) → {answer, refs[]}. 실 지식베이스(rag_chunks) 근거로 답변.
+export function useChat() {
+  return useMutation({
+    mutationFn: (q: string) => apiPost<{ answer: string; refs: string[] }>('/chat', { q }),
+  })
+}
+
 // 조치 승인/거부(UC4, HITL) — approver만. 승인 시 백엔드가 remediation SFn StartExecution.
 // 성공하면 findings 캐시를 무효화(승인된 finding은 remediated로 소멸 → 목록 갱신).
 export function useRemediationDecision() {
