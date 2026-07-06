@@ -55,4 +55,12 @@ alertmanager:
   # 인클러스터 Alertmanager 중복 방지, 리소스도 아낌(비용 규율).
   enabled: false
 
-# kube-state-metrics·node-exporter는 기본값 그대로(경량, 이 스택의 핵심 관측 소스).
+# kube-state-metrics 기본값은 카디널리티 보호로 kube_node_labels에 실제 라벨값을 안 실어줌
+# (메트릭 자체는 나오지만 label_* 필드가 비어 join이 안 됨) — 노드가 상시 관리형 노드그룹인지
+# Karpenter 스팟인지 대시보드에서 구분하기 위해 필요한 라벨 3개만 명시적으로 허용.
+# (Grafana 통합 대시보드 EKS 개요, cnapp-eks-dashboard.yaml의 노드별 CPU/메모리 패널이 이걸로 join)
+kube-state-metrics:
+  metricLabelsAllowlist:
+    - "nodes=[eks.amazonaws.com/nodegroup,karpenter.sh/nodepool,karpenter.sh/capacity-type]"
+
+# node-exporter는 기본값 그대로(경량, 이 스택의 핵심 관측 소스).
