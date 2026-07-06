@@ -25,12 +25,14 @@ export default function AttackPath() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <h1 className="text-xl font-bold">Attack-path</h1>
-        <SeverityBadge id={path.severity_id} />
-        <span className="text-xs text-slate-400">
-          {path.nodes.length}노드 · {path.edges.length}엣지
-        </span>
+      <div>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">크로스클라우드 Attack-path</h1>
+          <SeverityBadge id={path.severity_id} />
+        </div>
+        <p className="mt-0.5 text-sm text-slate-500">
+          {path.nodes.length}노드 · {path.edges.length}엣지 · AWS 워크로드 침해 → Azure Entra 신원 장악
+        </p>
       </div>
 
       <AttackPathGraph path={path} />

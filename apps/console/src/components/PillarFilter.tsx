@@ -20,7 +20,7 @@ function Select({
     <label className="flex items-center gap-1 text-xs text-slate-500">
       {label}
       <select
-        className="rounded border border-slate-300 bg-white px-2 py-1 text-slate-800"
+        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-slate-800 shadow-sm outline-none transition focus:border-brand-400"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >

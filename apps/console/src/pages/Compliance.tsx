@@ -60,11 +60,14 @@ export default function Compliance() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">컴플라이언스</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">컴플라이언스</h1>
+          <p className="mt-0.5 text-sm text-slate-500">ISMS-P ↔ INTERNAL control 매핑 · 충족률</p>
+        </div>
         <button
           disabled
           title="보너스 기능 — 인프라 붙을 때 구현(UC5)"
-          className="cursor-not-allowed rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-400"
+          className="cursor-not-allowed rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-400"
         >
           PDF 내보내기 (보너스)
         </button>
