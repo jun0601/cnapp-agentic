@@ -80,6 +80,39 @@ export function useChat() {
   })
 }
 
+// AI·시스템 관측(/system) — 모델 구성·RAG 지식베이스(pgvector)·Bedrock 사용량(24h)·데이터 현황.
+export interface SystemInfo {
+  live: boolean
+  models: { chat: string; embed: string; engine: string }
+  rag: { chunks: number; controls: number; dim: number; index: string }
+  bedrock: { invocations24h: number; inputTokens24h: number; outputTokens24h: number } // -1 = 집계 불가
+  data: { findingsOpen: number; findingsTotal: number; attackPaths: number; cases: number }
+}
+export function useSystem() {
+  return useQuery({
+    queryKey: ['system'],
+    queryFn: () => apiGet<SystemInfo>('/system'),
+    refetchInterval: 60_000, // Bedrock 사용량은 분 단위 갱신이면 충분
+  })
+}
+
+// AI 재조사(라이브 트리거) — orchestrator Lambda 비동기 invoke(백엔드 202). 조사(트리아지→
+// Evidence 실 Bedrock tool-use→Reasoning)는 수십 초~분 단위라 지연 invalidate로 결과를 끌어온다.
+export function useReanalyze(id: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiPost<{ accepted: boolean; mode?: string }>(`/findings/${id}/reanalyze`),
+    onSuccess: () => {
+      for (const delay of [30_000, 60_000, 120_000]) {
+        setTimeout(() => {
+          void qc.invalidateQueries({ queryKey: ['finding', id] })
+          void qc.invalidateQueries({ queryKey: ['findings'] })
+        }, delay)
+      }
+    },
+  })
+}
+
 // 조치 승인/거부(UC4, HITL) — approver만. 승인 시 백엔드가 remediation SFn StartExecution.
 // 성공하면 findings 캐시를 무효화(승인된 finding은 remediated로 소멸 → 목록 갱신).
 export function useRemediationDecision() {

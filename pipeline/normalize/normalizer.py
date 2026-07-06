@@ -328,11 +328,21 @@ def _parse_kube_bench(raw: dict, cloud_hint: str) -> List[dict]:
             for result in test.get("results", []):
                 test_number = result.get("test_number", "")
                 source_key = f"kube-bench:{test_number}"
-                control_id = lookup_control(source_key) or "INTERNAL-UNKNOWN-001"
+                control_id = lookup_control(source_key)
+
+                status_raw = str(result.get("status", "FAIL")).upper()
+                # 노이즈 억제(2026-07-06): 카탈로그에 매핑 안 되는(control=None) 체크는
+                #   실패(FAIL)일 때만 INTERNAL-UNKNOWN-001로 올린다. PASS/WARN/INFO는
+                #   "통과한 미매핑 벤치마크" = 정보성 잡음이라 finding으로 만들지 않음
+                #   (실 클러스터 스캔은 수십~수백 PASS를 쏟아내는데 전부 UNKNOWN-remediated로
+                #    쌓이면 콘솔이 지저분해짐 — 매핑된 control은 PASS도 remediated로 유지).
+                if control_id is None and status_raw != "FAIL":
+                    continue
+                if control_id is None:
+                    control_id = "INTERNAL-UNKNOWN-001"
                 catalog_meta = _CATALOG.get("controls", {}).get(control_id, {})
                 severity_id = catalog_meta.get("severity_default", 3)
 
-                status_raw = str(result.get("status", "FAIL")).upper()
                 status = "open" if status_raw == "FAIL" else "remediated"
                 dedup = f"{rid}|{control_id}"
 

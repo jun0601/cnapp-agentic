@@ -74,6 +74,7 @@ export async function handler(event: AlbEvent): Promise<AlbResult> {
       if (path === '/scores') return json(200, data.getScores())
       if (path === '/audit') return json(200, data.getAudit())
       if (path === '/compliance') return json(200, data.getCompliance())
+      if (path === '/system') return json(200, await data.getSystem()) // AI·시스템 관측(모델·RAG·Bedrock 사용량)
     }
 
     // ── POST ──
@@ -87,9 +88,14 @@ export async function handler(event: AlbEvent): Promise<AlbResult> {
         // 실 전환: Step Functions StartExecution(승인 시). 지금은 트리거 확인만.
         return json(200, { ok: true, id: rem[1], action: rem[2] })
       }
-      if (path.match(/^\/findings\/[^/]+\/reanalyze$/)) {
-        // 재분석: Orchestrator 재트리거(선택 기능). 지금은 accepted만.
-        return json(202, { accepted: true })
+      const rean = path.match(/^\/findings\/([^/]+)\/reanalyze$/)
+      if (rean) {
+        // AI 재조사(라이브 트리거) — orchestrator Lambda 비동기 invoke. read-only 조사지만
+        // Bedrock 비용이 드는 액션이라 approver 게이트(§7 RBAC — viewer는 열람만).
+        if ((await roleFromHeaders(event.headers)) !== 'approver') {
+          return json(403, { error: 'approver 권한 필요(AI 재조사는 Bedrock 비용이 드는 액션)' })
+        }
+        return json(202, await data.triggerReanalyze(decodeURIComponent(rean[1])))
       }
       if (path === '/chat') {
         const body = safeJson(event.body) as { q?: string }

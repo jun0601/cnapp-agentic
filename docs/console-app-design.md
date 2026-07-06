@@ -43,11 +43,12 @@
 | **로그인** | Entra ID SSO (ALB authenticate-cognito 리다이렉트) | 10번 |
 | **대시보드 홈** | **AWS secure score 카드(주·크게) + Azure Entra CIEM/Defender score 카드(보조·작게)** — 80/20 비중 반영. 6기둥 요약 카드(AWS 중심·Azure CIEM 보조), **클라우드 경계를 가로지르는 최근 크로스클라우드 attack-path 배너**(멀티클라우드 차별점을 첫 화면에서 강조) | — |
 | **Findings 목록** | 6기둥 필터(CSPM/CIEM/취약점/KSPM/데이터/attack-path), 클라우드 필터(AWS/Azure), 상태 필터(open/remediated/suppressed, 기본 open), AI 우선순위 정렬(기본값) | UC2 |
-| **Finding 상세** | **AI 설명 카드(UC1 = finding당 `finding_explanations.ai_summary`+근거 CIS/KEV+조치법)** · **Evidence 탭(UC0 = 이 finding을 포함하는 `case`의 `evidence[]`·판정·신뢰점수)** · 상태 이력(open→remediated 타임라인). **`ai_status`≠done이면 AI 자리에 placeholder** — `pending`="AI 분석 대기/진행 중", `failed`="AI 분석 실패 — 스캐너 데이터는 정상". **finding 본문(설정·심각도)은 ai_status 무관하게 항상 표시**(AI 레이어 죽어도 대시보드 생존) | UC0, UC1 |
+| **Finding 상세** | **AI 설명 카드(UC1 = finding당 `finding_explanations.ai_summary`+근거 CIS/KEV+조치법)** · **Evidence 탭(UC0 = 이 finding을 포함하는 `case`의 `evidence[]`·판정·신뢰점수, tool 호출 타임라인 stepper)** · **🤖 AI 재조사 버튼(approver 전용 — `POST /findings/:id/reanalyze` → orchestrator Lambda 비동기 invoke → 실 Bedrock tool-use 재조사, 지연 폴링으로 갱신)**. **`ai_status`≠done이면 AI 자리에 placeholder**. **finding 본문(설정·심각도)은 ai_status 무관하게 항상 표시**(AI 레이어 죽어도 대시보드 생존) | UC0, UC1 |
 | **Attack-path 그래프** | 노드(리소스)+엣지(관계) 시각화, **AWS 워크로드/Azure 신원 클라우드 경계를 시각적으로 구분(레인/박스)하고 경계를 넘는 크로스클라우드 엣지를 강조**, "공격자가 AWS 워크로드로 들어와 ~를 타고 **Azure Entra ID 신원까지 장악**" 내러티브 텍스트 | UC3 |
+| **🤖 AI 어시스턴트(`/chat`)** | 프리미엄 챗 UI(버블·타이핑·추천질문). 자연어 질문 → **Titan 임베딩 → pgvector 코사인 검색(top-4) → Bedrock(Haiku) 답변**. 근거를 chunk의 `control_id`+미리보기로 표시(pgvector 유사도 검색 강조). 목업 위젯이 아니라 **정식 페이지로 승격**(2026-07-06) | UC1 보조 |
+| **AI·시스템(`/system`)** | **AI가 어떻게 도는지 한 화면 관측**(2026-07-06 신설) — 데이터 파이프라인 스트립 · AI 모델 3종(Evidence tool-use·RAG 챗·임베딩) · **RAG 지식베이스 통계(rag_chunks·control 커버·pgvector HNSW)** · **Bedrock 사용량 24h(CloudWatch AWS/Bedrock 집계)** · 데이터 현황(findings·attack-path·cases) · CloudWatch/Grafana 딥 관측 안내 | — |
 | **조치(Remediation)** | 제안 Fix(Terraform/K8s diff), dry-run 결과, 승인/반려 버튼 → Step Functions 진행 상태. **MVP 범위: AWS findings만 자동 조치(Terraform/K8s diff + HITL 실행). Azure findings는 조치 가이드 텍스트 표시 + "수동 조치 필요" 안내(Azure 자동 remediation은 확장 보너스).** | UC4, 17번 HITL |
 | **컴플라이언스 리포트** | ISMS-P 미준수 매핑 + 권고, 내보내기(PDF) | UC5 (보너스) |
-| **자연어 질의(보조)** | 화면 한 귀퉁이 챗 위젯. RAG 조회 보조용, 메인 아님 | — |
 | **감사로그 뷰어** | 모든 AI 판정의 근거·증거·승인 이력 읽기 전용 조회 | 17번 |
 
 ### 2.1 빈 상태(empty state) 처리 — 데모 초반 텅 빈 화면 방지
@@ -363,9 +364,10 @@ Day 단위 콘솔 작업과 연계 절을 정리한 표다.
 | `GET /attack-paths/:id` | attack-path 화면(UC3) | attack_path(nodes·edges·narrative) | mock-attack-paths.json |
 | `GET /scores` | 대시보드 홈 | `{aws, azure}` secure score | (목업 상수) |
 | `POST /remediations/:id/{approve,reject}` | 조치(UC4) | → Step Functions `StartExecution`만 | (목업 200) |
-| `POST /findings/:id/reanalyze` (선택) | 재분석 요청(§6) | → Orchestrator 재트리거(콘솔은 트리거만) | (목업 202) |
+| `POST /findings/:id/reanalyze` | Finding 상세 AI 재조사(approver) | → orchestrator Lambda **비동기 invoke**(실 Bedrock 재조사), 202 | (목업 202) |
 | `GET /audit` | 감사로그 뷰어 | `audit[]` | (목업) |
-| `POST /chat` | 자연어 질의(보조) | Bedrock RAG 응답 | (목업 에코) |
+| `GET /system` | AI·시스템 관측 | `{live, models, rag, bedrock(24h), data}` — RDS 통계 + CloudWatch Bedrock 집계 | (목업 상수) |
+| `POST /chat` | AI 어시스턴트(`/chat`) | `{answer, refs[]}` — Titan→pgvector→Bedrock RAG | (목업 에코) |
 
 > **`GET /scores` 실데이터 출처:** MVP는 목업 상수. 실데이터 = AWS **Security Hub** secure score + Azure **Defender/Entra** score를 배치로 pgvector(`scores` 테이블)에 적재 → 조회. **`POST /findings/:id/reanalyze`는 선택 기능**(§6 재분석) — 데모 필수 아님.
 

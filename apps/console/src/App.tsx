@@ -7,6 +7,7 @@ const NAV = [
   { to: '/findings', label: 'Findings' },
   { to: '/attack-paths', label: 'Attack-path' },
   { to: '/chat', label: '🤖 AI 어시스턴트' },
+  { to: '/system', label: 'AI·시스템' },
   { to: '/remediation', label: '조치' },
   { to: '/compliance', label: '컴플라이언스' },
   { to: '/audit', label: '감사로그' },

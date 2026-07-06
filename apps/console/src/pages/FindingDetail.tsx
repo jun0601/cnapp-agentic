@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useFinding } from '@/api/queries'
+import { useFinding, useReanalyze } from '@/api/queries'
 import { SeverityBadge } from '@/components/SeverityBadge'
 import { EvidenceTab } from '@/components/EvidenceTab'
 import { Card, Badge, Skeleton, ErrorNote } from '@/components/ui'
 import { PILLAR_LABEL } from '@/lib/severity'
+import { useRole } from '@/lib/auth'
 import type { FindingExplanation } from '@/api/types'
 
 type Tab = 'explanation' | 'evidence'
@@ -34,6 +35,36 @@ function ExplanationCard({ ex }: { ex: FindingExplanation | null }) {
           <p className="mt-1.5 text-sm leading-relaxed text-slate-700">{it.text}</p>
         </Card>
       ))}
+    </div>
+  )
+}
+
+// 🤖 AI 재조사(라이브 트리거) — approver만. 백엔드가 orchestrator Lambda를 비동기 invoke →
+// 실 Bedrock이 read-only API tool-use로 재조사 → cases·설명 갱신(1~2분, 지연 invalidate로 반영).
+function ReanalyzeButton({ findingId }: { findingId: string }) {
+  const role = useRole()
+  const m = useReanalyze(findingId)
+  if (role !== 'approver') return null
+  return (
+    <div className="flex items-center justify-end gap-2.5">
+      {m.isSuccess && (
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+          조사 시작됨 — AI가 read-only API로 증거 수집 중 (1~2분 후 자동 갱신)
+        </span>
+      )}
+      {m.isError && <span className="text-xs text-rose-600">트리거 실패: {(m.error as Error)?.message}</span>}
+      <button
+        onClick={() => m.mutate()}
+        disabled={m.isPending || m.isSuccess}
+        className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold shadow-sm transition ${
+          m.isSuccess
+            ? 'cursor-default bg-emerald-100 text-emerald-700'
+            : 'bg-gradient-to-r from-brand-600 to-violet-600 text-white hover:opacity-90 disabled:opacity-60'
+        }`}
+      >
+        {m.isPending ? '트리거 중…' : m.isSuccess ? '🔬 조사 진행 중' : '🤖 AI 재조사 실행'}
+      </button>
     </div>
   )
 }
@@ -99,6 +130,9 @@ export default function FindingDetail() {
           )}
         </dl>
       </Card>
+
+      {/* AI 재조사 트리거(approver) — 능동조사를 라이브로 재실행 */}
+      {id && <ReanalyzeButton findingId={id} />}
 
       {/* 탭 — 세그먼트 컨트롤 */}
       <div className="flex gap-1 rounded-xl border border-slate-200/70 bg-white p-1 shadow-card">

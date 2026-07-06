@@ -66,10 +66,12 @@ resource "aws_acm_certificate_validation" "cf" {
 # ── ALB용 서울(ap-northeast-2) ACM 인증서(#1 in-transit) ────────────────
 # CloudFront용 인증서는 us-east-1 규칙이지만 ALB는 리전 로컬(서울)이라 별도 발급 필요.
 # 같은 도메인이라 DNS 검증 CNAME이 us-east-1 인증서와 동일 → allow_overwrite로 공존.
+# SAN api.<도메인> 포함 — CloudFront /api 오리진이 https-only로 이 서브도메인을 쓰는 전 구간 TLS(#1 완성).
 resource "aws_acm_certificate" "alb" {
-  count             = var.enable_custom_domain ? 1 : 0
-  domain_name       = var.domain_name
-  validation_method = "DNS"
+  count                     = var.enable_custom_domain ? 1 : 0
+  domain_name               = var.domain_name
+  subject_alternative_names = ["api.${var.domain_name}"]
+  validation_method         = "DNS"
   lifecycle { create_before_destroy = true }
 }
 
@@ -90,6 +92,21 @@ resource "aws_acm_certificate_validation" "alb" {
   count                   = var.enable_custom_domain ? 1 : 0
   certificate_arn         = aws_acm_certificate.alb[0].arn
   validation_record_fqdns = [for r in aws_route53_record.alb_cert_validation : r.fqdn]
+}
+
+# ── api 서브도메인 → ALB alias ────────────────────────────────────────
+# 전 구간 TLS(#1)의 마지막 조각: CloudFront /api 오리진을 ALB DNS(http-only) 대신
+# api.<도메인>(https-only, 서울 ACM SAN)으로 — 뷰어→CloudFront→오리진 전 구간 암호화.
+resource "aws_route53_record" "api" {
+  count   = var.enable_custom_domain ? 1 : 0
+  zone_id = data.aws_route53_zone.this[0].zone_id
+  name    = "api.${var.domain_name}"
+  type    = "A"
+  alias {
+    name                   = aws_lb.this.dns_name
+    zone_id                = aws_lb.this.zone_id
+    evaluate_target_health = false
+  }
 }
 
 # ── 도메인(apex) → CloudFront alias(A 레코드) ─────────────────────────

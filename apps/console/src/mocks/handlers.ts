@@ -93,6 +93,21 @@ export const handlers = [
   // POST /findings/:id/reanalyze (선택) — Orchestrator 재트리거(목업 202)
   http.post(`${BASE}/findings/:id/reanalyze`, () => new HttpResponse(null, { status: 202 })),
 
+  // GET /system — AI·시스템 관측(목업 상수, 실값은 console-backend가 RDS·CloudWatch 집계)
+  http.get(`${BASE}/system`, () =>
+    HttpResponse.json({
+      live: false,
+      models: {
+        chat: 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
+        embed: 'amazon.titan-embed-text-v2:0',
+        engine: 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
+      },
+      rag: { chunks: 24, controls: 14, dim: 1024, index: 'HNSW (cosine)' },
+      bedrock: { invocations24h: 6, inputTokens24h: 7415, outputTokens24h: 1180 },
+      data: { findingsOpen: 18, findingsTotal: 20, attackPaths: 1, cases: 1 },
+    }),
+  ),
+
   // GET /audit — 감사로그 뷰어(목업)
   http.get(`${BASE}/audit`, () => HttpResponse.json(AUDIT_EVENTS)),
 

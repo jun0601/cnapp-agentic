@@ -182,14 +182,16 @@ resource "aws_cloudfront_distribution" "front" {
 
   # API 오리진 = console-backend ALB. SPA(HTTPS)가 HTTP ALB를 직접 부르면 브라우저가
   # mixed-content로 차단하므로, CloudFront가 같은 오리진(HTTPS)으로 /api/*를 ALB에 프록시한다.
-  # (CloudFront는 뷰어에 HTTPS, 오리진(ALB)엔 HTTP로 통신 — ALB에 cert 없어도 됨)
+  # 전 구간 TLS(#1 완성): 커스텀 도메인 활성 시 오리진 = api.<도메인>(Route53→ALB alias) +
+  #   https-only(서울 ACM SAN이 api 커버) → 뷰어→CloudFront→ALB 전 구간 암호화.
+  #   비활성(부트스트랩) 시엔 ALB DNS + http-only 폴백(ALB 기본 DNS엔 인증서를 못 붙임).
   origin {
-    domain_name = aws_lb.this.dns_name
+    domain_name = var.enable_custom_domain ? "api.${var.domain_name}" : aws_lb.this.dns_name
     origin_id   = "alb-api"
     custom_origin_config {
       http_port              = 80
       https_port             = 443
-      origin_protocol_policy = "http-only"
+      origin_protocol_policy = var.enable_custom_domain ? "https-only" : "http-only"
       origin_ssl_protocols   = ["TLSv1.2"]
     }
   }
@@ -240,6 +242,17 @@ resource "aws_cloudfront_distribution" "front" {
     ssl_support_method             = var.enable_custom_domain ? "sni-only" : null
     minimum_protocol_version       = var.enable_custom_domain ? "TLSv1.2_2021" : null
   }
+
+  # 액세스 로깅(#6 마지막 조각) — CloudFront 표준 로깅은 awslogsdelivery '캐논유저 ACL'이 필수(레거시 방식).
+  #   전용 로그 버킷에만 ObjectOwnership=BucketOwnerPreferred로 ACL을 허용(front/audit 등 타 버킷은
+  #   BucketOwnerEnforced 유지). awslogsdelivery 캐논유저 grant는 public ACL이 아니라 PAB와 공존.
+  logging_config {
+    bucket          = aws_s3_bucket.logs.bucket_domain_name
+    prefix          = "cloudfront/"
+    include_cookies = false
+  }
+
+  depends_on = [aws_s3_bucket_acl.logs_cf] # CloudFront가 배포 갱신 시 버킷 ACL 활성 여부를 검증함
 }
 
 # CloudFront(OAC)만 S3 읽기 허용
@@ -265,9 +278,10 @@ resource "aws_s3_bucket_policy" "front" {
 }
 
 # =============================================================================
-# [LOGGING] 플랫폼 액세스 로깅(#6) — ALB·front S3 → 전용 로그 버킷(SSE·PAB 엄격).
-#   ACL을 안 쓰고 '버킷 정책'으로만 로그 딜리버리 허용(BucketOwnerEnforced 유지 = 더 안전).
-#   CloudFront 로깅은 awslogsdelivery ACL(레거시) 또는 standard-logging-v2가 필요해 ACL 완화를 피하려 후속으로 둠.
+# [LOGGING] 플랫폼 액세스 로깅(#6) — ALB·front S3·CloudFront → 전용 로그 버킷(SSE·PAB).
+#   ALB·S3 로깅은 '버킷 정책' 방식. CloudFront 표준 로깅만 레거시 제약(awslogsdelivery 캐논유저
+#   ACL 필수)이라 이 로그 버킷에 한해 ObjectOwnership=BucketOwnerPreferred + ACL grant를 허용
+#   (2026-07-06 #6 마무리 — 완화 범위는 로그 버킷 1개뿐, public ACL은 PAB가 계속 차단).
 # =============================================================================
 resource "aws_s3_bucket" "logs" {
   bucket        = "${var.project}-console-logs-${local.account_id}"
@@ -285,6 +299,36 @@ resource "aws_s3_bucket_public_access_block" "logs" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
+}
+
+# CloudFront 표준 로깅용 ACL(#6) — awslogsdelivery 캐논유저에 쓰기 권한.
+data "aws_canonical_user_id" "current" {}
+
+resource "aws_s3_bucket_ownership_controls" "logs" {
+  bucket = aws_s3_bucket.logs.id
+  rule { object_ownership = "BucketOwnerPreferred" } # ACL 수용(이 버킷만) — 오브젝트 소유권은 버킷 소유자 우선
+}
+
+resource "aws_s3_bucket_acl" "logs_cf" {
+  bucket     = aws_s3_bucket.logs.id
+  depends_on = [aws_s3_bucket_ownership_controls.logs]
+  access_control_policy {
+    grant {
+      grantee {
+        type = "CanonicalUser"
+        id   = data.aws_canonical_user_id.current.id
+      }
+      permission = "FULL_CONTROL"
+    }
+    grant {
+      grantee {
+        type = "CanonicalUser"
+        id   = "c4c1ede66af53448b93c283ce9448c4ba468c9432aa01d700d3878632f77d2d0" # awslogsdelivery(CloudFront 로그 전달 고정 캐논유저)
+      }
+      permission = "FULL_CONTROL"
+    }
+    owner { id = data.aws_canonical_user_id.current.id }
+  }
 }
 data "aws_iam_policy_document" "logs" {
   # ① ALB 액세스 로그 — 서울(ap-northeast-2) ELB 로그전달 계정
@@ -462,6 +506,16 @@ data "aws_iam_policy_document" "backend" {
     actions   = ["states:StartExecution"] # 조치는 트리거만 — 실행은 격상 역할(engine)
     resources = [local.sfn_arn]
   }
+  statement {
+    sid       = "ObservabilityReadOnly"
+    actions   = ["cloudwatch:GetMetricData"] # /system AI 관측 뷰(Bedrock 사용량) — CW 지표는 리소스 스코프 미지원
+    resources = ["*"]
+  }
+  statement {
+    sid       = "TriggerInvestigationOnly"
+    actions   = ["lambda:InvokeFunction"] # /findings/:id/reanalyze → orchestrator 비동기 재조사(read-only 조사, HITL 아님)
+    resources = ["arn:aws:lambda:${var.region}:${local.account_id}:function:${var.project}-orchestrator"]
+  }
 }
 resource "aws_iam_role_policy" "backend" {
   name   = "backend"
@@ -499,6 +553,7 @@ resource "aws_lambda_function" "backend" {
       COGNITO_USER_POOL_ID = aws_cognito_user_pool.this.id
       COGNITO_CLIENT_ID    = var.enable_custom_domain ? aws_cognito_user_pool_client.spa[0].id : ""
       ALLOWED_ORIGIN       = var.enable_custom_domain ? "https://${var.domain_name}" : "https://${aws_cloudfront_distribution.front.domain_name}"
+      ORCHESTRATOR_FN      = "${var.project}-orchestrator" # AI 재조사 트리거(비동기 invoke, backend 레이어 함수)
     }
   }
   depends_on = [aws_cloudwatch_log_group.backend, aws_iam_role_policy_attachment.backend_vpc]
@@ -567,16 +622,32 @@ resource "aws_lb_target_group_attachment" "backend" {
   depends_on       = [aws_lambda_permission.alb]
 }
 
-# HTTP:80 — 항상 Lambda로 forward. CloudFront /api 프록시가 이 포트(http-only origin)로 오므로 redirect 금지.
-#   (뷰어→CloudFront는 이미 HTTPS. 전 구간 TLS[80→443 redirect + CloudFront https-only origin]는
-#    api 서브도메인 구성이 필요 = 후속. 지금은 ALB에 HTTPS 리스너를 '추가'해 직접 접근 TLS를 확보.)
+# HTTP:80 — 전 구간 TLS(#1 완성): 커스텀 도메인 활성 시 CloudFront /api 오리진이 https-only
+#   (api.<도메인>:443)로 옮겨가므로 80은 443 redirect(평문 진입 차단). 비활성(부트스트랩) 시엔
+#   CloudFront http-only 오리진이 이 포트를 쓰므로 forward 유지.
+#   ⚠️ apply 직후 CloudFront 배포 전파(수 분) 동안 /api가 redirect 루프로 잠시 실패할 수 있음(전파 후 정상).
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.this.arn
   port              = 80
   protocol          = "HTTP"
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.backend.arn
+
+  dynamic "default_action" {
+    for_each = var.enable_custom_domain ? [1] : []
+    content {
+      type = "redirect"
+      redirect {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+  }
+  dynamic "default_action" {
+    for_each = var.enable_custom_domain ? [] : [1]
+    content {
+      type             = "forward"
+      target_group_arn = aws_lb_target_group.backend.arn
+    }
   }
 }
 

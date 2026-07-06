@@ -182,6 +182,108 @@ export async function chatAnswer(q: string): Promise<{ answer: string; refs: Cha
   }
 }
 
+// ── /system — AI·시스템 관측(콘솔에서 "AI가 어떻게 돌아가는지" 한 화면) ─────────
+// 모델 구성(챗·임베딩·엔진) + RAG 지식베이스(pgvector) 통계 + Bedrock 사용량(CloudWatch
+// AWS/Bedrock 지표 24h 집계) + 데이터 현황. 전부 read-only 관측.
+export interface SystemInfo {
+  live: boolean
+  models: { chat: string; embed: string; engine: string }
+  rag: { chunks: number; controls: number; dim: number; index: string }
+  bedrock: { invocations24h: number; inputTokens24h: number; outputTokens24h: number } // -1 = 집계 실패
+  data: { findingsOpen: number; findingsTotal: number; attackPaths: number; cases: number }
+}
+
+export async function getSystem(): Promise<SystemInfo> {
+  const models = {
+    chat: CHAT_MODEL,
+    embed: EMBED_MODEL,
+    // 능동조사(Evidence tool-use) 엔진 모델 — backend 레이어 orchestrator와 동일 프로파일(bedrock_planner.DEFAULT_MODEL_ID)
+    engine: process.env.ENGINE_MODEL_ID ?? 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
+  }
+  if (USE_MOCK) {
+    const fs = mockFindings()
+    return {
+      live: false,
+      models,
+      rag: { chunks: 24, controls: 14, dim: 1024, index: 'HNSW (cosine)' },
+      bedrock: { invocations24h: 6, inputTokens24h: 7415, outputTokens24h: 1180 },
+      data: {
+        findingsOpen: fs.filter((f) => f.status === 'open').length,
+        findingsTotal: fs.length,
+        attackPaths: mockPaths().length,
+        cases: mockCases().length,
+      },
+    }
+  }
+  const p = await pool()
+  const [rag, fc, ap, cs] = await Promise.all([
+    p.query("SELECT count(*)::int AS chunks, count(DISTINCT metadata->>'control_id')::int AS controls FROM rag_chunks"),
+    p.query("SELECT count(*)::int AS total, count(*) FILTER (WHERE status = 'open')::int AS open FROM findings"),
+    p.query('SELECT count(*)::int AS n FROM attack_paths'),
+    p.query('SELECT count(*)::int AS n FROM cases'),
+  ])
+  return {
+    live: true,
+    models,
+    rag: { chunks: rag.rows[0].chunks, controls: rag.rows[0].controls, dim: 1024, index: 'HNSW (cosine)' },
+    bedrock: await bedrockUsage24h(),
+    data: {
+      findingsOpen: fc.rows[0].open,
+      findingsTotal: fc.rows[0].total,
+      attackPaths: ap.rows[0].n,
+      cases: cs.rows[0].n,
+    },
+  }
+}
+
+// Bedrock 사용량(최근 24h) — CloudWatch AWS/Bedrock 네임스페이스를 GetMetricData SEARCH로 전 모델 합산.
+// (SEARCH는 알람에선 미지원이지만 GetMetricData API·대시보드에선 지원 — infra/monitoring §13과 동일 제약 이해)
+async function bedrockUsage24h(): Promise<SystemInfo['bedrock']> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { CloudWatchClient, GetMetricDataCommand } =
+      require('@aws-sdk/client-cloudwatch') as typeof import('@aws-sdk/client-cloudwatch')
+    const cw = new CloudWatchClient({})
+    const end = new Date()
+    const start = new Date(end.getTime() - 24 * 3600 * 1000)
+    const q = (id: string, metric: string) => ({
+      Id: id,
+      Expression: `SUM(SEARCH('{AWS/Bedrock,ModelId} MetricName="${metric}"', 'Sum', 3600))`,
+      Period: 3600,
+    })
+    const r = await cw.send(
+      new GetMetricDataCommand({
+        StartTime: start,
+        EndTime: end,
+        MetricDataQueries: [q('inv', 'Invocations'), q('tin', 'InputTokenCount'), q('tout', 'OutputTokenCount')],
+      }),
+    )
+    const sum = (id: string) =>
+      Math.round((r.MetricDataResults?.find((m) => m.Id === id)?.Values ?? []).reduce((a, b) => a + b, 0))
+    return { invocations24h: sum('inv'), inputTokens24h: sum('tin'), outputTokens24h: sum('tout') }
+  } catch {
+    return { invocations24h: -1, inputTokens24h: -1, outputTokens24h: -1 } // 관측 실패는 -1(프론트 '집계 불가' 표시) — 페이지는 산다
+  }
+}
+
+// ── AI 재조사(라이브 트리거) — orchestrator Lambda 비동기 invoke ────────────────
+// 콘솔에서 "AI가 지금 조사한다"를 실연하는 경로: POST /findings/:id/reanalyze →
+// backend 레이어 orchestrator(트리아지→Evidence 실 Bedrock tool-use→Reasoning)가 open findings
+// 전체를 재조사해 cases·finding_explanations를 갱신(엔진 handler는 이벤트 무관 전체 재실행).
+export async function triggerReanalyze(findingId: string): Promise<{ accepted: boolean; mode: 'live' | 'mock' }> {
+  if (USE_MOCK) return { accepted: true, mode: 'mock' }
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda') as typeof import('@aws-sdk/client-lambda')
+  await new LambdaClient({}).send(
+    new InvokeCommand({
+      FunctionName: process.env.ORCHESTRATOR_FN ?? 'cnapp-agentic-orchestrator',
+      InvocationType: 'Event', // 조사(tool-use 루프)는 수십 초~분 단위 — 비동기로 던지고 202
+      Payload: Buffer.from(JSON.stringify({ source: 'console.reanalyze', finding_id: findingId })),
+    }),
+  )
+  return { accepted: true, mode: 'live' }
+}
+
 // scores·audit·compliance는 MVP에선 상수/배치 산출(§15.2). 실 전환 시 scores/audit/compliance 조회.
 export function getScores() {
   return {

@@ -21,6 +21,15 @@
       "remediable": true,
       "lifecycle": "runtime"
     },
+    "INTERNAL-KSPM-CLUSTERADMIN-001": {
+      "pillar": "kspm",
+      "title": "cluster-admin role bound beyond necessity (CIS RBAC)",
+      "severity_default": 2,
+      "sources": ["kube-bench:4.1.*"],
+      "isms_p": null,
+      "remediable": false,
+      "lifecycle": "runtime"
+    },
     "INTERNAL-IAM-OVERPRIV-001": {
       "pillar": "ciem",
       "title": "Over-privileged IAM/IRSA policy (wildcard action/resource)",
