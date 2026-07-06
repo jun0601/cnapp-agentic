@@ -203,7 +203,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "label_replace(label_replace(label_replace(label_replace(100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100), \"internal_ip\", \"$1\", \"instance\", \"([^:]+):.*\") * on(internal_ip) group_left(node, provider_id) kube_node_info, \"az\", \"$1\", \"provider_id\", \"aws:///([a-z0-9-]+)/.*\") * on(node) group_left(label_eks_amazonaws_com_nodegroup, label_karpenter_sh_capacity_type) kube_node_labels, \"label_eks_amazonaws_com_nodegroup\", \"$1\", \"label_eks_amazonaws_com_nodegroup\", \"([a-z]+)-.*\"), \"short_node\", \"$1\", \"node\", \"(ip-[0-9-]+)[.].*\")",
+              "expr": "label_replace(label_replace(label_replace(label_replace(100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100), \"internal_ip\", \"$1\", \"instance\", \"([^:]+):.*\") * on(internal_ip) group_left(node, provider_id) group by (internal_ip, node, provider_id) (kube_node_info), \"az\", \"$1\", \"provider_id\", \"aws:///([a-z0-9-]+)/.*\") * on(node) group_left(label_eks_amazonaws_com_nodegroup, label_karpenter_sh_capacity_type) group by (node, label_eks_amazonaws_com_nodegroup, label_karpenter_sh_capacity_type) (kube_node_labels), \"label_eks_amazonaws_com_nodegroup\", \"$1\", \"label_eks_amazonaws_com_nodegroup\", \"([a-z]+)-.*\"), \"short_node\", \"$1\", \"node\", \"(ip-[0-9-]+)[.].*\")",
               "legendFormat": "{{short_node}} ({{label_eks_amazonaws_com_nodegroup}}{{label_karpenter_sh_capacity_type}}, {{az}})",
               "refId": "A"
             }
@@ -235,7 +235,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "label_replace(label_replace(label_replace(label_replace((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100, \"internal_ip\", \"$1\", \"instance\", \"([^:]+):.*\") * on(internal_ip) group_left(node, provider_id) kube_node_info, \"az\", \"$1\", \"provider_id\", \"aws:///([a-z0-9-]+)/.*\") * on(node) group_left(label_eks_amazonaws_com_nodegroup, label_karpenter_sh_capacity_type) kube_node_labels, \"label_eks_amazonaws_com_nodegroup\", \"$1\", \"label_eks_amazonaws_com_nodegroup\", \"([a-z]+)-.*\"), \"short_node\", \"$1\", \"node\", \"(ip-[0-9-]+)[.].*\")",
+              "expr": "label_replace(label_replace(label_replace(label_replace((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100, \"internal_ip\", \"$1\", \"instance\", \"([^:]+):.*\") * on(internal_ip) group_left(node, provider_id) group by (internal_ip, node, provider_id) (kube_node_info), \"az\", \"$1\", \"provider_id\", \"aws:///([a-z0-9-]+)/.*\") * on(node) group_left(label_eks_amazonaws_com_nodegroup, label_karpenter_sh_capacity_type) group by (node, label_eks_amazonaws_com_nodegroup, label_karpenter_sh_capacity_type) (kube_node_labels), \"label_eks_amazonaws_com_nodegroup\", \"$1\", \"label_eks_amazonaws_com_nodegroup\", \"([a-z]+)-.*\"), \"short_node\", \"$1\", \"node\", \"(ip-[0-9-]+)[.].*\")",
               "legendFormat": "{{short_node}} ({{label_eks_amazonaws_com_nodegroup}}{{label_karpenter_sh_capacity_type}}, {{az}})",
               "refId": "A"
             }
@@ -250,7 +250,7 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "파드별 CPU 사용률(%) top10",
+          "title": "파드별 CPU 사용률(%)",
           "gridPos": {
             "x": 0,
             "y": 12,
@@ -282,7 +282,7 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "파드별 메모리 사용률(%) top10",
+          "title": "파드별 메모리 사용률(%)",
           "gridPos": {
             "x": 12,
             "y": 12,
