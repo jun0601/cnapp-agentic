@@ -6,7 +6,8 @@ name: build-images
 #   - 이미지 push 대상 ECR은 infra/shared apply 후에만 존재한다. push 트리거로 자동 실행하면
 #     인프라가 destroy 상태(대부분)일 때 매번 '빨간 실패'로 뜬다(2026-07-04 실제로 겪음). → 수동 전용.
 #   - EKS 배포는 여기서 안 한다 -> ArgoCD가 Git을 pull-sync(gitops/). CI엔 클러스터 자격증명 안 넣음(키리스 테마).
-#   - order는 upstream retail-store 퍼블릭 이미지를 그대로 쓰므로 빌드 대상 아님(member/product만 우리가 빌드).
+#   - member·product·order 3종 모두 빌드 대상(matrix). order는 placeholder Dockerfile(keep-alive) —
+#     실배포 시 upstream retail-store orders 이미지로 교체(2026-07-06 matrix에 order 추가).
 #
 # 선행(1회): infra/shared apply 완료(ECR 4개 리포 + github-ci OIDC 역할 생성).
 # 사용: apply 세션에서 Actions 탭 -> build-images -> Run workflow (인프라 살아있을 때만).

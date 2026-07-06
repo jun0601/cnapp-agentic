@@ -265,6 +265,72 @@ resource "aws_s3_bucket_policy" "front" {
 }
 
 # =============================================================================
+# [LOGGING] 플랫폼 액세스 로깅(#6) — ALB·front S3 → 전용 로그 버킷(SSE·PAB 엄격).
+#   ACL을 안 쓰고 '버킷 정책'으로만 로그 딜리버리 허용(BucketOwnerEnforced 유지 = 더 안전).
+#   CloudFront 로깅은 awslogsdelivery ACL(레거시) 또는 standard-logging-v2가 필요해 ACL 완화를 피하려 후속으로 둠.
+# =============================================================================
+resource "aws_s3_bucket" "logs" {
+  bucket        = "${var.project}-console-logs-${local.account_id}"
+  force_destroy = true
+}
+resource "aws_s3_bucket_server_side_encryption_configuration" "logs" {
+  bucket = aws_s3_bucket.logs.id
+  rule {
+    apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
+  }
+}
+resource "aws_s3_bucket_public_access_block" "logs" {
+  bucket                  = aws_s3_bucket.logs.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+data "aws_iam_policy_document" "logs" {
+  # ① ALB 액세스 로그 — 서울(ap-northeast-2) ELB 로그전달 계정
+  statement {
+    sid       = "ALBAccessLogs"
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.logs.arn}/alb/AWSLogs/${local.account_id}/*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::600734575887:root"]
+    }
+  }
+  # ② front S3 서버 액세스 로깅 — logging.s3 서비스(BucketOwnerEnforced 하위 표준 방식)
+  statement {
+    sid       = "S3ServerAccessLogs"
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.logs.arn}/s3-front/*"]
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
+    }
+    condition {
+      test     = "ArnLike"
+      variable = "aws:SourceArn"
+      values   = [aws_s3_bucket.front.arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [local.account_id]
+    }
+  }
+}
+resource "aws_s3_bucket_policy" "logs" {
+  bucket     = aws_s3_bucket.logs.id
+  policy     = data.aws_iam_policy_document.logs.json
+  depends_on = [aws_s3_bucket_public_access_block.logs]
+}
+resource "aws_s3_bucket_logging" "front" {
+  bucket        = aws_s3_bucket.front.id
+  target_bucket = aws_s3_bucket.logs.id
+  target_prefix = "s3-front/"
+  depends_on    = [aws_s3_bucket_policy.logs]
+}
+
+# =============================================================================
 # [COGNITO] User Pool(허브) ← Entra(SAML IdP) · custom:groups → viewer/approver(§7)
 # =============================================================================
 resource "aws_cognito_user_pool" "this" {
@@ -473,6 +539,13 @@ resource "aws_lb" "this" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = local.public_subnets
+  # 액세스 로깅(#6) → 전용 로그 버킷(alb/AWSLogs/<account>/…)
+  access_logs {
+    bucket  = aws_s3_bucket.logs.bucket
+    prefix  = "alb"
+    enabled = true
+  }
+  depends_on = [aws_s3_bucket_policy.logs]
 }
 
 resource "aws_lb_target_group" "backend" {
@@ -494,55 +567,31 @@ resource "aws_lb_target_group_attachment" "backend" {
   depends_on       = [aws_lambda_permission.alb]
 }
 
-# HTTP:80 — cert 있으면 443 리다이렉트(SSO 경로), 없으면 Lambda로 직접 forward(무인증 데모/단계별 apply).
-# → acm_certificate_arn 없이도 이 레이어가 apply되고 API가 HTTP로 동작(SSO는 cert 확보 후 활성).
+# HTTP:80 — 항상 Lambda로 forward. CloudFront /api 프록시가 이 포트(http-only origin)로 오므로 redirect 금지.
+#   (뷰어→CloudFront는 이미 HTTPS. 전 구간 TLS[80→443 redirect + CloudFront https-only origin]는
+#    api 서브도메인 구성이 필요 = 후속. 지금은 ALB에 HTTPS 리스너를 '추가'해 직접 접근 TLS를 확보.)
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.this.arn
   port              = 80
   protocol          = "HTTP"
-
-  dynamic "default_action" {
-    for_each = local.has_cert ? [1] : []
-    content {
-      type = "redirect"
-      redirect {
-        port        = "443"
-        protocol    = "HTTPS"
-        status_code = "HTTP_301"
-      }
-    }
-  }
-  dynamic "default_action" {
-    for_each = local.has_cert ? [] : [1]
-    content {
-      type             = "forward"
-      target_group_arn = aws_lb_target_group.backend.arn
-    }
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
   }
 }
 
-# HTTPS:443 → authenticate-cognito(order 1) → forward to Lambda(order 2)
-# authenticate-cognito는 HTTPS(=ACM 인증서) 필수 → cert 있을 때만 생성(count). 없으면 위 HTTP로 동작.
+# HTTPS:443 — 서울 ACM 인증서(#1 in-transit). 옵션 B라 authenticate-cognito 없이 forward
+#   (SPA가 Cognito로 직접 OIDC, 백엔드 Lambda가 JWT 검증[#3]). ALB 직접 접근 시 TLS 종단 = defense in depth.
+#   enable_custom_domain일 때만(서울 cert 필요). CloudFront는 :80 http origin을 쓰므로 이 리스너와 독립.
 resource "aws_lb_listener" "https" {
-  count             = local.has_cert ? 1 : 0
+  count             = var.enable_custom_domain ? 1 : 0
   load_balancer_arn = aws_lb.this.arn
   port              = 443
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-  certificate_arn   = var.acm_certificate_arn
-
-  default_action {
-    type  = "authenticate-cognito"
-    order = 1
-    authenticate_cognito {
-      user_pool_arn       = aws_cognito_user_pool.this.arn
-      user_pool_client_id = aws_cognito_user_pool_client.this.id
-      user_pool_domain    = aws_cognito_user_pool_domain.this.domain
-    }
-  }
+  certificate_arn   = aws_acm_certificate_validation.alb[0].certificate_arn
   default_action {
     type             = "forward"
-    order            = 2
     target_group_arn = aws_lb_target_group.backend.arn
   }
 }
