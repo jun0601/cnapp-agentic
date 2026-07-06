@@ -61,11 +61,25 @@ gitops/
 ├── README.md                     이 문서(CD·오토스케일링 개념·근거·부트스트랩)
 ├── argocd/
 │   ├── app-target.yaml           ArgoCD Application — shop 타깃 앱(pull-sync·self-heal·prune)
-│   └── app-monitoring.yaml       ArgoCD Application — kube-prometheus-stack(멀티소스: 공식 차트+이 레포 values)
+│   └── app-monitoring.yaml       ArgoCD Application — kube-prometheus-stack(3-소스: 공식 차트+이 레포 values+PreSync훅)
 ├── monitoring/
-│   └── kube-prometheus-stack-values.yaml   Grafana IRSA(CloudWatch 추가 데이터소스)+리소스 축소 오버라이드
+│   ├── kube-prometheus-stack-values.yaml   Grafana IRSA(CloudWatch 추가 데이터소스)+리소스 축소 오버라이드
+│   └── presync/
+│       └── prometheus-crds-job.yaml        PreSync 훅 — CRD를 Helm 본 배포보다 먼저 설치(아래 함정 참고)
 └── autoscaling/
     └── hpa.yaml                  member·product HPA (파드층). ※ 노드층 Karpenter(NodePool·EC2NodeClass)는 infra/karpenter terraform 레이어로 이관됨(2026-07-03)
 ```
 
-**app-monitoring.yaml은 app-target.yaml과 소스 구조가 다르다** — app-target은 "이 레포 = 원본 K8s 매니페스트"이지만, app-monitoring은 "이 레포 = Helm values만, 차트 본체는 공식 `prometheus-community` 리포"인 **멀티소스 Application**(ArgoCD 2.6+ 기능, `$values` 참조로 두 소스를 묶음). `grafana_irsa_role_arn`(IAM 역할 이름이 고정값이라 apply→destroy를 반복해도 안 바뀜, `infra/monitoring/README.md` §참고)이 values 파일에 이미 하드코딩돼 있어 재apply 때마다 값을 다시 쓸 필요가 없다.
+**app-monitoring.yaml은 app-target.yaml과 소스 구조가 다르다** — app-target은 "이 레포 = 원본 K8s 매니페스트"이지만, app-monitoring은 "이 레포 = Helm values+PreSync훅만, 차트 본체는 공식 `prometheus-community` 리포"인 **3-소스 Application**(ArgoCD 2.6+ 기능, `$values` 참조로 소스를 묶음). `grafana_irsa_role_arn`(IAM 역할 이름이 고정값이라 apply→destroy를 반복해도 안 바뀜, `infra/monitoring/README.md` §참고)이 values 파일에 이미 하드코딩돼 있어 재apply 때마다 값을 다시 쓸 필요가 없다.
+
+### ⚠️ 함정 — kube-prometheus-stack 최초 배포 시 Prometheus가 안 뜨는 문제(해결됨)
+
+**증상**: `app-monitoring` sync는 되는데 Grafana만 뜨고 Prometheus는 영원히 `OutOfSync`로 남는다(에러도 안 보임).
+
+**원인 2단(둘 다 실측 확인, troubleshooting.md 2026-07-06 참고)**:
+1. `alertmanagers`·`prometheusagents`·`prometheuses`·`thanosrulers` CRD 4종은 OpenAPI 스키마가 커서 일반 `kubectl apply`(annotation 기반)의 262144바이트 제한을 넘어 생성 자체가 실패한다 — `ServerSideApply=true` syncOption만으론 이 4종의 **최초 생성**은 못 고친다.
+2. CRD를 먼저 설치해도, `kube-prometheus-stack-operator` 파드가 "CRD 없음" 상태로 이미 떠버리면 그 사실을 내부에 캐싱해버려서 CRD가 나중에 생겨도 영원히 재확인을 안 한다(operator 재시작 전까지 조용히 멈춤).
+
+**해결(이미 반영됨, 손댈 필요 없음)**: `gitops/monitoring/presync/prometheus-crds-job.yaml`이 ArgoCD **PreSync 훅**으로 Helm 차트 본 리소스(=operator 포함)보다 **먼저** 공식 CRD 전용 릴리스 자산을 `kubectl apply --server-side`로 설치한다 — operator가 뜰 때 CRD가 이미 존재해서 위 두 문제가 애초에 안 생긴다. 훅은 `hook-delete-policy: HookSucceeded`로 자기정리되므로 클러스터에 흔적이 안 남는다.
+
+**⚠️ 유지보수 시 주의**: `prometheus-crds-job.yaml`이 받는 CRD 버전(현재 `v0.75.2`)은 `kube-prometheus-stack-values.yaml`이 참조하는 차트(`app-monitoring.yaml`의 `targetRevision`, 현재 `61.9.0`)가 내부적으로 고정하는 prometheus-operator 버전과 **반드시 일치**해야 한다 — 안 맞으면 기능은 되지만 ArgoCD가 계속 `OutOfSync`로 남는다(2026-07-06 실측). 차트 버전을 올릴 땐 `kubectl logs -n monitoring deploy/kube-prometheus-stack-operator | grep "Starting Prometheus Operator"`로 실제 버전을 확인하고 Job의 URL도 같이 갱신할 것.
