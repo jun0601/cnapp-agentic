@@ -1,0 +1,534 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cnapp-ai-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ai-engine.json: |
+    {
+      "id": null,
+      "uid": "cnapp-ai",
+      "title": "CNAPP - AI(Bedrock·엔진)",
+      "tags": [
+        "cnapp-agentic",
+        "ai"
+      ],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-3h",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Bedrock 호출/지연 (global.anthropic.claude-haiku-4-5-20251001-v1:0)",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Bedrock",
+              "metricName": "Invocations",
+              "dimensions": {
+                "ModelId": "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Invocations"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Bedrock",
+              "metricName": "InvocationLatency",
+              "dimensions": {
+                "ModelId": "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "Latency(ms)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 1
+        },
+        {
+          "type": "timeseries",
+          "title": "Bedrock 에러/토큰 (global.anthropic.claude-haiku-4-5-20251001-v1:0)",
+          "gridPos": {
+            "x": 12,
+            "y": 0,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Bedrock",
+              "metricName": "InvocationClientErrors",
+              "dimensions": {
+                "ModelId": "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "ClientErrors"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Bedrock",
+              "metricName": "InvocationServerErrors",
+              "dimensions": {
+                "ModelId": "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "ServerErrors"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "C",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Bedrock",
+              "metricName": "InputTokenCount",
+              "dimensions": {
+                "ModelId": "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "InputTokens"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "D",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Bedrock",
+              "metricName": "OutputTokenCount",
+              "dimensions": {
+                "ModelId": "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "OutputTokens"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 2
+        },
+        {
+          "type": "timeseries",
+          "title": "Bedrock 추정 비용(USD, Haiku 단가)",
+          "gridPos": {
+            "x": 0,
+            "y": 8,
+            "w": 24,
+            "h": 6
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "m1",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "id": "m1",
+              "namespace": "AWS/Bedrock",
+              "metricName": "InputTokenCount",
+              "dimensions": {
+                "ModelId": "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "",
+              "hide": true
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "m2",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "id": "m2",
+              "namespace": "AWS/Bedrock",
+              "metricName": "OutputTokenCount",
+              "dimensions": {
+                "ModelId": "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "",
+              "hide": true
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "cost",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "id": "cost",
+              "expression": "(m1/1000)*0.001 + (m2/1000)*0.005",
+              "statistic": "Average",
+              "label": "추정비용(USD)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 3
+        },
+        {
+          "type": "timeseries",
+          "title": "엔진: 트리아지 게이트(findings 평가/승급)",
+          "gridPos": {
+            "x": 0,
+            "y": 14,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "CnappAgentic/Engine",
+              "metricName": "FindingsEvaluated",
+              "dimensions": {},
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Evaluated"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "CnappAgentic/Engine",
+              "metricName": "FindingsEscalated",
+              "dimensions": {},
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Escalated"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 4
+        },
+        {
+          "type": "timeseries",
+          "title": "엔진: case당 tool-use 횟수 / 확신도",
+          "gridPos": {
+            "x": 12,
+            "y": 14,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "CnappAgentic/Engine",
+              "metricName": "ToolCallsPerCase",
+              "dimensions": {},
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "ToolCalls"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "CnappAgentic/Engine",
+              "metricName": "ConfidenceScore",
+              "dimensions": {},
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "Confidence"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 5
+        },
+        {
+          "type": "timeseries",
+          "title": "엔진: 판정까지 걸린 시간(ms)",
+          "gridPos": {
+            "x": 0,
+            "y": 22,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "CnappAgentic/Engine",
+              "metricName": "TimeToVerdictMs",
+              "dimensions": {},
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "TimeToVerdict"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 6
+        },
+        {
+          "type": "timeseries",
+          "title": "엔진: 판정 분포(Verdict × RiskLevel)",
+          "gridPos": {
+            "x": 12,
+            "y": 22,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "CnappAgentic/Engine",
+              "metricName": "FindingsEvaluated",
+              "dimensions": {
+                "Verdict": [
+                  "*"
+                ],
+                "RiskLevel": [
+                  "*"
+                ]
+              },
+              "statistic": "Sum",
+              "matchExact": false,
+              "label": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 7
+        },
+        {
+          "type": "timeseries",
+          "title": "엔진: 케이스별 Bedrock 토큰(전체 합)",
+          "gridPos": {
+            "x": 0,
+            "y": 30,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "CnappAgentic/Engine",
+              "metricName": "BedrockInputTokens",
+              "dimensions": {},
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "InputTokens"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "CnappAgentic/Engine",
+              "metricName": "BedrockOutputTokens",
+              "dimensions": {},
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "OutputTokens"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 8
+        },
+        {
+          "type": "timeseries",
+          "title": "엔진: read-only tool별 호출 횟수",
+          "gridPos": {
+            "x": 12,
+            "y": 30,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "CnappAgentic/Engine",
+              "metricName": "ToolInvocations",
+              "dimensions": {
+                "Tool": [
+                  "*"
+                ]
+              },
+              "statistic": "Sum",
+              "matchExact": false,
+              "label": ""
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 9
+        }
+      ]
+    }

@@ -1,0 +1,372 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cnapp-infra-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  infra.json: |
+    {
+      "id": null,
+      "uid": "cnapp-infra",
+      "title": "CNAPP - 인프라(데이터·메시징)",
+      "tags": [
+        "cnapp-agentic",
+        "infra"
+      ],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-3h",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "RDS: CPU / 연결 수",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/RDS",
+              "metricName": "CPUUtilization",
+              "dimensions": {
+                "DBInstanceIdentifier": "cnapp-agentic-pgvector"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "CPU%"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/RDS",
+              "metricName": "DatabaseConnections",
+              "dimensions": {
+                "DBInstanceIdentifier": "cnapp-agentic-pgvector"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "Connections"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 1
+        },
+        {
+          "type": "timeseries",
+          "title": "RDS: 여유 스토리지 / 읽기 IOPS",
+          "gridPos": {
+            "x": 12,
+            "y": 0,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/RDS",
+              "metricName": "FreeStorageSpace",
+              "dimensions": {
+                "DBInstanceIdentifier": "cnapp-agentic-pgvector"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "FreeStorage"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/RDS",
+              "metricName": "ReadIOPS",
+              "dimensions": {
+                "DBInstanceIdentifier": "cnapp-agentic-pgvector"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "ReadIOPS"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 2
+        },
+        {
+          "type": "timeseries",
+          "title": "SQS: ingest 큐 깊이 / DLQ 적재",
+          "gridPos": {
+            "x": 0,
+            "y": 8,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/SQS",
+              "metricName": "ApproximateNumberOfMessagesVisible",
+              "dimensions": {
+                "QueueName": "cnapp-agentic-ingest"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "ingest"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/SQS",
+              "metricName": "ApproximateNumberOfMessagesVisible",
+              "dimensions": {
+                "QueueName": "cnapp-agentic-ingest-dlq"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "DLQ"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 3
+        },
+        {
+          "type": "timeseries",
+          "title": "SQS: 백로그 나이(오래된 메시지)",
+          "gridPos": {
+            "x": 12,
+            "y": 8,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/SQS",
+              "metricName": "ApproximateAgeOfOldestMessage",
+              "dimensions": {
+                "QueueName": "cnapp-agentic-ingest"
+              },
+              "statistic": "Maximum",
+              "matchExact": true,
+              "label": "age(s)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 4
+        },
+        {
+          "type": "timeseries",
+          "title": "Step Functions: remediation(HITL) 실행 결과",
+          "gridPos": {
+            "x": 0,
+            "y": 16,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/States",
+              "metricName": "ExecutionsSucceeded",
+              "dimensions": {
+                "StateMachineArn": "arn:aws:states:ap-northeast-2:066107819776:stateMachine:cnapp-agentic-remediation"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Succeeded"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/States",
+              "metricName": "ExecutionsFailed",
+              "dimensions": {
+                "StateMachineArn": "arn:aws:states:ap-northeast-2:066107819776:stateMachine:cnapp-agentic-remediation"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Failed"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "C",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/States",
+              "metricName": "ExecutionsAborted",
+              "dimensions": {
+                "StateMachineArn": "arn:aws:states:ap-northeast-2:066107819776:stateMachine:cnapp-agentic-remediation"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Aborted"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 5
+        },
+        {
+          "type": "timeseries",
+          "title": "S3: 감사 버킷(Object Lock) 크기/객체 수",
+          "gridPos": {
+            "x": 12,
+            "y": 16,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "86400",
+              "namespace": "AWS/S3",
+              "metricName": "NumberOfObjects",
+              "dimensions": {
+                "BucketName": "cnapp-agentic-audit-066107819776",
+                "StorageType": "AllStorageTypes"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "Objects"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "86400",
+              "namespace": "AWS/S3",
+              "metricName": "BucketSizeBytes",
+              "dimensions": {
+                "BucketName": "cnapp-agentic-audit-066107819776",
+                "StorageType": "StandardStorage"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "SizeBytes"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 6
+        }
+      ]
+    }

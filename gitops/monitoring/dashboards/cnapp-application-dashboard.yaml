@@ -1,0 +1,765 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cnapp-application-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  application.json: |
+    {
+      "id": null,
+      "uid": "cnapp-application",
+      "title": "CNAPP - 애플리케이션",
+      "tags": [
+        "cnapp-agentic",
+        "application"
+      ],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-3h",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Lambda: cnapp-agentic-ingest",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 12,
+            "h": 6
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Invocations",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-ingest"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Invocations"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-ingest"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Errors"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "C",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Throttles",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-ingest"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Throttles"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "D",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Duration",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-ingest"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "Duration(ms)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 1
+        },
+        {
+          "type": "timeseries",
+          "title": "Lambda: cnapp-agentic-normalize",
+          "gridPos": {
+            "x": 12,
+            "y": 0,
+            "w": 12,
+            "h": 6
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Invocations",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-normalize"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Invocations"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-normalize"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Errors"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "C",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Throttles",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-normalize"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Throttles"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "D",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Duration",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-normalize"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "Duration(ms)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 2
+        },
+        {
+          "type": "timeseries",
+          "title": "Lambda: cnapp-agentic-correlation",
+          "gridPos": {
+            "x": 0,
+            "y": 6,
+            "w": 12,
+            "h": 6
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Invocations",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-correlation"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Invocations"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-correlation"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Errors"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "C",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Throttles",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-correlation"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Throttles"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "D",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Duration",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-correlation"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "Duration(ms)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 3
+        },
+        {
+          "type": "timeseries",
+          "title": "Lambda: cnapp-agentic-orchestrator",
+          "gridPos": {
+            "x": 12,
+            "y": 6,
+            "w": 12,
+            "h": 6
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Invocations",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-orchestrator"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Invocations"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-orchestrator"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Errors"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "C",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Throttles",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-orchestrator"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Throttles"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "D",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Duration",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-orchestrator"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "Duration(ms)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 4
+        },
+        {
+          "type": "timeseries",
+          "title": "Lambda: cnapp-agentic-console-backend",
+          "gridPos": {
+            "x": 0,
+            "y": 12,
+            "w": 12,
+            "h": 6
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Invocations",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-console-backend"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Invocations"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-console-backend"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Errors"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "C",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Throttles",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-console-backend"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Throttles"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "D",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Duration",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-console-backend"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "Duration(ms)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 5
+        },
+        {
+          "type": "timeseries",
+          "title": "Lambda: cnapp-agentic-remediation",
+          "gridPos": {
+            "x": 12,
+            "y": 12,
+            "w": 12,
+            "h": 6
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Invocations",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-remediation"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Invocations"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-remediation"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Errors"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "C",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Throttles",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-remediation"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Throttles"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "D",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Lambda",
+              "metricName": "Duration",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-remediation"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "Duration(ms)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 6
+        },
+        {
+          "type": "timeseries",
+          "title": "ALB: 요청 수 / 지연시간 / 5xx",
+          "gridPos": {
+            "x": 0,
+            "y": 18,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/ApplicationELB",
+              "metricName": "RequestCount",
+              "dimensions": {
+                "LoadBalancer": "app/cnapp-agentic-console/448e0d449ea20779"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Requests"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/ApplicationELB",
+              "metricName": "TargetResponseTime",
+              "dimensions": {
+                "LoadBalancer": "app/cnapp-agentic-console/448e0d449ea20779"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "Latency(s)"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "C",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/ApplicationELB",
+              "metricName": "HTTPCode_Target_5XX_Count",
+              "dimensions": {
+                "LoadBalancer": "app/cnapp-agentic-console/448e0d449ea20779"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "5xx"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 7
+        },
+        {
+          "type": "timeseries",
+          "title": "Cognito: 로그인 성공(콘솔 SSO)",
+          "gridPos": {
+            "x": 12,
+            "y": 18,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "period": "300",
+              "namespace": "AWS/Cognito",
+              "metricName": "SignInSuccesses",
+              "dimensions": {
+                "UserPool": "ap-northeast-2_axVuh328G"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "SignIn"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 8
+        },
+        {
+          "type": "timeseries",
+          "title": "CloudFront: 요청수 / 4xx·5xx 에러율",
+          "gridPos": {
+            "x": 0,
+            "y": 26,
+            "w": 24,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "us-east-1",
+              "period": "300",
+              "namespace": "AWS/CloudFront",
+              "metricName": "Requests",
+              "dimensions": {
+                "DistributionId": "E3S3Z9ELLI9RNV",
+                "Region": "Global"
+              },
+              "statistic": "Sum",
+              "matchExact": true,
+              "label": "Requests"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "us-east-1",
+              "period": "300",
+              "namespace": "AWS/CloudFront",
+              "metricName": "4xxErrorRate",
+              "dimensions": {
+                "DistributionId": "E3S3Z9ELLI9RNV",
+                "Region": "Global"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "4xx%"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "C",
+              "region": "us-east-1",
+              "period": "300",
+              "namespace": "AWS/CloudFront",
+              "metricName": "5xxErrorRate",
+              "dimensions": {
+                "DistributionId": "E3S3Z9ELLI9RNV",
+                "Region": "Global"
+              },
+              "statistic": "Average",
+              "matchExact": true,
+              "label": "5xx%"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 9
+        }
+      ]
+    }

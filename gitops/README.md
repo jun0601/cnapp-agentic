@@ -66,31 +66,37 @@ gitops/
 │   ├── kube-prometheus-stack-values.yaml   Grafana IRSA(CloudWatch 추가 데이터소스, uid 고정)+리소스 축소 오버라이드
 │   ├── presync/
 │   │   └── prometheus-crds-job.yaml        PreSync 훅 — CRD를 Helm 본 배포보다 먼저 설치(아래 함정 참고)
-│   └── dashboards/
-│       └── cnapp-integrated-dashboard.yaml Grafana 대시보드 — EKS+AWS 인프라 통합 뷰(아래 §"통합 대시보드" 참고)
+│   └── dashboards/                         Grafana 대시보드 4종 — 분야별(아래 §"분야별 대시보드" 참고)
+│       ├── cnapp-eks-dashboard.yaml         EKS 개요(노드·파드·CPU·메모리·재시작)
+│       ├── cnapp-application-dashboard.yaml 애플리케이션(Lambda 6종·ALB·Cognito·CloudFront)
+│       ├── cnapp-infra-dashboard.yaml       인프라(RDS·SQS·Step Functions·S3 감사버킷)
+│       └── cnapp-ai-dashboard.yaml          AI/엔진(Bedrock·엔진 EMF 전종)
 └── autoscaling/
     └── hpa.yaml                  member·product HPA (파드층). ※ 노드층 Karpenter(NodePool·EC2NodeClass)는 infra/karpenter terraform 레이어로 이관됨(2026-07-03)
 ```
 
 **app-monitoring.yaml은 app-target.yaml과 소스 구조가 다르다** — app-target은 "이 레포 = 원본 K8s 매니페스트"이지만, app-monitoring은 "이 레포 = Helm values+`gitops/monitoring/` 하위 매니페스트, 차트 본체는 공식 `prometheus-community` 리포"인 **3-소스 Application**(ArgoCD 2.6+ 기능, `$values` 참조로 소스를 묶음. 소스③은 `path: gitops/monitoring` + `directory.recurse: true`로 `presync/`·`dashboards/`를 한 번에 잡되 `kube-prometheus-stack-values.yaml`은 K8s 리소스가 아니라 `exclude`). `grafana_irsa_role_arn`(IAM 역할 이름이 고정값이라 apply→destroy를 반복해도 안 바뀜, `infra/monitoring/README.md` §참고)이 values 파일에 이미 하드코딩돼 있어 재apply 때마다 값을 다시 쓸 필요가 없다.
 
-### 📊 통합 대시보드 — EKS + AWS 인프라를 Grafana 한 화면에
+### 📊 분야별 대시보드 — EKS + AWS 인프라 **전체**를 Grafana에서
 
 기본으로 딸려오는 kube-prometheus-stack 대시보드 27개는 전부 **"쿠버네티스 클러스터 자체가 건강한가"**(노드·파드·네트워킹)만 본다 — "우리 CNAPP 서비스가 잘 도는가"(Lambda·RDS·SQS·Bedrock·엔진 EMF)는 안 보여준다. 그건 원래 `infra/monitoring`이 만드는 **AWS 네이티브 CloudWatch 대시보드**(24위젯, AWS 콘솔에서 별도로 봄, `terraform output dashboard_url`)의 몫이었다.
 
-`gitops/monitoring/dashboards/cnapp-integrated-dashboard.yaml`이 이 둘을 **Grafana 한 화면**으로 합친다 — CloudWatch가 이미 데이터소스로 연결돼 있으니(§IRSA 배선) Prometheus 패널과 CloudWatch 패널을 같은 대시보드에 나란히 배치하면 된다:
+CloudWatch가 이미 데이터소스로 연결돼 있으니(§IRSA 배선), 그 24위젯과 **동등한 커버리지**를 Grafana 쪽에도 만들었다 — 한 화면에 다 몰아넣지 않고 **분야별 대시보드 4개**로 나눴다(전환이 쉽고 각자 화면이 덜 복잡함):
 
-| 구역 | 패널 | 데이터소스 |
+| 대시보드 | 패널 | 데이터소스 |
 |---|---|---|
-| EKS 한눈에 | 노드 수·파드 수·비정상 파드 수·네임스페이스 수 | Prometheus |
-| EKS 리소스 | 노드별 CPU/메모리 사용률 | Prometheus |
-| Lambda | 호출 수·에러(6종 함수) | CloudWatch |
-| RDS/SQS | CPU·연결 수 / 큐 깊이 | CloudWatch |
-| AI | Bedrock 호출 수 · 엔진 트리아지 게이트(EMF) | CloudWatch |
+| **EKS 개요** | 노드/파드/비정상파드/네임스페이스 수, 노드별 CPU·메모리, 네임스페이스별 재시작 횟수 | Prometheus |
+| **애플리케이션** | Lambda 6종(호출·에러·쓰로틀·지연) 개별 패널, ALB(요청·지연·5xx), Cognito(로그인), CloudFront(요청·4xx·5xx) | CloudWatch |
+| **인프라(데이터·메시징)** | RDS(CPU·연결·스토리지·IOPS), SQS(큐 깊이·DLQ·백로그 나이), Step Functions(remediation 실행 결과), S3 감사버킷(객체수·크기) | CloudWatch |
+| **AI(Bedrock·엔진)** | Bedrock(호출·지연·에러·토큰·추정비용), 엔진 EMF 전종(트리아지 게이트·tool-use·확신도·판정시간·판정분포·케이스별토큰·tool별breakdown) | CloudWatch |
 
-**동작 원리**: kube-prometheus-stack 차트의 Grafana sidecar가 `grafana_dashboard: "1"` 라벨이 붙은 ConfigMap을 자동으로 찾아 로드한다(기본 대시보드 27개도 이 방식) — 이 ConfigMap도 똑같은 라벨을 달아서 **수동 클릭 없이 자동 등록**되게 했다. `kube-prometheus-stack-values.yaml`의 CloudWatch 데이터소스에 `uid: cloudwatch-monitoring`을 **고정**해둔 이유가 이거다 — uid를 안 고정하면 apply할 때마다 랜덤값이 나와서 이 대시보드 JSON이 참조하는 datasource uid가 매번 깨진다.
+→ **AWS CloudWatch 24위젯과 1:1 대응**(ALB·Step Functions·S3·Cognito·CloudFront까지 전부 포함) — Grafana에서 EKS 안팎을 모두 볼 수 있다는 처음 목표를 충족한다.
 
-**검증(2026-07-06)**: Grafana API로 대시보드 JSON을 먼저 임시 등록해 패널 12개가 실제 데이터를 반환하는지 확인(`count(kube_node_info)`=3, Lambda `cnapp-agentic-ingest` Invocations 실값 확인) → 검증 후 ConfigMap으로 옮겨 sidecar 자동 로드까지 재확인.
+**동작 원리**: kube-prometheus-stack 차트의 Grafana sidecar가 `grafana_dashboard: "1"` 라벨이 붙은 ConfigMap을 자동으로 찾아 로드한다(기본 대시보드 27개도 이 방식) — 이 ConfigMap 4개도 똑같은 라벨을 달아서 **수동 클릭 없이 자동 등록**되게 했다. `kube-prometheus-stack-values.yaml`의 CloudWatch 데이터소스에 `uid: cloudwatch-monitoring`을 **고정**해둔 이유가 이거다 — uid를 안 고정하면 apply할 때마다 랜덤값이 나와서 대시보드 JSON이 참조하는 datasource uid가 매번 깨진다.
+
+**⚠️ 유지보수 주의 — 비고정 AWS 리소스 ID 3종**: `ALB ARN suffix`(`app-application-dashboard.yaml`)·`Cognito User Pool ID`·`CloudFront Distribution ID`는 Lambda/RDS/IAM 역할처럼 이름이 고정되지 않고 **매 apply마다 AWS가 새로 발급**한다 — `infra/console`을 destroy→재apply하면 이 3개 값이 바뀌어서 해당 CloudWatch 패널이 데이터를 못 찾는다(에러는 안 나고 "No data"만 뜸). 재apply 후 `terraform output`(alb_arn_suffix·cognito_user_pool_id·cloudfront_distribution_id)으로 새 값을 확인해 `cnapp-application-dashboard.yaml`의 세 상수를 갱신할 것. Lambda 함수명·RDS 식별자·SQS 큐 이름·SFN ARN·감사 버킷명은 전부 `${project}-...` 고정 패턴이라 이 문제가 없다.
+
+**검증(2026-07-06)**: Grafana `/api/dashboards/db`+`/api/ds/query`로 4개 대시보드·31개 패널을 전부 임시 등록해 실데이터 확인(28개 실값, 3개는 최근 활동 없어 정상 empty — Cognito 로그인·Step Functions 실행·S3 감사기록) → CloudWatch metric math(비용 계산) 쿼리는 `statistic` 필드 누락(500) → `id` 필드가 대문자로 시작(CloudWatch `Id` 규칙 위반, 400) 두 버그를 잡음 → wildcard 분포 패널(판정분포·tool별breakdown)은 `dimensions` 값이 빈 문자열이 아니라 `["*"]` 배열이어야 함을 확인 → 전부 고친 뒤 ConfigMap으로 옮겨 sidecar 자동 로드까지 재확인.
 
 ### ⚠️ 함정 — kube-prometheus-stack 최초 배포 시 Prometheus가 안 뜨는 문제(해결됨)
 
