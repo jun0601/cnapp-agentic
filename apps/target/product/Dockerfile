@@ -14,4 +14,8 @@ WORKDIR /app
 # COPY --from=upstream /catalog /app/catalog   # (배포 파이프라인에서 연결)
 
 EXPOSE 8080
-CMD ["sleep", "infinity"]  # placeholder — 실제 catalog 실행으로 교체
+# placeholder — 실제 catalog 실행으로 교체.
+# WARNING: exec-form(JSON 배열) 실행 지시 뒤에 같은 줄로 인라인 주석(# ...)을 붙이면 Docker가
+#    그 줄을 JSON으로 파싱하다 실패해 shell-form으로 폴백 -> "/bin/sh -c '[sleep, infinity]'"로
+#    실행돼 "/bin/sh: [sleep,: command not found"로 크래시(2026-07-06 라이브 실측). 주석은 윗줄에.
+CMD ["sleep", "infinity"]
