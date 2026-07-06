@@ -203,8 +203,8 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
-              "legendFormat": "{{instance}}",
+              "expr": "label_replace(label_replace(label_replace(100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100), \"internal_ip\", \"$1\", \"instance\", \"([^:]+):.*\") * on(internal_ip) group_left(node, provider_id) kube_node_info, \"az\", \"$1\", \"provider_id\", \"aws:///([a-z0-9-]+)/.*\"), \"short_node\", \"$1\", \"node\", \"(ip-[0-9-]+)[.].*\")",
+              "legendFormat": "{{short_node}} ({{az}})",
               "refId": "A"
             }
           ],
@@ -235,8 +235,8 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
-              "legendFormat": "{{instance}}",
+              "expr": "label_replace(label_replace(label_replace((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100, \"internal_ip\", \"$1\", \"instance\", \"([^:]+):.*\") * on(internal_ip) group_left(node, provider_id) kube_node_info, \"az\", \"$1\", \"provider_id\", \"aws:///([a-z0-9-]+)/.*\"), \"short_node\", \"$1\", \"node\", \"(ip-[0-9-]+)[.].*\")",
+              "legendFormat": "{{short_node}} ({{az}})",
               "refId": "A"
             }
           ],
@@ -250,42 +250,10 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "네임스페이스별 파드 재시작 횟수(1h 증가량)",
+          "title": "파드별 CPU 사용률(%) top10",
           "gridPos": {
             "x": 0,
             "y": 12,
-            "w": 24,
-            "h": 8
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum by (namespace) (increase(kube_pod_container_status_restarts_total[1h]))",
-              "legendFormat": "{{namespace}}",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "id": 7
-        },
-        {
-          "type": "timeseries",
-          "title": "파드별 CPU 사용률 top10",
-          "gridPos": {
-            "x": 0,
-            "y": 20,
             "w": 12,
             "h": 8
           },
@@ -310,14 +278,14 @@ data:
             },
             "overrides": []
           },
-          "id": 8
+          "id": 7
         },
         {
           "type": "timeseries",
-          "title": "파드별 메모리 사용량 top10",
+          "title": "파드별 메모리 사용률(%) top10",
           "gridPos": {
             "x": 12,
-            "y": 20,
+            "y": 12,
             "w": 12,
             "h": 8
           },
@@ -342,14 +310,14 @@ data:
             },
             "overrides": []
           },
-          "id": 9
+          "id": 8
         },
         {
           "type": "timeseries",
           "title": "노드별 파드 개수(bin-packing)",
           "gridPos": {
             "x": 0,
-            "y": 28,
+            "y": 20,
             "w": 12,
             "h": 8
           },
@@ -374,14 +342,14 @@ data:
             },
             "overrides": []
           },
-          "id": 10
+          "id": 9
         },
         {
           "type": "timeseries",
           "title": "비정상 파드 목록(이름·상태)",
           "gridPos": {
             "x": 12,
-            "y": 28,
+            "y": 20,
             "w": 12,
             "h": 8
           },
@@ -397,6 +365,38 @@ data:
               },
               "expr": "kube_pod_status_phase{phase=~\"Pending|Failed|Unknown\"} == 1",
               "legendFormat": "{{namespace}}/{{pod}} ({{phase}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 10
+        },
+        {
+          "type": "timeseries",
+          "title": "네임스페이스별 파드 재시작 횟수(1h 증가량)",
+          "gridPos": {
+            "x": 0,
+            "y": 28,
+            "w": 24,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum by (namespace) (increase(kube_pod_container_status_restarts_total[1h]))",
+              "legendFormat": "{{namespace}}",
               "refId": "A"
             }
           ],
