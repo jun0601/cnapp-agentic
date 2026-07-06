@@ -112,4 +112,5 @@ def _connect():
         host=os.environ["DB_HOST"], port=5432,
         dbname=sec.get("dbname", "cnapp"), user=sec["username"], password=sec["password"],
         connect_timeout=5,
+        sslmode="require",  # in-transit TLS 강제(#2). 기본 'prefer'는 TLS 선택적 → require로 필수화(CA 핀닝 verify-full은 후속).
     )
