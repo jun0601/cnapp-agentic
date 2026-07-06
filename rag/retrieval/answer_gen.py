@@ -14,15 +14,17 @@
 """
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 _SEV_LABEL = {1: "Critical", 2: "High", 3: "Medium", 4: "Low", 5: "Info"}
 
-# Global inference profile ID(2026-07-03 aws bedrock list-inference-profiles 서울 확인 후 확정).
-#   기존 bare name "anthropic.claude-sonnet-4-5"는 Bedrock에서 404였음 → 확정 ID로 교체.
-#   Haiku(엔진)가 global.anthropic.claude-haiku-4-5-20251001-v1:0인 것과 동일 방식(Global 프로파일).
-#   Sonnet(설명 생성)은 Haiku보다 상위 티어 — RAG 내러티브 품질에 사용(비용 티어링, cost-strategy).
-_BEDROCK_MODEL_ID = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+# RAG 답변 모델 = Global inference profile ID. 설계 선호는 Sonnet 4.5(상위 티어, 내러티브 품질)지만
+#   이 계정 Bedrock에 Sonnet 액세스가 아직 미개방(2026-07-06 라이브 확인 — Marketplace subscribe 필요,
+#   관리자 API로도 자동구독 불가 = 콘솔 수동 승인 필요)이라, 이미 열려 동작하는 Haiku 4.5를 기본값으로 둔다.
+#   Sonnet 액세스가 열리면 RAG_MODEL_ID env로 무코드 스왑(콘솔 data.ts의 CHAT_MODEL_ID와 동일 규약).
+#   Haiku 프로파일은 엔진 bedrock_planner.DEFAULT_MODEL_ID와 동일.
+_BEDROCK_MODEL_ID = os.environ.get("RAG_MODEL_ID", "global.anthropic.claude-haiku-4-5-20251001-v1:0")
 
 
 def _mock_explanation(finding: dict, chunks: list[dict], evidence: list[dict]) -> str:

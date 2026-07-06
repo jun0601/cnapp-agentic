@@ -128,7 +128,11 @@ export async function getAttackPath(id: string): Promise<AttackPath | null> {
 // mock: 템플릿 에코 / real: Titan Embed v2 → pgvector cosine top_k → Sonnet converse.
 // rag/(Python)와 동일 파이프라인의 TS판 — 같은 rag_chunks 테이블·같은 Titan 모델(벡터 정합).
 const EMBED_MODEL = 'amazon.titan-embed-text-v2:0'
-const CHAT_MODEL = 'global.anthropic.claude-sonnet-4-5-20250929-v1:0' // rag/answer_gen.py와 동일
+// RAG 답변 모델. 설계 선호=Sonnet 4.5(품질 티어)지만 이 계정 Bedrock에 Sonnet 액세스가
+// 아직 미개방(2026-07-06 라이브 확인 — Marketplace subscribe 필요, 관리자 API로도 불가)이라
+// 이미 열려 동작하는 Haiku 4.5를 기본값으로. Sonnet 액세스가 열리면 CHAT_MODEL_ID env로 무코드 스왑.
+// (엔진 evidence도 같은 Haiku 프로파일 — bedrock_planner.DEFAULT_MODEL_ID와 정합)
+const CHAT_MODEL = process.env.CHAT_MODEL_ID ?? 'global.anthropic.claude-haiku-4-5-20251001-v1:0'
 
 export async function chatAnswer(q: string): Promise<{ answer: string; refs: string[] }> {
   if (USE_MOCK || !q) return { answer: `(mock) "${q}" 에 대한 RAG 응답 자리`, refs: [] }

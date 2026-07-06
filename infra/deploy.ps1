@@ -111,6 +111,16 @@ function Invoke-Layer {
     & terraform init -reconfigure -input=false
     if ($LASTEXITCODE -ne 0) { throw "[$L] init failed" }
 
+    # Fail fast instead of hanging: apply/destroy without -auto-approve shows an
+    # interactive 'yes?' prompt. In a non-interactive session (redirected stdin --
+    # CI, a backgrounded runner, an agent tool) terraform never receives the answer
+    # and blocks FOREVER on that prompt (observed 2026-07-06: a background apply sat
+    # ~1h at the prompt before it was noticed). If stdin is redirected and the caller
+    # did not pass -AutoApprove, stop in 2s with a clear message rather than hang.
+    if ($Act -in @('apply', 'destroy') -and -not $AutoApprove -and [Console]::IsInputRedirected) {
+      throw "[$L] $Act needs approval but stdin is non-interactive -- it would hang on terraform's 'yes?' prompt. Re-run with -AutoApprove: ./infra/deploy.ps1 -Action $Action -AutoApprove"
+    }
+
     $tfArgs = @($Act, '-input=false') + $ExtraArgs
     if ($Act -in @('apply', 'destroy') -and $AutoApprove) { $tfArgs += '-auto-approve' }
 
