@@ -63,12 +63,14 @@ def handler(event: dict, context) -> dict:
             credit += amount
     net = usage + credit
 
+    # 메시지 필드는 마크다운이 아니라 HTML 리치텍스트라 <b>/<br>로 서식을 넣어야 실제로 렌더링된다
+    # (2026-07-06 확인 — **볼드**를 그대로 보내면 별표 문자 그대로 나옴).
     text = (
-        f"**💰 어제 AWS 사용 비용**\n\n"
-        f"{yesterday.isoformat()} 사용 비용\n"
-        f"- 실사용(크레딧 적용 전): **{usage:.4f} {currency}**\n"
-        f"- 크레딧 상쇄: {credit:.4f} {currency}\n"
-        f"- 순액(실청구): **{net:.4f} {currency}**"
+        f"<b>💰 어제 AWS 사용 비용</b><br><br>"
+        f"{yesterday.isoformat()} 사용 비용<br>"
+        f"- 실사용(크레딧 적용 전): <b>{usage:.4f} {currency}</b><br>"
+        f"- 크레딧 상쇄: {credit:.4f} {currency}<br>"
+        f"- 순액(실청구): <b>{net:.4f} {currency}</b>"
     )
     _post_to_teams(text)
     return {"ok": True, "date": yesterday.isoformat(), "usage": usage, "credit": credit, "net": net}

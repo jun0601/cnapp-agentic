@@ -71,7 +71,12 @@ def handler(event: dict, context) -> dict:
         ip = record.get("sourceIPAddress", "unknown")
         when = _to_kst(record.get("eventTime", ""))
         emoji = "✅" if result == "Success" else "⚠️"
-        text = f"**🔐 AWS 콘솔 로그인 감지**\n\n사용자: **{user}**\n결과: {emoji} {result}\nIP: {ip}\n시각(KST): {when}"
+        # 메시지 필드는 마크다운이 아니라 HTML 리치텍스트라 <b>/<br>로 서식을 넣어야 실제로 렌더링된다
+        # (2026-07-06 확인 — **볼드**를 그대로 보내면 별표 문자 그대로 나옴).
+        text = (
+            f"<b>🔐 AWS 콘솔 로그인 감지</b><br><br>"
+            f"사용자: <b>{user}</b><br>결과: {emoji} {result}<br>IP: {ip}<br>시각(KST): {when}"
+        )
         _post_to_teams(text)
         sent += 1
 

@@ -21,17 +21,20 @@ def _get_webhook_url() -> str:
 
 
 def _to_teams_text(alarm: dict) -> str:
+    # Power Automate "채팅 또는 채널에서 메시지 게시" 액션의 메시지 필드는 마크다운이 아니라
+    # HTML 리치텍스트 에디터라서, **볼드**·개행(\n)을 그대로 보내면 문자 그대로("**"가 안 없어짐)
+    # 나온다 — <b>·<br>로 직접 HTML 태그를 써야 실제로 굵게/줄바꿈이 렌더링된다(2026-07-06 확인).
     if alarm.get("kind") == "custom":
         # daily_cost_notifier·login_notifier처럼 CloudWatch 알람이 아닌 능동 발행 메시지.
         title = alarm.get("title", "알림")
-        body = alarm.get("body", "")
-        return f"**{title}**\n\n{body}"
+        body = alarm.get("body", "").replace("\n", "<br>")
+        return f"<b>{title}</b><br><br>{body}"
     name = alarm.get("AlarmName", "unknown-alarm")
     state = alarm.get("NewStateValue", "")
     reason = alarm.get("NewStateReason", "")
     region = alarm.get("Region", "")
     emoji = "🔴" if state == "ALARM" else ("🟢" if state == "OK" else "⚪")
-    return f"{emoji} **{name}** → `{state}`\n\n{reason}\n\n_region: {region}_"
+    return f"{emoji} <b>{name}</b> &rarr; <code>{state}</code><br><br>{reason}<br><br><i>region: {region}</i>"
 
 
 def _to_teams_payload(alarm: dict) -> dict:
