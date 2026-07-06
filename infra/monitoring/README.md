@@ -508,31 +508,46 @@ aws cloudtrail update-trail --name cnapp-org-trail \
 - `engine`/`backend` Lambda가 실제로 finding을 처리하기 시작하면 EMF 위젯·알람 실데이터 재확인
 - `kube_bench.scan_cluster()`/`trivy.scan_image()` 등 EKS 필요한 실 스캐너 경로 검증(별도 작업, `scanners/workload/README` 참고)
 
-## 17. 일일 비용 알림 + 콘솔 로그인 알림 (2026-07-06 추가)
+## 17. 일일 비용 알림 + 콘솔 로그인 알림 (2026-07-06, 실 apply·실 Teams 도달까지 검증 완료)
 
-사용자 요청("아침 9시마다 하루 사용 비용 알림 + 로그인 감지, 로그인은 사용자 이름 포함") 반영. 둘 다 **CloudWatch 알람이 아니라 능동 Lambda**로 구현 — 이유는 각 절 참고. 두 Lambda 모두 같은 `aws_sns_topic.alerts`에 발행해 기존 `teams_notifier`(§11) 경로를 그대로 재사용한다(신규 SNS 구독 불필요).
+사용자 요청("아침 9시마다 하루 사용 비용 알림 + 로그인 감지, 로그인은 사용자 이름 포함, 비용/로그인은 각자 전용 채널로") 반영. 둘 다 **CloudWatch 알람이 아니라 능동 Lambda**로 구현(이유는 각 절 참고) + **각자 전용 Teams 채널·전용 webhook 시크릿**을 써서 기존 `cnapp-alerts`(CloudWatch 알람 7종, §11)와 완전히 분리했다.
 
-### 17.1 일일 비용 알림 (`daily_cost_notifier`)
+### 17.1 채널 분리 — 왜, 어떻게
 
-- **왜 알람이 아니라 Lambda인가:** CloudWatch 알람은 "임계값 초과 여부"만 판단하는 모델이라 "매일 정기 리포트"(항상 보고할 값이 있음)와 안 맞는다. 대신 EventBridge 스케줄로 매일 트리거되는 Lambda가 Cost Explorer에서 전날 비용을 직접 조회해 SNS로 발행.
-- **스케줄:** `aws_cloudwatch_event_rule.daily_cost_schedule` — `cron(0 0 * * ? *)`(UTC 00:00 = **KST 09:00**).
+기존 `teams_notifier`(§11)는 `aws_sns_topic.alerts` 하나에 발행된 걸 전부 같은 `cnapp-alerts` 채널로 보낸다. 비용·로그인은 **보는 사람/노이즈 성격이 다르다**고 판단해(재무 성격 vs 보안 성격, 운영 알람과 섞이면 묻힘) 전용 채널 `cnapp-cost`·`cnapp-login`을 신설 — 단 **모든 신규 알림을 다 쪼개지는 않기로 함**: 일반 운영 알람은 계속 `cnapp-alerts`(기존 SNS 경로 재사용)가 기본값이고, 정말 성격이 다를 때만 이렇게 전용 채널+전용 흐름을 새로 판다(채널마다 Power Automate 흐름을 손으로 새로 만들어야 해서 비용이 꽤 드는 작업 — 남발 금지).
+
+**결과: `daily_cost_notifier`·`login_notifier`는 SNS를 거치지 않고 각자 전용 Secrets Manager 시크릿(`${project}/teams/webhook-cost`·`${project}/teams/webhook-login`)에서 URL을 읽어 Teams webhook에 직접 POST한다**(`teams_notifier.py`와 같은 `_get_webhook_url`/`_post_to_teams` 패턴을 각 파일에 그대로 복제 — 3개 파일이라 셋이 각자 자립적인 게 낫다고 판단, 공유 모듈로 추출하지 않음).
+
+### 17.2 Power Automate 흐름 만들 때 겪은 함정 3개(중요 — 다음에 채널 추가할 때 그대로 반복하지 말 것)
+
+1. **"HTTP 요청이 수신되면"(Request) 트리거는 쓰지 말 것** — Premium 커넥터라 라이선스 경고가 뜨고, 게다가 **이 테넌트("Default" Power Platform 환경)는 모든 수동/HTTP 트리거 흐름에 OAuth 인증을 강제**하는 정책이 걸려있어서(`DirectApiAuthorizationRequired`), Premium 평가판을 받아도, 심지어 **새 Developer 환경을 만들어도** 똑같이 막힌다(환경 문제가 아니라 이 정책 자체가 테넌트 전역인 것으로 실측 확인). 옛날식 Teams "수신 웹후크(Incoming Webhook)" 커넥터도 이 테넌트에선 완전히 제거되고 없음(채널 "···" 메뉴에 "커넥터" 항목 자체가 없어짐, "워크플로"로 전부 통합됨).
+2. **대신 Teams 채널 "···" → "워크플로" → 템플릿 "채널에 웹후크 알림 보내기"로 시작할 것** — 이 공식 템플릿의 트리거("Teams 웹후크 요청이 수신된 경우")만 유일하게 **OAuth 없이 서명(`sig=`) 기반 URL**을 발급해준다(Microsoft가 Incoming Webhook 대체용으로 특별히 예외 처리한 것으로 추정).
+3. **⚠️ 이 템플릿이 기본으로 만들어주는 "Post card in a chat or channel" 액션은 쓰지 말고 삭제할 것.** 이 액션은 내부적으로 `messageBody`(우리가 보낸 요청 바디 전체, `{"text": "..."}` 형태 그대로)를 `AdaptiveCard.FromJson()`에 직접 넘겨서 파싱하려 시도한다 — 즉 우리가 뭘 보내든 최상위에 `"type": "AdaptiveCard"`가 없으면 무조건 실패(`Property 'type' must be 'AdaptiveCard'`). `{"text": "<AdaptiveCard를 JSON 문자열로 직렬화한 값>"}`처럼 이중 인코딩해서 우회를 시도해봤지만(실제로 영문 텍스트 1건은 성공) 한글·이모지·마크다운이 섞이자 원인 불명으로 다시 실패 — **이 액션의 내부 로직이 불투명하고 신뢰할 수 없다고 결론**. → **"Post card" 삭제하고 그 자리에 "채팅 또는 채널에서 메시지 게시"(평문) 액션을 추가, 메시지 필드는 `fx` 식으로 `triggerBody()?['text']` 매핑**하는 게 안정적이고 검증된 방법. 평문이어도 Teams가 `**굵게**`·줄바꿈은 그대로 렌더링해줘서 시각적으로 크게 밀리지 않는다(단 굵게 표시가 채널마다 렌더링이 다를 수 있어 후속 확인 필요 — 지금은 원문 `**...**` 그대로 노출되는 케이스 확인됨, 사소한 이슈로 보류).
+
+### 17.3 일일 비용 알림 (`daily_cost_notifier`)
+
+- **왜 알람이 아니라 Lambda인가:** CloudWatch 알람은 "임계값 초과 여부"만 판단하는 모델이라 "매일 정기 리포트"(항상 보고할 값이 있음)와 안 맞는다. 대신 EventBridge 스케줄로 매일 트리거되는 Lambda가 Cost Explorer에서 전날 비용을 직접 조회해 Teams로 POST.
+- **스케줄:** `aws_cloudwatch_event_rule.daily_cost_schedule` — `cron(0 0 * * ? *)`(UTC 00:00 = **KST 09:00**), `State=ENABLED` 실확인.
 - **⚠️ Cost Explorer 리전 제약:** `ce:GetCostAndUsage` API 엔드포인트는 계정/Lambda 리전과 무관하게 **us-east-1 고정**(AWS 자체 제약) — `lambda_src/daily_cost_notifier.py`가 `boto3.client("ce", region_name="us-east-1")`로 명시. Lambda 함수 자체는 그대로 서울에 배포.
-- **IAM:** `ce:GetCostAndUsage`는 리소스 레벨 권한을 지원하지 않아 `Resource = "*"`(Cost Explorer API 자체의 제약, 계정 전체 대상 조회라 스코프를 더 좁힐 수 없음) + `sns:Publish`(alerts 토픽 ARN만).
-- **메시지:** `{"kind": "custom", "title": "💰 어제 AWS 사용 비용", "body": "YYYY-MM-DD 사용 비용: X.XXXX USD"}`.
+- **⚠️ 순액(net)만 보여주면 안 됨 — 실측으로 발견한 함정:** 이 계정은 프로모션 크레딧이 걸려있어서 `UnblendedCost`(크레딧 반영 순액)를 그냥 조회하면 **모든 날짜가 거의 정확히 $0**으로 나온다(2026-07-05 실측: 순액 -0.00000009 USD). `GroupBy=[{Type:DIMENSION, Key:RECORD_TYPE}]`로 쪼개보면 실제로는 **Usage +$0.3803 / Credit -$0.3803**로 상쇄되고 있던 것 — 크레딧이 소진되면 이 실사용액이 그대로 청구되므로, 알림엔 **실사용(크레딧 적용 전)·크레딧 상쇄·순액 3줄을 모두 표시**하도록 수정.
+- **IAM:** `ce:GetCostAndUsage`는 리소스 레벨 권한을 지원하지 않아 `Resource = "*"`(Cost Explorer API 자체의 제약) + `secretsmanager:GetSecretValue`(전용 시크릿 ARN만).
+- **메시지 예시:** `**💰 어제 AWS 사용 비용**\n\n2026-07-05 사용 비용\n- 실사용(크레딧 적용 전): **0.3803 USD**\n- 크레딧 상쇄: -0.3803 USD\n- 순액(실청구): **-0.0000 USD**`.
 
-### 17.2 콘솔 로그인 알림 (`login_notifier`)
+### 17.4 콘솔 로그인 알림 (`login_notifier`)
 
 - **왜 알람이 아니라 로그 구독 필터인가:** CloudWatch 알람은 메트릭 값(숫자)만 다뤄서 "누가 로그인했는지"(사용자명)를 실어 나를 수 없다. 반면 **CloudWatch Logs 구독 필터(subscription filter)**는 매칭된 로그 이벤트 원본을 그대로 Lambda에 전달하므로, CloudTrail의 `ConsoleLogin` 레코드에 있는 `userIdentity.userName`을 직접 뽑아낼 수 있다.
 - **배관:** 기존 `aws_cloudwatch_log_group.cloudtrail`(§10, 이미 CloudTrail→CloudWatch Logs로 흐르고 있음)을 **그대로 구독** — 신규 CloudTrail 설정 불필요. `aws_cloudwatch_log_subscription_filter.login_notifier`의 `filter_pattern = "{ $.eventName = \"ConsoleLogin\" }"`이 로그인 이벤트만 걸러 `login_notifier` Lambda를 invoke.
-- **사용자명 추출 로직**(`lambda_src/login_notifier.py` `_extract_user`): `userIdentity.type == "Root"`면 `"root"`, IAM 사용자면 `userIdentity.userName`(예: `jw_kim`), SSO/federated·assumed-role이면 `userIdentity.arn`의 마지막 세그먼트로 폴백.
+- **사용자명 추출 로직**(`_extract_user`): `userIdentity.type == "Root"`면 `"root"`, IAM 사용자면 `userIdentity.userName`(예: `jw_kim`), SSO/federated·assumed-role이면 `userIdentity.arn`의 마지막 세그먼트로 폴백.
+- **시각은 KST로 변환**(`_to_kst`) — CloudTrail `eventTime`은 항상 UTC(`%Y-%m-%dT%H:%M:%SZ`)라 그대로 보여주면 헷갈린다는 피드백 반영, `+9시간` 변환 후 "YYYY-MM-DD HH:MM:SS KST"로 표시.
 - **로그인 성공/실패 둘 다 알림** — `responseElements.ConsoleLogin`(`Success`/`Failure`)을 그대로 보여줌(실패 로그인 시도도 보안상 알아야 할 정보라 필터링하지 않음).
-- **권한:** `aws_lambda_permission.cwl_invoke_login_notifier`가 `logs.${var.region}.amazonaws.com`에 invoke를 허용(source_arn = CloudTrail 로그그룹 ARN + `:*`) — Logs 구독 필터가 Lambda를 목적지로 쓸 때는 별도 IAM role 불필요, 이 리소스 기반 권한만 있으면 된다.
-- **메시지:** `{"kind": "custom", "title": "🔐 AWS 콘솔 로그인 감지", "body": "사용자: jw_kim\n결과: ✅ Success\nIP: ...\n시각(UTC): ..."}`.
+- **권한:** `aws_lambda_permission.cwl_invoke_login_notifier`가 `logs.${var.region}.amazonaws.com`에 invoke를 허용(source_arn = CloudTrail 로그그룹 ARN + `:*`) — Logs 구독 필터가 Lambda를 목적지로 쓸 때는 별도 IAM role 불필요.
+- **메시지 예시:** `**🔐 AWS 콘솔 로그인 감지**\n\n사용자: **jw_kim**\n결과: ✅ Success\nIP: ...\n시각(KST): 2026-07-06 17:33:41 KST`.
+- **⚠️ 지연 있음** — CloudWatch Logs 구독 필터는 실시간이 아니라 몇 분 정도 지연될 수 있음(실측 확인, 정상 동작).
 
-### 17.3 `teams_notifier.py` 확장
+### 17.5 `teams_notifier.py`(기존 `cnapp-alerts` 경로)는 무변경
 
-기존 `_to_teams_card()`는 CloudWatch 알람 JSON(`AlarmName`/`NewStateValue`/`NewStateReason`)만 가정했다 — 위 두 Lambda가 발행하는 커스텀 메시지(`{"kind": "custom", "title", "body"}`)는 이 shape이 아니므로, `kind == "custom"`이면 알람 파싱을 건너뛰고 title+body를 바로 카드 텍스트로 만들도록 분기 추가(기존 알람 처리 경로는 완전히 무변경).
+CloudWatch 알람 7종은 여전히 이 파일 + `aws_sns_topic.alerts` + 원래 시크릿(`${project}/teams/webhook`)을 그대로 씀. `_to_teams_card()`에 `kind=="custom"` 분기(2026-07-06 1차 작업 때 추가)는 **향후 `cnapp-alerts`에 CloudWatch-알람이-아닌 커스텀 메시지를 보내고 싶을 때 재사용하라고 남겨둠**(지금은 daily_cost/login 둘 다 이 경로를 안 씀 — 전용 채널로 분리했으므로).
 
-### 17.4 검증
+### 17.6 검증(실측 완료)
 
-`terraform fmt`(변경 없음) + `terraform validate` 통과 + `python -m py_compile`(3개 Lambda 파일) 통과. **실 apply·실 로그인/비용 발생 검증은 아직 안 함** — 다음 apply 세션에서: ① `daily_cost_notifier`를 콘솔에서 수동 1회 Invoke(스케줄 대기 없이 테스트) ② 아무 IAM 사용자로 AWS 콘솔 로그인해서 Teams 알림 도착 확인.
+`terraform validate` 통과 + `py_compile` 통과 + **실 apply 완료**(Lambda 5개·시크릿 3개·구독필터·EventBridge 스케줄 전부 생성) + **실 Teams 도달까지 end-to-end 확인**: `daily_cost_notifier` 수동 invoke → `cnapp-cost` 채널에 실사용/크레딧/순액 메시지 도착 확인, 실 AWS 콘솔 로그인 → `cnapp-login` 채널에 사용자명(KST 시각) 메시지 도착 확인(단 몇 분 지연). EventBridge 스케줄 `State=ENABLED` 확인 완료 — 다음날 09:00 KST부터 자동 정기 실행.

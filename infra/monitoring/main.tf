@@ -547,8 +547,22 @@ resource "aws_iam_role_policy" "cloudtrail_cwl" {
 # =============================================================================
 resource "aws_secretsmanager_secret" "teams_webhook" {
   name                    = "${var.project}/teams/webhook" # infra/shared RDS 시크릿("${project}/rds/master")과 동일 네이밍 컨벤션
-  description             = "Power Automate Teams 웹훅 URL. 값은 이 레이어가 아니라 로테이션 후 콘솔/CLI(aws secretsmanager put-secret-value)로 1회 수동 주입 — Terraform state에 절대 안 남김."
+  description             = "Power Automate Teams 웹훅 URL(cnapp-alerts 채널, CloudWatch 알람 7종). 값은 이 레이어가 아니라 로테이션 후 콘솔/CLI(aws secretsmanager put-secret-value)로 1회 수동 주입 — Terraform state에 절대 안 남김."
   recovery_window_in_days = 0 # destroy→재-apply 이름충돌 방지(infra/shared RDS 시크릿과 동일 패턴)
+}
+
+# 비용·로그인 알림은 cnapp-alerts와 다른 전용 채널로 분리(2026-07-06 사용자 요청) — 채널마다
+# Power Automate 흐름 자체가 달라서(각자 다른 Teams 커넥션 URL) 시크릿도 채널별로 별도 필요.
+resource "aws_secretsmanager_secret" "teams_webhook_cost" {
+  name                    = "${var.project}/teams/webhook-cost"
+  description             = "Power Automate Teams 웹훅 URL(cnapp-cost 채널, daily_cost_notifier 전용). 값은 로테이션 후 콘솔/CLI로 1회 수동 주입."
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret" "teams_webhook_login" {
+  name                    = "${var.project}/teams/webhook-login"
+  description             = "Power Automate Teams 웹훅 URL(cnapp-login 채널, login_notifier 전용). 값은 로테이션 후 콘솔/CLI로 1회 수동 주입."
+  recovery_window_in_days = 0
 }
 
 resource "aws_sns_topic" "alerts" {
@@ -651,14 +665,14 @@ data "aws_iam_policy_document" "daily_cost_notifier" {
     resources = ["*"] # Cost Explorer는 리소스 레벨 권한 미지원(계정 전체 대상 API)
   }
   statement {
-    sid       = "PublishAlert"
-    actions   = ["sns:Publish"]
-    resources = [aws_sns_topic.alerts.arn]
+    sid       = "ReadWebhookSecret"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.teams_webhook_cost.arn]
   }
 }
 
 resource "aws_iam_role_policy" "daily_cost_notifier" {
-  name   = "cost-explorer-and-publish"
+  name   = "cost-explorer-and-read-webhook-secret"
   role   = aws_iam_role.daily_cost_notifier.id
   policy = data.aws_iam_policy_document.daily_cost_notifier.json
 }
@@ -680,7 +694,7 @@ resource "aws_lambda_function" "daily_cost_notifier" {
   memory_size      = 128
   environment {
     variables = {
-      SNS_TOPIC_ARN = aws_sns_topic.alerts.arn
+      WEBHOOK_SECRET_ARN = aws_secretsmanager_secret.teams_webhook_cost.arn
     }
   }
   depends_on = [aws_cloudwatch_log_group.daily_cost_notifier]
@@ -728,14 +742,14 @@ resource "aws_iam_role_policy_attachment" "login_notifier_logs" {
 
 data "aws_iam_policy_document" "login_notifier" {
   statement {
-    sid       = "PublishAlert"
-    actions   = ["sns:Publish"]
-    resources = [aws_sns_topic.alerts.arn]
+    sid       = "ReadWebhookSecret"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.teams_webhook_login.arn]
   }
 }
 
 resource "aws_iam_role_policy" "login_notifier" {
-  name   = "publish"
+  name   = "read-webhook-secret"
   role   = aws_iam_role.login_notifier.id
   policy = data.aws_iam_policy_document.login_notifier.json
 }
@@ -757,7 +771,7 @@ resource "aws_lambda_function" "login_notifier" {
   memory_size      = 128
   environment {
     variables = {
-      SNS_TOPIC_ARN = aws_sns_topic.alerts.arn
+      WEBHOOK_SECRET_ARN = aws_secretsmanager_secret.teams_webhook_login.arn
     }
   }
   depends_on = [aws_cloudwatch_log_group.login_notifier]

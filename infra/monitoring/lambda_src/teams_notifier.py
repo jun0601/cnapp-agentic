@@ -20,20 +20,27 @@ def _get_webhook_url() -> str:
     return _webhook_url_cache
 
 
-def _to_teams_card(alarm: dict) -> dict:
+def _to_teams_text(alarm: dict) -> str:
     if alarm.get("kind") == "custom":
         # daily_cost_notifier·login_notifier처럼 CloudWatch 알람이 아닌 능동 발행 메시지.
         title = alarm.get("title", "알림")
         body = alarm.get("body", "")
-        return {"text": f"**{title}**\n\n{body}"}
+        return f"**{title}**\n\n{body}"
     name = alarm.get("AlarmName", "unknown-alarm")
     state = alarm.get("NewStateValue", "")
     reason = alarm.get("NewStateReason", "")
     region = alarm.get("Region", "")
     emoji = "🔴" if state == "ALARM" else ("🟢" if state == "OK" else "⚪")
-    text = f"{emoji} **{name}** → `{state}`\n\n{reason}\n\n_region: {region}_"
-    # Power Automate "Teams에 웹훅 요청 게시" 트리거는 최소 {"text": "..."} 형태를 그대로 카드 본문에 반영한다.
-    return {"text": text}
+    return f"{emoji} **{name}** → `{state}`\n\n{reason}\n\n_region: {region}_"
+
+
+def _to_teams_payload(alarm: dict) -> dict:
+    # 이 프로젝트의 Power Automate 흐름("cnapp-alerts에 웹후크 경고 보내기")은 Teams 전용
+    # 웹후크 트리거(Teams 웹후크 요청이 수신된 경우) + "채팅 또는 채널에서 메시지 게시"
+    # (평문, triggerBody()?['text'] 매핑) 조합 — 흐름 템플릿 기본 "Post card" 액션은
+    # 본문을 Adaptive Card로 직접 파싱하려 해서 우리 payload와 안 맞아 삭제하고 교체했다
+    # (2026-07-06 실측, infra/monitoring/README.md §17 참고). 그래서 여기선 평문만 보내면 된다.
+    return {"text": _to_teams_text(alarm)}
 
 
 def handler(event: dict, context) -> dict:
@@ -46,7 +53,7 @@ def handler(event: dict, context) -> dict:
             # CloudWatch Alarm이 아닌 임의 SNS 메시지(수동 테스트 등) 대비 — 원문 그대로 감싸서 보냄.
             alarm = {"AlarmName": record.get("Sns", {}).get("Subject", "alert"), "NewStateReason": raw}
 
-        body = json.dumps(_to_teams_card(alarm)).encode("utf-8")
+        body = json.dumps(_to_teams_payload(alarm)).encode("utf-8")
         req = urllib.request.Request(
             _get_webhook_url(),
             data=body,

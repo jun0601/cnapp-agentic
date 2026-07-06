@@ -27,3 +27,13 @@ output "alerts_sns_topic_arn" {
   description = "CloudWatch 알람 팬아웃 지점(추가 알람을 만들 때 alarm_actions에 이 값을 씀)"
   value       = aws_sns_topic.alerts.arn
 }
+
+output "teams_webhook_cost_secret_arn" {
+  description = "cnapp-cost 채널 webhook URL 주입 대상(daily_cost_notifier 전용, aws secretsmanager put-secret-value)"
+  value       = aws_secretsmanager_secret.teams_webhook_cost.arn
+}
+
+output "teams_webhook_login_secret_arn" {
+  description = "cnapp-login 채널 webhook URL 주입 대상(login_notifier 전용, aws secretsmanager put-secret-value)"
+  value       = aws_secretsmanager_secret.teams_webhook_login.arn
+}
