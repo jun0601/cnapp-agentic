@@ -88,12 +88,14 @@ CloudWatch가 이미 데이터소스로 연결돼 있으니(§IRSA 배선), 그 
 
 | 대시보드 | 패널 | 데이터소스 |
 |---|---|---|
-| **EKS 개요** | 노드/파드/비정상파드/네임스페이스 수, 노드별 CPU·메모리, 네임스페이스별 재시작 횟수, **파드별 CPU/메모리 top10, 노드별 파드 개수(bin-packing), 비정상 파드 목록(이름·상태)** | Prometheus |
+| **EKS 개요** | 노드/파드/비정상파드/네임스페이스 수 → 노드별 CPU·메모리 → 파드별 CPU·메모리 top10 → 노드별 파드 개수(bin-packing)·비정상 파드 목록 → 네임스페이스별 재시작 횟수(이 순서로 배치) | Prometheus |
 | **애플리케이션** | Lambda 6종(호출·에러·쓰로틀·지연) 개별 패널, ALB(요청·지연·5xx), Cognito(로그인), CloudFront(요청·4xx·5xx) | CloudWatch |
 | **인프라(데이터·메시징)** | RDS(CPU·연결·스토리지·IOPS), SQS(큐 깊이·DLQ·백로그 나이), Step Functions(remediation 실행 결과), S3 감사버킷(객체수·크기) | CloudWatch |
 | **AI(Bedrock·엔진)** | Bedrock(호출·지연·에러·토큰·추정비용), 엔진 EMF 전종(트리아지 게이트·tool-use·확신도·판정시간·판정분포·케이스별토큰·tool별breakdown) | CloudWatch |
 
 → **AWS CloudWatch 24위젯과 1:1 대응**(ALB·Step Functions·S3·Cognito·CloudFront까지 전부 포함) — Grafana에서 EKS 안팎을 모두 볼 수 있다는 처음 목표를 충족한다.
+
+**노드 이름 식별 문제**: node-exporter의 `instance` 레이블은 `10.20.10.205:9100`처럼 IP:port라 노드끼리 구분이 안 된다. `kube_node_info`의 `internal_ip` 필드로 join해서 실제 노드명(`node`)과 가용영역(`provider_id`에서 추출한 `az`)을 끌어와 범례를 `{{short_node}} ({{az}})`로 표시(예: `ip-10-20-11-58 (ap-northeast-2c)`) — Karpenter spot 노드가 어느 AZ에 뜨는지 그래프에서 바로 구분된다. `kube_node_labels`(인스턴스 타입·capacity-type 등)는 kube-state-metrics 기본 설정에서 라벨을 노출 안 해서(카디널리티 보호) 대신 안 쓰는 값 — 필요하면 `kube-state-metrics.metricLabelsAllowlist`를 values에 추가해야 함(미착수).
 
 **동작 원리**: kube-prometheus-stack 차트의 Grafana sidecar가 `grafana_dashboard: "1"` 라벨이 붙은 ConfigMap을 자동으로 찾아 로드한다(기본 대시보드 27개도 이 방식) — 이 ConfigMap 4개도 똑같은 라벨을 달아서 **수동 클릭 없이 자동 등록**되게 했다. `kube-prometheus-stack-values.yaml`의 CloudWatch 데이터소스에 `uid: cloudwatch-monitoring`을 **고정**해둔 이유가 이거다 — uid를 안 고정하면 apply할 때마다 랜덤값이 나와서 대시보드 JSON이 참조하는 datasource uid가 매번 깨진다.
 
