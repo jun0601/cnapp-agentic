@@ -1,0 +1,39 @@
+# PodDisruptionBudget — 스팟 회수/노드 consolidation 같은 '자발적 중단' 시 같은 앱의 파드가
+# 동시에 다 죽지 않도록 최소 가용 replica를 보장한다(스팟 복원력).
+#   minAvailable: 1 = 항상 최소 1 파드는 살아있게 → 노드 드레인 시 순차 축출(1개씩, 대체 파드 Ready 후 다음).
+#   전제: 대상 Deployment replicas >= 2 (replica 1이면 이 PDB가 마지막 파드 축출을 막아 드레인 자체를 차단).
+#         → deployment.yaml replicas 2 + HPA minReplicas 2와 반드시 '세트'.
+#   topologySpreadConstraints(Deployment)로 파드가 여러 노드에 분산돼 있어야 PDB가 실효 —
+#   같은 노드에 몰려 있으면 그 노드 회수 시 minAvailable과 무관하게 동시에 다 감.
+# 적용: gitops/autoscaling/은 ArgoCD app-target(apps/target) sync 범위 밖이라 kubectl로 적용:
+#   kubectl apply -f gitops/autoscaling/hpa.yaml -f gitops/autoscaling/pdb.yaml
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: member
+  namespace: shop
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: member }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: product
+  namespace: shop
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: product }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: order
+  namespace: shop
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: order }

@@ -30,8 +30,9 @@
 - **파드층 = HPA** (`autoscaling/hpa.yaml`): replica 수를 CPU 부하로 조절. metrics-server 필요. → 이 층만 gitops(kubectl/ArgoCD)로 적용.
 - **노드층 = Karpenter** (Cluster Autoscaler 대체): **컨트롤러(helm) + NodePool + EC2NodeClass 전부 `infra/karpenter` terraform 레이어가 소유**(2026-07-03 이전). 왜 gitops가 아니라 terraform?
   - Karpenter는 컨트롤러 helm 릴리스 + IAM(IRSA·노드역할·spot 중단 SQS)가 한 몸이라, IAM을 terraform이 만들면서 CRD를 kubectl로 따로 적용하면 소스가 갈린다 → terraform `kubectl_manifest`로 한 레이어에 묶어 apply/destroy 수명주기를 통일.
-  - **spot 우선** + `consolidation`(유휴 노드 자동 정리, CAS엔 없는 절감) + `limits.cpu` 상한. ⚠️ 프리티어 계정이라 NodePool을 **t3.small/t3.micro 스팟**으로 제한(그 밖 타입은 RunInstances 거부).
+  - **spot 우선 + on-demand 폴백**(스팟 회수·부족 시 자동 폴백 → 서비스 연속성) + `consolidation`(유휴 노드 자동 정리, CAS엔 없는 절감) + `limits.cpu` 상한. ⚠️ 프리티어라 NodePool을 **t3.small/t3.micro**로 제한(그 밖 타입 RunInstances 거부, 폴백도 이 범위). 용량 전략 근거·2-pool 미분리 판단 = [infra/karpenter/README §2.1](../infra/karpenter/README.md#21-용량-전략-spot-우선--on-demand-폴백).
   - 상세·근거 = [`infra/karpenter/main.tf`](../infra/karpenter/main.tf) 헤더 + [infra/README §2](../infra/README.md).
+- **스팟 회수 복원력 (파드층)** (`autoscaling/pdb.yaml` + 타깃 앱 Deployment): 노드가 스팟 회수/consolidation으로 사라질 때 같은 앱 파드가 동시에 다 죽지 않도록 — **PodDisruptionBudget(minAvailable 1)** + **topologySpreadConstraints(maxSkew 1, 노드 분산)** + **replicas 2**를 세트로 배선. 셋이 반드시 함께여야 실효(replica 1이면 PDB가 드레인을 오히려 막고, spread 없으면 한 노드에 몰려 동시 다운). `ScheduleAnyway`라 노드가 1개뿐이어도 스케줄은 안 막음(강제 노드 증설 방지 = 비용).
 - **정직한 핵심:** 데모 규모(파드 소수)에선 노드 오토스케일러 선택이 실비를 크게 좌우하지 않는다.
   진짜 비용 1위 = **EKS control plane ~$0.10/h 고정**(노드 수 무관) → **destroy만이 답**.
   즉 Karpenter를 고른 이유는 *실 절감보다* **모던 아키텍처 + 포폴 신호**이고,
@@ -46,7 +47,7 @@
    (= './infra/deploy.ps1 -Action apply -Layer karpenter'. NodePool/EC2NodeClass는 여기서 kubectl_manifest로 적용 → gitops 불필요)
 1. ArgoCD 설치:   kubectl create namespace argocd
                   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-2. 파드 오토스케일: kubectl apply -f gitops/autoscaling/hpa.yaml         # (metrics-server 먼저) — 노드층 Karpenter는 0.5에서 이미 적용됨
+2. 파드 오토스케일: kubectl apply -f gitops/autoscaling/hpa.yaml -f gitops/autoscaling/pdb.yaml  # (metrics-server 먼저). 노드층 Karpenter는 0.5에서 이미 적용됨. PDB=스팟 회수 복원력
 3. 앱 CD:        kubectl apply -f gitops/argocd/app-target.yaml       # ArgoCD가 apps/target sync
    (product 이미지는 ECR push + ACCOUNT_ID 치환 후 정상 배포)
 4. 관측 CD:      kubectl apply -f gitops/argocd/app-monitoring.yaml   # ArgoCD가 kube-prometheus-stack 배포
@@ -69,7 +70,9 @@ gitops/
 │   └── dashboards/
 │       └── cnapp-integrated-dashboard.yaml Grafana 대시보드 — EKS+AWS 인프라 통합 뷰(아래 §"통합 대시보드" 참고)
 └── autoscaling/
-    └── hpa.yaml                  member·product HPA (파드층). ※ 노드층 Karpenter(NodePool·EC2NodeClass)는 infra/karpenter terraform 레이어로 이관됨(2026-07-03)
+    ├── hpa.yaml                  member·product·order HPA (파드층, CPU 70%, minReplicas 2)
+    └── pdb.yaml                  member·product·order PodDisruptionBudget (스팟 회수 복원력, minAvailable 1)
+                                  ※ 노드층 Karpenter(NodePool·EC2NodeClass)는 infra/karpenter terraform 레이어(2026-07-03)
 ```
 
 **app-monitoring.yaml은 app-target.yaml과 소스 구조가 다르다** — app-target은 "이 레포 = 원본 K8s 매니페스트"이지만, app-monitoring은 "이 레포 = Helm values+`gitops/monitoring/` 하위 매니페스트, 차트 본체는 공식 `prometheus-community` 리포"인 **3-소스 Application**(ArgoCD 2.6+ 기능, `$values` 참조로 소스를 묶음. 소스③은 `path: gitops/monitoring` + `directory.recurse: true`로 `presync/`·`dashboards/`를 한 번에 잡되 `kube-prometheus-stack-values.yaml`은 K8s 리소스가 아니라 `exclude`). `grafana_irsa_role_arn`(IAM 역할 이름이 고정값이라 apply→destroy를 반복해도 안 바뀜, `infra/monitoring/README.md` §참고)이 values 파일에 이미 하드코딩돼 있어 재apply 때마다 값을 다시 쓸 필요가 없다.

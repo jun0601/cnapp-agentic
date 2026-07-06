@@ -48,7 +48,7 @@
 |---|---|---|---|
 | **NAT Instance** (`t4g.nano` + fck-nat AMI) | NAT Gateway | 월 **~$32 → ~$3** + 데이터 처리비 | HA 없음(단일 인스턴스), 수동 관리. 데모엔 무관 |
 | **S3·DynamoDB Gateway Endpoint** | NAT 경유 트래픽 | 두 서비스 트래픽은 **NAT 우회(무료 경로)** | Gateway Endpoint 지원 서비스에 한정 |
-| **EKS + Karpenter(spot) · consolidation** | on-demand·고정 노드그룹 | spot 할인 + **저활용/빈 노드 자동 정리(consolidation)** + 필요 시 just-in-time 프로비저닝 | spot 회수 가능성·콜드스타트. control plane 고정비($0.10/h)는 오토스케일러로 못 줄임 → destroy로만 |
+| **EKS + Karpenter(spot 우선·on-demand 폴백) · consolidation** | on-demand·고정 노드그룹 | spot 할인 + **저활용/빈 노드 자동 정리(consolidation)** + 필요 시 just-in-time 프로비저닝 | spot 회수는 **on-demand 폴백 + PDB/topologySpread로 완화**. control plane 고정비($0.10/h)는 오토스케일러로 못 줄임 → destroy로만 |
 | **RDS `db.t3.micro` + pgvector** | Aurora Serverless / OpenSearch | 벡터DB를 **기존 postgres에 동거**(추가 인프라 0) | 소규모 전용, 스케일 한계. 데모 코퍼스엔 충분 |
 
 > ⚠️ **정직한 주의:** EKS control plane은 노드가 0개여도 **시간당 ~$0.10 고정**이다. 그래서 클러스터를 상시 방치하지 않고 **`apply → test → destroy` 사이클**로 실사용 시간만 과금한다 — 이 규율이 없으면 위 절감이 무의미해진다.
@@ -106,8 +106,10 @@
 **CD = ArgoCD 선택 근거:** GitOps 표준 · pull 기반(CI에 클러스터 키 안 밀어넣음, 키리스 정합) · self-heal(드리프트 자동복구, §19 #3) · 데모 UI · cosign 서명 강제 훅(D17). 대안(Flux 경량·UI약 / GH Actions push=GitOps 아님·드리프트 교정 없음)보다 우위.
 
 **오토스케일링 2층:**
-- **파드층 = HPA** — replica를 CPU 부하로 조절(metrics-server 필요).
-- **노드층 = Karpenter**(Cluster Autoscaler 대체) — spot 우선 + 인스턴스 유연 + **consolidation(저활용 노드 자동 정리)**로 유휴 비용 제거. 노드그룹 사전정의 불필요.
+- **파드층 = HPA** — replica를 CPU 부하로 조절(metrics-server 필요, minReplicas 2).
+- **노드층 = Karpenter**(Cluster Autoscaler 대체) — **spot 우선 + on-demand 폴백**(성격 기반 용량 전략) + 인스턴스 유연 + **consolidation(저활용 노드 자동 정리)**로 유휴 비용 제거. 노드그룹 사전정의 불필요.
+- **스팟/온디맨드 트레이드오프(정직):** "스팟 전용"은 회수 시 파드가 못 뜨는 단일 실패점 → NodePool `capacity-type=[spot, on-demand]`로 **스팟 우선(비용) + 온디맨드 폴백(연속성)**. 스팟이 잘 잡히는 평상시엔 추가비용 0이고, 폴백조차 free-tier t3.micro on-demand를 우선 잡아 대개 $0. **2-NodePool(크리티컬=on-demand / stateless=spot) 분리는 안 함** — 데모가 프리티어(t3.micro/small 전부 스팟 적격) + 전부 stateless라 전시용 복잡도가 되어서(판단 근거 = [infra/karpenter/README §2.1](../infra/karpenter/README.md#21-용량-전략-spot-우선--on-demand-폴백)). 프로덕션이면 성격별 2-pool 분리가 정답 — "스팟 남발"이 아니라 **워크로드 성격 기반 배치**.
+- **스팟 회수 복원력(파드층, 무료):** replicas 2 + topologySpreadConstraints(노드 분산) + PodDisruptionBudget(minAvailable 1) 세트로 노드 회수 시 동시 다운 방지 — 추가 인프라 비용 0(설정만).
 
 **⚠️ 정직한 핵심(과장 금지):** 데모 규모(파드 소수)에선 **노드 오토스케일러 선택이 실비를 크게 좌우하지 않는다.** 진짜 비용 1위는 **EKS control plane $0.10/h 고정**(노드 수 무관)이라 **destroy만이 답**이다. 그래서 Karpenter를 고른 이유는 *실 절감보다* **모던 아키텍처 + 포폴 신호(FinOps 역량)**이고, 실제 절감은 **(a) 안 쓸 때 destroy (b) spot** 이 지배적. 선언형 코드: 노드층 Karpenter = [`infra/karpenter`](../infra/karpenter/)(terraform, IAM과 한 몸), 파드층 HPA = [`gitops/`](../gitops/).
 

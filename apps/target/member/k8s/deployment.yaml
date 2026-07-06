@@ -17,7 +17,7 @@ metadata:
   namespace: shop
   labels: { app: member }
 spec:
-  replicas: 1
+  replicas: 2 # 스팟 복원력: 2 replica를 노드에 분산(topologySpread) + PDB minAvailable 1
   selector:
     matchLabels: { app: member }
   template:
@@ -25,6 +25,14 @@ spec:
       labels: { app: member }
     spec:
       serviceAccountName: member
+      # 스팟 회수 복원력: 파드를 여러 노드에 분산. ScheduleAnyway = 노드가 1개뿐이어도 스케줄을
+      # 막지 않음(강제 노드 증설 방지 = 비용). 노드 2+이면 분산 → 한 노드 회수돼도 일부만 영향.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: member }
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001

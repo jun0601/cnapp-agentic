@@ -214,7 +214,9 @@ module "eks" {
   }
 
   eks_managed_node_groups = {
-    default = {
+    # 항상 켜져있는 베이스라인 노드그룹(시스템 파드 상주). 버스트는 Karpenter(infra/karpenter)가 담당.
+    # ⚠️ 키가 노드그룹·EC2 인스턴스 이름에 반영됨(cnapp-agentic-shared-baseline-…) — 'default' 금지(준형 지시).
+    baseline = {
       ami_type       = "AL2023_x86_64_STANDARD"
       instance_types = var.node_instance_types
       capacity_type  = "SPOT" # 비용(22번)

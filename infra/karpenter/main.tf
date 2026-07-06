@@ -178,7 +178,7 @@ resource "kubectl_manifest" "ec2nodeclass" {
   yaml_body = yamlencode({
     apiVersion = "karpenter.k8s.aws/v1"
     kind       = "EC2NodeClass"
-    metadata   = { name = "default" }
+    metadata   = { name = "cnapp-spot" }
     spec = {
       amiFamily        = "AL2023"
       amiSelectorTerms = [{ alias = "al2023@latest" }]
@@ -189,6 +189,8 @@ resource "kubectl_manifest" "ec2nodeclass" {
       securityGroupSelectorTerms = [{
         tags = { "karpenter.sh/discovery" = local.cluster_name }
       }]
+      # Karpenter가 띄우는 EC2 인스턴스 태그 — EC2 콘솔 Name이 'default'/공란 대신 프로젝트명으로.
+      tags = { Name = "${local.cluster_name}-karpenter-spot" }
     }
   })
   depends_on = [helm_release.karpenter]
@@ -198,16 +200,19 @@ resource "kubectl_manifest" "nodepool" {
   yaml_body = yamlencode({
     apiVersion = "karpenter.sh/v1"
     kind       = "NodePool"
-    metadata   = { name = "default" }
+    metadata   = { name = "cnapp-spot" }
     spec = {
       template = {
         spec = {
-          nodeClassRef = { group = "karpenter.k8s.aws", kind = "EC2NodeClass", name = "default" }
+          nodeClassRef = { group = "karpenter.k8s.aws", kind = "EC2NodeClass", name = "cnapp-spot" }
           requirements = [
-            # 프리티어 적격 amd64 스팟만(계정 제약)
+            # 프리티어 적격 amd64만(계정 제약 §21 — 그 밖 타입은 RunInstances가 Free Tier 거부).
             { key = "node.kubernetes.io/instance-type", operator = "In", values = ["t3.small", "t3.micro"] },
             { key = "kubernetes.io/arch", operator = "In", values = ["amd64"] },
-            { key = "karpenter.sh/capacity-type", operator = "In", values = ["spot"] },
+            # 혼합 용량 전략: spot 우선(비용) + on-demand 폴백(연속성). Karpenter는 항상 더 싼
+            # spot을 먼저 시도하고, 스팟 재고 부족·회수 시 자동으로 on-demand로 폴백해 파드를 살린다.
+            # 스팟이 잘 잡히는 평상시엔 추가비용 0. (프로덕션 분리 패턴은 README '용량 전략' 참고)
+            { key = "karpenter.sh/capacity-type", operator = "In", values = ["spot", "on-demand"] },
           ]
         }
       }

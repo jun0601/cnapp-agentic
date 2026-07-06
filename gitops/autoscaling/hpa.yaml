@@ -1,8 +1,11 @@
 # HPA — 파드층 오토스케일러(replica 수를 부하로 조절). 노드층(Karpenter)과 2층 구조.
-#   부하↑ → HPA가 replica↑ → 스케줄 못 하는 파드 발생 → Karpenter가 노드 provisioning.
+#   부하↑ → HPA가 replica↑ → 스케줄 못 하는 파드 발생 → Karpenter가 노드 provisioning(spot 우선·on-demand 폴백).
 #   부하↓ → HPA가 replica↓ → 노드 저활용 → Karpenter consolidation으로 노드 정리.
-# 전제: metrics-server 설치(kubectl top 동작). 완전 파드 scale-to-zero는 KEDA 필요(데모엔 오버스펙).
-# 여기선 member·product 예시. order도 동일 패턴.
+# 전제: metrics-server 설치(kubectl top 동작) + 대상 Deployment에 resources.requests 존재(CPU% 계산).
+#   완전 파드 scale-to-zero는 KEDA 필요(데모엔 오버스펙).
+# minReplicas=2: 스팟 복원력 세트(topologySpread 분산 + PDB minAvailable 1)를 성립시키려면 항상 2 이상 유지.
+#   (replica 1이면 PDB minAvailable 1이 마지막 파드 축출을 막아 노드 드레인/consolidation을 방해)
+# member·product·order 3종 동일 패턴(CPU 70%).
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -14,7 +17,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: member
-  minReplicas: 1
+  minReplicas: 2
   maxReplicas: 4
   metrics:
     - type: Resource
@@ -34,7 +37,27 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: product
-  minReplicas: 1
+  minReplicas: 2
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: order
+  namespace: shop
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: order
+  minReplicas: 2
   maxReplicas: 3
   metrics:
     - type: Resource

@@ -9,13 +9,20 @@ metadata:
   namespace: shop
   labels: { app: product }
 spec:
-  replicas: 1
+  replicas: 2 # 스팟 복원력: 2 replica 분산 + PDB minAvailable 1
   selector:
     matchLabels: { app: product }
   template:
     metadata:
       labels: { app: product }
     spec:
+      # 스팟 회수 복원력: 노드 분산(ScheduleAnyway = 1노드여도 스케줄 허용, 강제 증설 방지=비용).
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: product }
       containers:
         - name: product
           # f1: KEV 취약 이미지(product/Dockerfile로 빌드, build-images.yml이 push)
@@ -25,6 +32,10 @@ spec:
           # 명시적 command로 우회. 이미지 재빌드 후엔 이 줄 없어도 동작.
           command: ["sleep", "infinity"]
           ports: [{ containerPort: 8080 }]
+          # HPA가 CPU 사용률(%)을 계산하려면 requests가 필요(없으면 product HPA가 스케일 못 함).
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits: { cpu: "200m", memory: "128Mi" }
           # ── f2 결함: 과도 권한 파드(privileged) ──
           securityContext:
             privileged: true # ❌ 의도적 결함(KSPM) — 컨테이너 탈출 발판
