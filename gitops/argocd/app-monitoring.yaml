@@ -33,11 +33,16 @@ spec:
     - repoURL: https://github.com/jun0601/cnapp-agentic.git
       targetRevision: main
       ref: values
-    # 소스③ 이 레포 — PreSync 훅(gitops/monitoring/presync/). CRD를 Helm 차트 본 배포보다
-    # 먼저 server-side apply로 설치해서 아래 ⚠️ 두 함정을 원천 차단(troubleshooting.md 2026-07-06 참고).
+    # 소스③ 이 레포 — gitops/monitoring/ 하위의 순수 K8s 매니페스트 전부(디렉터리 소스).
+    # 지금은 presync/(CRD 선install 훅) + dashboards/(Grafana 대시보드 ConfigMap, grafana_dashboard=1
+    # 라벨을 sidecar가 자동 로드) 2종. kube-prometheus-stack-values.yaml은 K8s 리소스가 아니라
+    # $values 참조 전용이라 exclude(안 그러면 매니페스트 파싱 에러).
     - repoURL: https://github.com/jun0601/cnapp-agentic.git
       targetRevision: main
-      path: gitops/monitoring/presync
+      path: gitops/monitoring
+      directory:
+        recurse: true
+        exclude: "kube-prometheus-stack-values.yaml"
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

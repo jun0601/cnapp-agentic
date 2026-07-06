@@ -63,14 +63,34 @@ gitops/
 │   ├── app-target.yaml           ArgoCD Application — shop 타깃 앱(pull-sync·self-heal·prune)
 │   └── app-monitoring.yaml       ArgoCD Application — kube-prometheus-stack(3-소스: 공식 차트+이 레포 values+PreSync훅)
 ├── monitoring/
-│   ├── kube-prometheus-stack-values.yaml   Grafana IRSA(CloudWatch 추가 데이터소스)+리소스 축소 오버라이드
-│   └── presync/
-│       └── prometheus-crds-job.yaml        PreSync 훅 — CRD를 Helm 본 배포보다 먼저 설치(아래 함정 참고)
+│   ├── kube-prometheus-stack-values.yaml   Grafana IRSA(CloudWatch 추가 데이터소스, uid 고정)+리소스 축소 오버라이드
+│   ├── presync/
+│   │   └── prometheus-crds-job.yaml        PreSync 훅 — CRD를 Helm 본 배포보다 먼저 설치(아래 함정 참고)
+│   └── dashboards/
+│       └── cnapp-integrated-dashboard.yaml Grafana 대시보드 — EKS+AWS 인프라 통합 뷰(아래 §"통합 대시보드" 참고)
 └── autoscaling/
     └── hpa.yaml                  member·product HPA (파드층). ※ 노드층 Karpenter(NodePool·EC2NodeClass)는 infra/karpenter terraform 레이어로 이관됨(2026-07-03)
 ```
 
-**app-monitoring.yaml은 app-target.yaml과 소스 구조가 다르다** — app-target은 "이 레포 = 원본 K8s 매니페스트"이지만, app-monitoring은 "이 레포 = Helm values+PreSync훅만, 차트 본체는 공식 `prometheus-community` 리포"인 **3-소스 Application**(ArgoCD 2.6+ 기능, `$values` 참조로 소스를 묶음). `grafana_irsa_role_arn`(IAM 역할 이름이 고정값이라 apply→destroy를 반복해도 안 바뀜, `infra/monitoring/README.md` §참고)이 values 파일에 이미 하드코딩돼 있어 재apply 때마다 값을 다시 쓸 필요가 없다.
+**app-monitoring.yaml은 app-target.yaml과 소스 구조가 다르다** — app-target은 "이 레포 = 원본 K8s 매니페스트"이지만, app-monitoring은 "이 레포 = Helm values+`gitops/monitoring/` 하위 매니페스트, 차트 본체는 공식 `prometheus-community` 리포"인 **3-소스 Application**(ArgoCD 2.6+ 기능, `$values` 참조로 소스를 묶음. 소스③은 `path: gitops/monitoring` + `directory.recurse: true`로 `presync/`·`dashboards/`를 한 번에 잡되 `kube-prometheus-stack-values.yaml`은 K8s 리소스가 아니라 `exclude`). `grafana_irsa_role_arn`(IAM 역할 이름이 고정값이라 apply→destroy를 반복해도 안 바뀜, `infra/monitoring/README.md` §참고)이 values 파일에 이미 하드코딩돼 있어 재apply 때마다 값을 다시 쓸 필요가 없다.
+
+### 📊 통합 대시보드 — EKS + AWS 인프라를 Grafana 한 화면에
+
+기본으로 딸려오는 kube-prometheus-stack 대시보드 27개는 전부 **"쿠버네티스 클러스터 자체가 건강한가"**(노드·파드·네트워킹)만 본다 — "우리 CNAPP 서비스가 잘 도는가"(Lambda·RDS·SQS·Bedrock·엔진 EMF)는 안 보여준다. 그건 원래 `infra/monitoring`이 만드는 **AWS 네이티브 CloudWatch 대시보드**(24위젯, AWS 콘솔에서 별도로 봄, `terraform output dashboard_url`)의 몫이었다.
+
+`gitops/monitoring/dashboards/cnapp-integrated-dashboard.yaml`이 이 둘을 **Grafana 한 화면**으로 합친다 — CloudWatch가 이미 데이터소스로 연결돼 있으니(§IRSA 배선) Prometheus 패널과 CloudWatch 패널을 같은 대시보드에 나란히 배치하면 된다:
+
+| 구역 | 패널 | 데이터소스 |
+|---|---|---|
+| EKS 한눈에 | 노드 수·파드 수·비정상 파드 수·네임스페이스 수 | Prometheus |
+| EKS 리소스 | 노드별 CPU/메모리 사용률 | Prometheus |
+| Lambda | 호출 수·에러(6종 함수) | CloudWatch |
+| RDS/SQS | CPU·연결 수 / 큐 깊이 | CloudWatch |
+| AI | Bedrock 호출 수 · 엔진 트리아지 게이트(EMF) | CloudWatch |
+
+**동작 원리**: kube-prometheus-stack 차트의 Grafana sidecar가 `grafana_dashboard: "1"` 라벨이 붙은 ConfigMap을 자동으로 찾아 로드한다(기본 대시보드 27개도 이 방식) — 이 ConfigMap도 똑같은 라벨을 달아서 **수동 클릭 없이 자동 등록**되게 했다. `kube-prometheus-stack-values.yaml`의 CloudWatch 데이터소스에 `uid: cloudwatch-monitoring`을 **고정**해둔 이유가 이거다 — uid를 안 고정하면 apply할 때마다 랜덤값이 나와서 이 대시보드 JSON이 참조하는 datasource uid가 매번 깨진다.
+
+**검증(2026-07-06)**: Grafana API로 대시보드 JSON을 먼저 임시 등록해 패널 12개가 실제 데이터를 반환하는지 확인(`count(kube_node_info)`=3, Lambda `cnapp-agentic-ingest` Invocations 실값 확인) → 검증 후 ConfigMap으로 옮겨 sidecar 자동 로드까지 재확인.
 
 ### ⚠️ 함정 — kube-prometheus-stack 최초 배포 시 Prometheus가 안 뜨는 문제(해결됨)
 

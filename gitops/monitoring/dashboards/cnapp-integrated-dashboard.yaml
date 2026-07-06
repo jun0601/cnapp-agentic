@@ -1,0 +1,694 @@
+# Grafana 대시보드 — EKS + AWS 인프라 통합 뷰(kube-prometheus-stack sidecar가 자동 로드).
+# 라벨 grafana_dashboard=1 이 트리거 — 다른 27개 기본 대시보드(Node Exporter 등)와 동일한 방식.
+# 생성/수정: python으로 JSON 생성 후 이 파일에 반영(수동 편집 시 JSON 문법 주의).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cnapp-integrated-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  cnapp-integrated.json: |
+    {
+      "id": null,
+      "uid": "cnapp-integrated",
+      "title": "CNAPP 통합 대시보드 (EKS + AWS 인프라)",
+      "tags": [
+        "cnapp-agentic"
+      ],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-3h",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "type": "stat",
+          "title": "노드 수",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 6,
+            "h": 4
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "count(kube_node_info)",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "textMode": "auto",
+            "colorMode": "value"
+          },
+          "id": 1
+        },
+        {
+          "type": "stat",
+          "title": "파드 수",
+          "gridPos": {
+            "x": 6,
+            "y": 0,
+            "w": 6,
+            "h": 4
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "count(kube_pod_info)",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "textMode": "auto",
+            "colorMode": "value"
+          },
+          "id": 2
+        },
+        {
+          "type": "stat",
+          "title": "비정상 파드 수",
+          "gridPos": {
+            "x": 12,
+            "y": 0,
+            "w": 6,
+            "h": 4
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(kube_pod_status_phase{phase!=\"Running\"})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "textMode": "auto",
+            "colorMode": "value"
+          },
+          "id": 3
+        },
+        {
+          "type": "stat",
+          "title": "네임스페이스 수",
+          "gridPos": {
+            "x": 18,
+            "y": 0,
+            "w": 6,
+            "h": 4
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "count(count by (namespace) (kube_pod_info))",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "textMode": "auto",
+            "colorMode": "value"
+          },
+          "id": 4
+        },
+        {
+          "type": "timeseries",
+          "title": "노드별 CPU 사용률(%)",
+          "gridPos": {
+            "x": 0,
+            "y": 4,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "id": 5
+        },
+        {
+          "type": "timeseries",
+          "title": "노드별 메모리 사용률(%)",
+          "gridPos": {
+            "x": 12,
+            "y": 4,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "id": 6
+        },
+        {
+          "type": "timeseries",
+          "title": "Lambda 호출 수(6종)",
+          "gridPos": {
+            "x": 0,
+            "y": 12,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/Lambda",
+              "metricName": "Invocations",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-ingest"
+              },
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "cnapp-agentic-ingest"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/Lambda",
+              "metricName": "Invocations",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-normalize"
+              },
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "cnapp-agentic-normalize"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "C",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/Lambda",
+              "metricName": "Invocations",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-correlation"
+              },
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "cnapp-agentic-correlation"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "D",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/Lambda",
+              "metricName": "Invocations",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-orchestrator"
+              },
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "cnapp-agentic-orchestrator"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "E",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/Lambda",
+              "metricName": "Invocations",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-console-backend"
+              },
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "cnapp-agentic-console-backend"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "F",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/Lambda",
+              "metricName": "Invocations",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-remediation"
+              },
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "cnapp-agentic-remediation"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 7
+        },
+        {
+          "type": "timeseries",
+          "title": "Lambda 에러(6종)",
+          "gridPos": {
+            "x": 12,
+            "y": 12,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-ingest"
+              },
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "cnapp-agentic-ingest"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-normalize"
+              },
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "cnapp-agentic-normalize"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "C",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-correlation"
+              },
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "cnapp-agentic-correlation"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "D",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-orchestrator"
+              },
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "cnapp-agentic-orchestrator"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "E",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-console-backend"
+              },
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "cnapp-agentic-console-backend"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "F",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": {
+                "FunctionName": "cnapp-agentic-remediation"
+              },
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "cnapp-agentic-remediation"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 8
+        },
+        {
+          "type": "timeseries",
+          "title": "RDS CPU / 연결 수",
+          "gridPos": {
+            "x": 0,
+            "y": 20,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/RDS",
+              "metricName": "CPUUtilization",
+              "dimensions": {
+                "DBInstanceIdentifier": "cnapp-agentic-pgvector"
+              },
+              "statistic": "Average",
+              "period": "300",
+              "matchExact": true,
+              "label": "CPU %"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/RDS",
+              "metricName": "DatabaseConnections",
+              "dimensions": {
+                "DBInstanceIdentifier": "cnapp-agentic-pgvector"
+              },
+              "statistic": "Average",
+              "period": "300",
+              "matchExact": true,
+              "label": "Connections"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 9
+        },
+        {
+          "type": "timeseries",
+          "title": "SQS 큐 깊이(ingest)",
+          "gridPos": {
+            "x": 12,
+            "y": 20,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/SQS",
+              "metricName": "ApproximateNumberOfMessagesVisible",
+              "dimensions": {
+                "QueueName": "cnapp-agentic-ingest"
+              },
+              "statistic": "Average",
+              "period": "300",
+              "matchExact": true,
+              "label": "backlog"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 10
+        },
+        {
+          "type": "timeseries",
+          "title": "Bedrock 호출 수",
+          "gridPos": {
+            "x": 0,
+            "y": 28,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "namespace": "AWS/Bedrock",
+              "metricName": "Invocations",
+              "dimensions": {
+                "ModelId": "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+              },
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "Invocations"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 11
+        },
+        {
+          "type": "timeseries",
+          "title": "엔진: 트리아지 게이트(EMF)",
+          "gridPos": {
+            "x": 12,
+            "y": 28,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch-monitoring"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "A",
+              "region": "ap-northeast-2",
+              "namespace": "CnappAgentic/Engine",
+              "metricName": "FindingsEvaluated",
+              "dimensions": {},
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "Evaluated"
+            },
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "cloudwatch-monitoring"
+              },
+              "refId": "B",
+              "region": "ap-northeast-2",
+              "namespace": "CnappAgentic/Engine",
+              "metricName": "FindingsEscalated",
+              "dimensions": {},
+              "statistic": "Sum",
+              "period": "300",
+              "matchExact": true,
+              "label": "Escalated"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "id": 12
+        }
+      ]
+    }

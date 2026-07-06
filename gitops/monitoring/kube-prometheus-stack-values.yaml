@@ -24,6 +24,9 @@ grafana:
     - name: CloudWatch
       type: cloudwatch
       access: proxy
+      # uid 고정 — 안 정하면 apply마다 랜덤 uid가 생겨서(destroy→재apply 시 값이 바뀜)
+      # gitops/monitoring/dashboards/의 대시보드 JSON이 참조하는 datasource uid가 깨진다.
+      uid: cloudwatch-monitoring
       jsonData:
         authType: default # IRSA(위 role-arn)로 자동 인증 — 액세스키 불필요
         defaultRegion: ap-northeast-2
