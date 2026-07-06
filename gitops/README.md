@@ -64,7 +64,7 @@ gitops/
 │   ├── app-target.yaml           ArgoCD Application — shop 타깃 앱(pull-sync·self-heal·prune)
 │   └── app-monitoring.yaml       ArgoCD Application — kube-prometheus-stack(3-소스: 공식 차트+이 레포 values+PreSync훅)
 ├── monitoring/
-│   ├── kube-prometheus-stack-values.yaml   Grafana IRSA(CloudWatch 추가 데이터소스, uid 고정)+리소스 축소 오버라이드
+│   ├── kube-prometheus-stack-values.yaml   Grafana IRSA(CloudWatch 추가 데이터소스, uid 고정)+kube-state-metrics 노드 라벨 허용+리소스 축소 오버라이드
 │   ├── presync/
 │   │   └── prometheus-crds-job.yaml        PreSync 훅 — CRD를 Helm 본 배포보다 먼저 설치(아래 함정 참고)
 │   └── dashboards/                         Grafana 대시보드 4종 — 분야별(아래 §"분야별 대시보드" 참고)
@@ -95,7 +95,11 @@ CloudWatch가 이미 데이터소스로 연결돼 있으니(§IRSA 배선), 그 
 
 → **AWS CloudWatch 24위젯과 1:1 대응**(ALB·Step Functions·S3·Cognito·CloudFront까지 전부 포함) — Grafana에서 EKS 안팎을 모두 볼 수 있다는 처음 목표를 충족한다.
 
-**노드 이름 식별 문제**: node-exporter의 `instance` 레이블은 `10.20.10.205:9100`처럼 IP:port라 노드끼리 구분이 안 된다. `kube_node_info`의 `internal_ip` 필드로 join해서 실제 노드명(`node`)과 가용영역(`provider_id`에서 추출한 `az`)을 끌어와 범례를 `{{short_node}} ({{az}})`로 표시(예: `ip-10-20-11-58 (ap-northeast-2c)`) — Karpenter spot 노드가 어느 AZ에 뜨는지 그래프에서 바로 구분된다. `kube_node_labels`(인스턴스 타입·capacity-type 등)는 kube-state-metrics 기본 설정에서 라벨을 노출 안 해서(카디널리티 보호) 대신 안 쓰는 값 — 필요하면 `kube-state-metrics.metricLabelsAllowlist`를 values에 추가해야 함(미착수).
+**노드 이름 식별 문제**: node-exporter의 `instance` 레이블은 `10.20.10.205:9100`처럼 IP:port라 노드끼리 구분이 안 된다. **AWS EKS는 애초에 노드명 자체가 EC2 프라이빗 DNS(`ip-x-x-x-x...compute.internal`)라 "더 예쁜 이름"이 따로 없다**(EC2 Name 태그도 확인해봤지만 관리형 노드그룹 인스턴스들이 전부 같은 값이라 구분에 무용). 대신 **"이 노드가 상시 관리형 노드그룹(baseline)인지 Karpenter가 띄운 스팟(spot)인지"**가 실질적으로 더 유용한 구분이라 이걸 범례에 얹었다:
+1. `kube_node_info`의 `internal_ip`로 join → 실제 노드명(`node`) + `provider_id`에서 정규식으로 뽑은 가용영역(`az`)
+2. `kube_node_labels`와 `node`로 join → `eks.amazonaws.com/nodegroup`(관리형)·`karpenter.sh/capacity-type`(스팟) — 이 라벨들은 kube-state-metrics 기본 설정이 카디널리티 보호로 노출 안 해서, `kube-prometheus-stack-values.yaml`에 `kube-state-metrics.metricLabelsAllowlist`로 명시적으로 허용해둬야 값이 채워진다(안 하면 `kube_node_labels` 메트릭은 나오는데 라벨 필드가 빈 채로 나옴).
+
+범례 = `{{short_node}} ({{label_eks_amazonaws_com_nodegroup}}{{label_karpenter_sh_capacity_type}}, {{az}})` → 예: `ip-10-20-11-123 (baseline, ap-northeast-2a)` / `ip-10-20-10-80 (spot, ap-northeast-2a)`.
 
 **동작 원리**: kube-prometheus-stack 차트의 Grafana sidecar가 `grafana_dashboard: "1"` 라벨이 붙은 ConfigMap을 자동으로 찾아 로드한다(기본 대시보드 27개도 이 방식) — 이 ConfigMap 4개도 똑같은 라벨을 달아서 **수동 클릭 없이 자동 등록**되게 했다. `kube-prometheus-stack-values.yaml`의 CloudWatch 데이터소스에 `uid: cloudwatch-monitoring`을 **고정**해둔 이유가 이거다 — uid를 안 고정하면 apply할 때마다 랜덤값이 나와서 대시보드 JSON이 참조하는 datasource uid가 매번 깨진다.
 
