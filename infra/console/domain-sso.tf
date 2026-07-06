@@ -63,6 +63,35 @@ resource "aws_acm_certificate_validation" "cf" {
   validation_record_fqdns = [for r in aws_route53_record.cf_validation : r.fqdn]
 }
 
+# ── ALB용 서울(ap-northeast-2) ACM 인증서(#1 in-transit) ────────────────
+# CloudFront용 인증서는 us-east-1 규칙이지만 ALB는 리전 로컬(서울)이라 별도 발급 필요.
+# 같은 도메인이라 DNS 검증 CNAME이 us-east-1 인증서와 동일 → allow_overwrite로 공존.
+resource "aws_acm_certificate" "alb" {
+  count             = var.enable_custom_domain ? 1 : 0
+  domain_name       = var.domain_name
+  validation_method = "DNS"
+  lifecycle { create_before_destroy = true }
+}
+
+resource "aws_route53_record" "alb_cert_validation" {
+  for_each = var.enable_custom_domain ? {
+    for o in aws_acm_certificate.alb[0].domain_validation_options :
+    o.domain_name => { name = o.resource_record_name, type = o.resource_record_type, value = o.resource_record_value }
+  } : {}
+  zone_id         = data.aws_route53_zone.this[0].zone_id
+  name            = each.value.name
+  type            = each.value.type
+  records         = [each.value.value]
+  ttl             = 300
+  allow_overwrite = true
+}
+
+resource "aws_acm_certificate_validation" "alb" {
+  count                   = var.enable_custom_domain ? 1 : 0
+  certificate_arn         = aws_acm_certificate.alb[0].arn
+  validation_record_fqdns = [for r in aws_route53_record.alb_cert_validation : r.fqdn]
+}
+
 # ── 도메인(apex) → CloudFront alias(A 레코드) ─────────────────────────
 resource "aws_route53_record" "apex" {
   count   = var.enable_custom_domain ? 1 : 0
