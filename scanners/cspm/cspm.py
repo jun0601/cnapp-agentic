@@ -105,7 +105,7 @@ class CSPMScanner:
         return envelopes
 
     def scan_prowler(self, provider: str = "aws", checks: Optional[str] = None,
-                     timeout: int = 600) -> List[dict]:
+                     timeout: int = 900) -> List[dict]:
         """prowler CLI를 `-M json-ocsf`로 실행 → OCSF 봉투[] 반환(Trivy.scan_image과 동형).
 
         prowler는 오픈소스라 read-only 자격증명만으로 계정 스캔 가능(Security Hub 미활성이어도 됨).
@@ -118,30 +118,50 @@ class CSPMScanner:
         control_id가 전부 None(INTERNAL-UNKNOWN-001)이 되는 문제였다(mock 경로는 scan_from_json이
         format을 직접 지정해 우회하므로 run_demo로는 안 잡힘). scanners/ciem/entra.py의
         scan_prowler(Azure)도 이 메서드에 위임하므로 동일하게 영향받았음 — 함께 해결됨.
+
+        ⚠️ 2026-07-06 실측 버그 수정(이 프로젝트 최초 실 CLI 실행): 이전 코드가 두 가지를
+        잘못 가정하고 있었다(그동안 로컬 CLI 미설치라 한 번도 실행된 적이 없어서 안 걸림).
+        ① `-q` 플래그는 현재 prowler(v5.x)에 없음 — 붙이면 즉시 `unrecognized arguments`로
+        실패한다. ② `-M json-ocsf`는 **stdout이 아니라 파일**에 결과를 쓴다(기본
+        `output/prowler-output-<account>-<timestamp>.ocsf.json`) — stdout엔 사람이 보는
+        진행률 표만 나온다. 이제 `--output-directory`를 임시 디렉터리로 지정하고 그 안의
+        최상위(`compliance/` 서브폴더 제외) `*.ocsf.json` 파일을 읽는다.
         """
         source = "prowler-aws" if provider == "aws" else "prowler-azure"
         cloud = "aws" if provider == "aws" else "azure"
-        cmd = [self._prowler_bin, provider, "-M", "json-ocsf", "-q"]
-        if checks:
-            cmd += ["-c", checks]
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        except FileNotFoundError:
-            raise CSPMScanError(
-                "prowler CLI를 찾을 수 없음. 설치: pip install prowler "
-                "(https://docs.prowler.com/). 로컬 미설치 시 scan_from_json 사용."
-            )
-        except subprocess.TimeoutExpired:
-            raise CSPMScanError("prowler 타임아웃(%ds)" % timeout)
+        import glob
         import json
-        try:
-            findings = json.loads(result.stdout)
-        except json.JSONDecodeError as e:
-            raise CSPMScanError("prowler 출력 JSON 파싱 실패: %s" % e)
-        items = findings if isinstance(findings, list) else [findings]
+        import tempfile
+
+        with tempfile.TemporaryDirectory(prefix="prowler-out-") as out_dir:
+            cmd = [self._prowler_bin, provider, "-M", "json-ocsf", "--output-directory", out_dir]
+            if checks:
+                cmd += ["-c", checks]
+            try:
+                subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            except FileNotFoundError:
+                raise CSPMScanError(
+                    "prowler CLI를 찾을 수 없음. 설치: pip install prowler "
+                    "(https://docs.prowler.com/). 로컬 미설치 시 scan_from_json 사용."
+                )
+            except subprocess.TimeoutExpired:
+                raise CSPMScanError("prowler 타임아웃(%ds)" % timeout)
+
+            # compliance/ 서브폴더에도 프레임워크별 *.ocsf.json이 있어 최상위(non-recursive)만 본다.
+            candidates = glob.glob(f"{out_dir}/*.ocsf.json")
+            if not candidates:
+                raise CSPMScanError(
+                    "prowler 출력 파일(*.ocsf.json)을 찾을 수 없음 — CLI 실행 자체가 실패했을 수 있음"
+                )
+            with open(candidates[0], encoding="utf-8") as f:
+                items = json.load(f)
+
+        if not isinstance(items, list):
+            items = [items]
         # FAIL만 봉투화(정규화부가 status로 open/remediated 판정하지만, 노이즈 최소화)
         # source_format="ocsf" — 위 CLI가 실제로 내놓는 포맷과 일치시킴(정규화부 _parse_ocsf로 라우팅).
-        return [self._build_envelope(it, source, "ocsf", cloud) for it in items]
+        fails = [it for it in items if str(it.get("status_code", "")).upper() == "FAIL"]
+        return [self._build_envelope(it, source, "ocsf", cloud) for it in fails]
 
 
 # ── 헬퍼 ──────────────────────────────────────────────────────────────
