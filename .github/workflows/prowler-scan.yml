@@ -1,0 +1,86 @@
+name: prowler-scan
+
+# Prowler AWS+Azure 자동 스캔 → OCSF 결과를 S3(prowler_results 버킷)에 드롭.
+# 이후는 코드 변경 없이 기존 파이프라인이 자동 처리: S3 ObjectCreated → ingest Lambda
+# (pipeline/ingest/ingest.py from_s3_event, infra/backend가 S3 알림으로 직접 트리거 배선)
+#   → SQS → normalize → RDS → correlation → orchestrator.
+#
+# 인증(둘 다 키리스 OIDC, D4):
+#   AWS   — infra/shared의 github-ci 역할(OIDC) + SecurityAudit 정책(2026-07-07 추가)
+#   Azure — cnapp-agentic-prowler-sp의 Federated Credential(대상 repo:jun0601/cnapp-agentic:ref:refs/heads/main)
+#
+# ⚠️ 인프라가 destroy 상태일 수 있음(비용 규율) — 대상 S3 버킷 존재를 먼저 확인하고
+#    없으면 나머지 스텝을 조용히 skip한다(build-images.yml과 같은 이유로 "매일 빨간 실패" 방지).
+# ⚠️ Prowler는 FAIL 발견이 있으면 non-zero exit — 이건 "스캔 실패"가 아니라 정상 동작이므로
+#    scan 스텝에 continue-on-error를 둬서 워크플로 전체가 죽지 않게 한다.
+
+on:
+  schedule:
+    - cron: "0 17 * * *" # UTC 17:00 = KST 02:00, project-draft §16 설계값
+  workflow_dispatch:
+
+permissions:
+  id-token: write # OIDC 토큰 발급(AWS+Azure 둘 다 키리스)
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  PROWLER_BUCKET: cnapp-agentic-prowler-results-066107819776
+  # cnapp-agentic-prowler-sp (docs/manual-infra.md §3.6)
+  AZURE_CLIENT_ID: 82fec3e9-4c20-4d78-bf4a-9e518a86b460
+  AZURE_TENANT_ID: 8e160cea-faa9-47de-a717-6eb01e4a262b
+
+jobs:
+  scan:
+    name: Prowler AWS + Azure scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials (OIDC, keyless)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::066107819776:role/cnapp-agentic-github-ci"
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 인프라 활성 여부 확인(destroy 상태면 조용히 skip)
+        id: check
+        run: |
+          if aws s3api head-bucket --bucket "${PROWLER_BUCKET}" 2>/dev/null; then
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::infra/backend가 destroy 상태로 보임(버킷 없음) — 스캔 skip"
+          fi
+
+      - name: Install Prowler
+        if: steps.check.outputs.active == 'true'
+        run: pip install --quiet prowler
+
+      - name: AWS 스캔 → OCSF → S3
+        if: steps.check.outputs.active == 'true'
+        continue-on-error: true
+        run: |
+          set -x
+          mkdir -p out-aws
+          prowler aws -M json-ocsf --output-directory out-aws
+          f=$(ls out-aws/*.ocsf.json | head -1)
+          test -n "$f"
+          aws s3 cp "$f" "s3://${PROWLER_BUCKET}/aws/$(date -u +%Y-%m-%dT%H%M%SZ).ocsf.json"
+
+      - name: Azure 로그인(OIDC, 키리스)
+        if: steps.check.outputs.active == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Azure 스캔 → OCSF → S3
+        if: steps.check.outputs.active == 'true'
+        continue-on-error: true
+        run: |
+          set -x
+          mkdir -p out-azure
+          prowler azure --az-cli-auth -M json-ocsf --output-directory out-azure
+          f=$(ls out-azure/*.ocsf.json | head -1)
+          test -n "$f"
+          aws s3 cp "$f" "s3://${PROWLER_BUCKET}/azure/$(date -u +%Y-%m-%dT%H%M%SZ).ocsf.json"

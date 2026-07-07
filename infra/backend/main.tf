@@ -341,6 +341,55 @@ resource "aws_lambda_permission" "eventbridge_ingest" {
   source_arn    = aws_cloudwatch_event_rule.securityhub_imported.arn
 }
 
+# --- [S3] Prowler 스캔 결과 드롭(ingest 2번째 입구, 2026-07-07 추가) ---
+#   GitHub Actions(prowler-scan.yml)가 매일 스캔 후 여기에 OCSF 결과를 올림.
+#   ⚠️ Ingestor.from_s3_event()는 클래식 S3 Event Notification 형태(Records[].s3...)를
+#      기대하므로 EventBridge가 아니라 S3 버킷 알림→Lambda 직접 트리거로 배선한다.
+resource "aws_s3_bucket" "prowler_results" {
+  bucket        = "${var.project}-prowler-results-${local.account_id}"
+  force_destroy = true
+}
+resource "aws_s3_bucket_public_access_block" "prowler_results" {
+  bucket                  = aws_s3_bucket.prowler_results.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+resource "aws_s3_bucket_server_side_encryption_configuration" "prowler_results" {
+  bucket = aws_s3_bucket.prowler_results.id
+  rule {
+    apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
+  }
+}
+# 30일 지난 원본은 자동 삭제 — 정규화 완료 후엔 RDS가 진실 소스, S3는 원본 보관용(비용 관리).
+resource "aws_s3_bucket_lifecycle_configuration" "prowler_results" {
+  bucket = aws_s3_bucket.prowler_results.id
+  rule {
+    id     = "expire-30d"
+    status = "Enabled"
+    filter {}
+    expiration { days = 30 }
+  }
+}
+
+resource "aws_lambda_permission" "s3_invoke_ingest" {
+  statement_id  = "AllowS3InvokeProwlerDrop"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.ingest.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.prowler_results.arn
+}
+
+resource "aws_s3_bucket_notification" "prowler_results" {
+  bucket = aws_s3_bucket.prowler_results.id
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.ingest.arn
+    events              = ["s3:ObjectCreated:*"]
+  }
+  depends_on = [aws_lambda_permission.s3_invoke_ingest]
+}
+
 # =============================================================================
 # ▓▓▓ 추론 평면 (구 infra/engine 분석부) ▓▓▓
 # 2-pass: batch.completed → correlation(attackpath) → correlation.completed → orchestrator

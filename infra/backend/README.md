@@ -7,9 +7,9 @@
 ## 무엇을 배포하나 (한눈에)
 
 ```
-[스캐너 findings]
-   │  EventBridge (Security Hub Findings Imported)
-   ▼
+[스캐너 findings]                    [Prowler 자동 스캔(GitHub Actions cron, 2026-07-07)]
+   │  EventBridge (Security Hub Findings Imported)   │  S3 드롭(OCSF) → S3 알림(직접, EventBridge 아님)
+   ▼                                                 ▼
 ① ingest Lambda ──▶ SQS(+DLQ) ──▶ ② normalize Lambda ──▶ RDS(pgvector)     ← 데이터 평면
                                         │  PutEvents(cnapp.findings.batch.completed)
                                         ▼
@@ -32,6 +32,7 @@
 | | `aws_lambda_function.ingest` | EventBridge/S3 이벤트 → 계약⑤ 봉투 → SQS |
 | | `aws_lambda_function.normalize` | SQS 소비 → OCSF-lite 정규화 → RDS upsert → 배치완료 이벤트 발행 (VPC 배치) |
 | | `aws_cloudwatch_event_rule.securityhub_imported` | Security Hub Findings Imported → ingest |
+| | `aws_s3_bucket.prowler_results`(+ `aws_s3_bucket_notification`) | Prowler 결과 드롭(2번째 입구, 2026-07-07) — `.github/workflows/prowler-scan.yml`이 업로드 → **S3 직접 알림**(EventBridge 아님, `Ingestor.from_s3_event()`가 클래식 `Records[].s3...` 형태를 기대) → ingest Lambda 직접 트리거. 30일 lifecycle 만료 |
 | **추론 평면** | `aws_lambda_function.correlation` | R1~R5 상관 → attack-path 그래프 upsert (VPC 배치) |
 | | `aws_lambda_function.orchestrator` | Triage→Hypothesis→Evidence(Bedrock tool-use)→Reasoning → case upsert (VPC, Bedrock 정책) |
 | | `aws_cloudwatch_event_rule.batch_completed` / `.correlation_completed` | 2-pass 트리거 체인 |
@@ -48,6 +49,7 @@
 - `remediation_state_machine_arn` → **infra/console**이 `-var`로 주입(approver 승인 시 StartExecution 대상)
 - `audit_bucket` · `remediation_state_machine_arn` → **infra/monitoring**이 대시보드/알람에서 참조
 - `ingest_queue_url`·`*_lambda_arn` 등 → 운영·디버깅용
+- `prowler_results_bucket` → `.github/workflows/prowler-scan.yml`이 업로드 대상으로 참조(버킷명은 예측 가능한 패턴이라 워크플로에 하드코딩, 이 output은 확인용)
 
 ## apply
 ```bash

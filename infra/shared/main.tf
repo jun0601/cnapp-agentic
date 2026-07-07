@@ -420,6 +420,28 @@ resource "aws_iam_role_policy" "github_ci" {
   policy = data.aws_iam_policy_document.github_ci.json
 }
 
+# Prowler 자동 스캔(prowler-scan.yml, 2026-07-07 추가)이 필요한 권한 — 같은 OIDC 역할 재사용(리포 전체 신뢰라 워크플로별로 안 쪼갬).
+#   ① SecurityAudit(AWS 관리형) — Prowler 공식 권장 read-only 정책, 계정 전반 조회 필요라 리소스 스코프 불가.
+#   ② infra/backend의 prowler_results 버킷에 쓰기(레이어 역방향 참조 불가라 예측 가능한 버킷명으로 ARN 구성 — 실제 리소스는 backend가 생성).
+resource "aws_iam_role_policy_attachment" "github_ci_security_audit" {
+  role       = aws_iam_role.github_ci.name
+  policy_arn = "arn:aws:iam::aws:policy/SecurityAudit"
+}
+
+data "aws_iam_policy_document" "github_ci_prowler_s3" {
+  statement {
+    sid       = "PutProwlerResults"
+    actions   = ["s3:PutObject"]
+    resources = ["arn:aws:s3:::${var.project}-prowler-results-${data.aws_caller_identity.current.account_id}/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "github_ci_prowler_s3" {
+  name   = "prowler-s3-put"
+  role   = aws_iam_role.github_ci.id
+  policy = data.aws_iam_policy_document.github_ci_prowler_s3.json
+}
+
 
 # =============================================================================
 # [IAM-ENGINE] 엔진 정책 2종 — 계약과 동기화. 실행 역할(Lambda)은 infra/backend에서 attach

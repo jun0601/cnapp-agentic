@@ -44,3 +44,8 @@ output "audit_bucket" {
   description = "불변 감사 로그(S3 Object Lock) 버킷 — 조치 실행기가 기록"
   value       = aws_s3_bucket.audit.bucket
 }
+
+output "prowler_results_bucket" {
+  description = "Prowler 스캔 결과 드롭 버킷(GitHub Actions prowler-scan.yml이 여기로 업로드 → ingest Lambda 자동 트리거)"
+  value       = aws_s3_bucket.prowler_results.bucket
+}
