@@ -748,13 +748,14 @@ data:
               "region": "ap-northeast-2",
               "period": "300",
               "namespace": "AWS/Cognito",
-              "metricName": "SignInSuccesses",
+              "metricName": "FederationSuccesses",
               "dimensions": {
-                "UserPool": "ap-northeast-2_g7Q21LGFJ"
+                "UserPool": "ap-northeast-2_g7Q21LGFJ",
+                "IdentityProvider": "EntraID"
               },
               "statistic": "Sum",
               "matchExact": true,
-              "label": "SignIn",
+              "label": "FederationSuccesses(EntraID)",
               "queryMode": "Metrics",
               "metricQueryType": 0,
               "metricEditorMode": 0
