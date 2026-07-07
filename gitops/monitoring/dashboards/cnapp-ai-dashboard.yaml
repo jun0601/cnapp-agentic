@@ -261,8 +261,7 @@ data:
               "statistic": "Average",
               "label": "추정비용(USD)",
               "queryMode": "Metrics",
-              "metricQueryType": 0,
-              "metricEditorMode": 0
+              "metricQueryType": 0
             }
           ],
           "fieldConfig": {
