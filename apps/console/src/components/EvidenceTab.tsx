@@ -36,7 +36,7 @@ export function EvidenceTab({ evidenceCase }: { evidenceCase: Case | null }) {
           </div>
         </div>
         <p className="relative z-10 mt-3 text-sm text-white/90">
-          AI가 <b>{c.evidence_meta?.tool_calls_count ?? c.evidence?.length ?? 0}회</b> read-only API를 <b>스스로 호출</b>해 증거를 수집하고 판정했습니다. (챗봇이 아닌 능동 조사)
+          AI 에이전트가 <b>{c.evidence_meta?.tool_calls_count ?? c.evidence?.length ?? 0}회</b> read-only API를 <b>스스로 호출</b>해 증거를 수집하고 판정했습니다.
         </p>
         <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/10" />
       </div>
