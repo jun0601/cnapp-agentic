@@ -7,6 +7,7 @@ Lambda 설정:
   handler = "pipeline.normalize.handler.handler"
   env     = DB_HOST · DB_SECRET_ARN(shared Secrets) · EVENT_BUS_NAME(=default)
   런타임   psycopg2 레이어 필요(RDS 접근). VPC(private subnet) 배치.
+  레이어  xray-sdk(2026-07-07 추가, X-Ray 분산 트레이싱).
 
 ⚠️ 실 RDS 대상 코드 — 로컬/CI(무 DB)에서는 실행 불가, apply 세션에서 검증. 스키마=infra/shared/db/schema.sql.
 """
@@ -14,8 +15,24 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 
 from pipeline.normalize.normalizer import Normalizer
+
+# X-Ray(2026-07-07): SQS→Lambda 구간은 AWSTraceHeader로 자동 이어지지만(ingest Lambda가 patch_all로
+# 부착), 다음 구간(EventBridge→correlation)은 AWS가 트레이스를 자동 전파 안 해준다. 그래서 이 Lambda가
+# 새로 생성하는 batch_id를 ① 이 세그먼트의 annotation으로 남기고 ② 다음 이벤트 detail에 실어보내
+# correlation·orchestrator가 같은 값으로 자기 세그먼트에 annotation을 달게 한다 — X-Ray 콘솔에서
+# annotation.batch_id로 검색하면 EventBridge로 끊긴 구간도 하나의 요청 흐름으로 찾을 수 있다
+# (진짜 트레이스 트리 병합은 아님 — Lambda가 EventBridge event의 custom detail 필드를 트레이스
+# 컨텍스트로 인식하지 못해서 못함. AWS 공식 문서가 권장하는 EventBridge 상관관계 우회법).
+try:
+    from aws_xray_sdk.core import patch_all, xray_recorder
+
+    patch_all()
+    _XRAY = True
+except ImportError:
+    _XRAY = False
 
 _UPSERT = """
 INSERT INTO findings (finding_id, cloud, resource_id, resource_type, pillar, control_id,
@@ -94,13 +111,23 @@ def _upsert_findings(findings: list) -> None:
 
 
 def _emit_batch_completed(count: int) -> None:
-    """정규화 배치 완료 → EventBridge(기본 버스) → infra/engine 상관 Lambda 구독(2-pass)."""
+    """정규화 배치 완료 → EventBridge(기본 버스) → infra/engine 상관 Lambda 구독(2-pass).
+
+    batch_id는 이 배치를 대표하는 트레이싱 전용 상관관계 키(X-Ray annotation, 2026-07-07) —
+    findings 테이블·비즈니스 로직과는 무관, 순수 관측용으로만 이벤트 detail에 실어 보낸다.
+    """
+    batch_id = str(uuid.uuid4())
+    if _XRAY:
+        seg = xray_recorder.current_segment()
+        if seg is not None:
+            seg.put_annotation("batch_id", batch_id)
+
     import boto3
     events = boto3.client("events", region_name=os.environ.get("AWS_REGION", "ap-northeast-2"))
     events.put_events(Entries=[{
         "Source": "cnapp.findings",
         "DetailType": "cnapp.findings.batch.completed",
-        "Detail": json.dumps({"normalized": count}),
+        "Detail": json.dumps({"normalized": count, "batch_id": batch_id}),
         "EventBusName": os.environ.get("EVENT_BUS_NAME", "default"),
     }])
 

@@ -70,10 +70,20 @@ terraform apply backend.tfplan
 
 | Lambda | handler | 레이어 | 비고 |
 |---|---|---|---|
-| ingest | `pipeline.ingest.handler.handler` | — | boto3만 (RDS 불요) |
-| normalize | `pipeline.normalize.handler.handler` | psycopg2 | SQS→정규화→RDS upsert→batch.completed |
-| correlation | `attackpath.correlation.handler.handler` | psycopg2 | R1~R5→attack_paths upsert→2-pass 발행 |
-| orchestrator | `engine.handler.handler` | psycopg2 | `REAL_TOOLS=1`(기본) → 실 Bedrock tool-use |
-| remediation | `engine.remediation.handler` | psycopg2 | 변경 API(dry-run/apply)+Object Lock 감사 |
+| ingest | `pipeline.ingest.handler.handler` | xray | boto3만 (RDS 불요) |
+| normalize | `pipeline.normalize.handler.handler` | psycopg2, xray | SQS→정규화→RDS upsert→batch.completed |
+| correlation | `attackpath.correlation.handler.handler` | psycopg2, xray | R1~R5→attack_paths upsert→2-pass 발행 |
+| orchestrator | `engine.handler.handler` | psycopg2, xray | `REAL_TOOLS=1`(기본) → 실 Bedrock tool-use |
+| remediation | `engine.remediation.handler` | psycopg2, xray | 변경 API(dry-run/apply)+Object Lock 감사 |
 
 로직 자체는 `run_e2e.py`·`run_real.py`로 로컬 검증됨(RDS/Bedrock 라이브 관통은 apply 세션). ⚠️ 실 RDS 테이블 필요 → shared apply 후 `psql -f infra/shared/db/schema.sql` 선적용.
+
+## X-Ray 분산 트레이싱 (2026-07-07 추가)
+
+5개 Lambda 전부 `tracing_config { mode = "Active" }` + 전용 `xray-sdk` 레이어(순수 파이썬, `aws-xray-sdk`+`wrapt`만 — `--no-deps`로 설치해 botocore를 재번들하지 않음, 안 하면 Lambda 런타임이 이미 제공하는 botocore와 섀도잉 충돌 위험 + 레이어 크기 30MB→1.6MB).
+
+**구간별로 이어지는 방식이 다르다(중요):**
+- **ingest → normalize(SQS)**: **완전 자동.** ingest가 `patch_all()`로 boto3를 패치해 `sqs.send_message()`가 `AWSTraceHeader` 메시지 속성을 자동으로 실어 보내고, normalize(Active tracing)는 Lambda 서비스가 이 값을 읽어 **같은 트레이스로 자동 연결**한다. 코드 추가 불필요 — AWS Lambda+SQS+X-Ray의 공식 내장 기능.
+- **normalize → correlation → orchestrator(EventBridge)**: **자동 연결 안 됨.** EventBridge는 X-Ray 트레이스 컨텍스트를 자동 전파하지 않는다(AWS 공식 제약, Lambda가 커스텀 `detail` 필드를 트레이스 컨텍스트로 인식 못함). 대신 normalize가 생성한 `batch_id`를 이벤트 `detail`에 실어 보내고, 각 단계가 **자기 세그먼트에 같은 값을 annotation으로** 남긴다 — X-Ray 콘솔에서 `annotation.batch_id = "<값>"`으로 검색하면 EventBridge로 끊긴 구간도 하나의 요청 흐름으로 찾을 수 있다. **단, 이건 진짜 트레이스 트리 병합이 아니라 검색 키 기반 상관관계**다(ingest+normalize는 진짜 한 트레이스, correlation·orchestrator는 각각 별도 트레이스 — 셋 다 같은 annotation으로 찾을 수 있을 뿐). 이 한계는 AWS 자체 문서가 EventBridge 트레이싱에 권장하는 표준 우회법이다.
+
+**확인 방법**: AWS 콘솔 → X-Ray → Traces → `annotation.batch_id = "..."`로 검색(정확한 값은 normalize Lambda의 CloudWatch Logs 또는 `cnapp.findings.batch.completed` 이벤트에서 확인).

@@ -9,6 +9,7 @@ Lambda 설정:
   handler = "attackpath.correlation.handler.handler"
   env     = DB_HOST · DB_SECRET_ARN · EVENT_BUS_NAME(=default)
   psycopg2 레이어 + VPC. ⚠️ 실 RDS 코드 — apply 세션에서 검증. 스키마=infra/shared/db/schema.sql.
+  레이어  xray-sdk(2026-07-07 추가, X-Ray 분산 트레이싱).
 """
 from __future__ import annotations
 
@@ -16,6 +17,17 @@ import json
 import os
 
 from attackpath.correlation.correlation import CorrelationEngine
+
+# X-Ray(2026-07-07): EventBridge는 트레이스를 자동 전파 안 하므로, normalize가 이벤트 detail에
+# 실어 보낸 batch_id를 이 Lambda 자신의 세그먼트에 annotation으로 남기고 다음 이벤트로도 계속
+# 전달한다(pipeline/normalize/handler.py 상단 주석 참고 — 진짜 트레이스 병합이 아니라 검색용 상관관계 키).
+try:
+    from aws_xray_sdk.core import patch_all, xray_recorder
+
+    patch_all()
+    _XRAY = True
+except ImportError:
+    _XRAY = False
 
 # correlate()가 참조하는 계약① 필드만 로드(상관 규칙 R1~R5 입력)
 _SELECT_OPEN = """
@@ -38,11 +50,17 @@ ON CONFLICT (attack_path_id) DO UPDATE SET
 
 
 def handler(event: dict, context=None) -> dict:
+    batch_id = (event or {}).get("detail", {}).get("batch_id")
+    if _XRAY and batch_id:
+        seg = xray_recorder.current_segment()
+        if seg is not None:
+            seg.put_annotation("batch_id", batch_id)
+
     findings = _load_open_findings()
     paths = CorrelationEngine().correlate(findings)  # 멤버 finding에 attack_path_id backfill(in-memory)
     _upsert_paths(paths)
     _backfill_findings(findings)  # in-memory backfill → RDS 반영
-    _emit_correlation_completed(len(paths))
+    _emit_correlation_completed(len(paths), batch_id)
     return {"paths": len(paths)}
 
 
@@ -92,13 +110,17 @@ def _backfill_findings(findings: list) -> None:
         conn.close()
 
 
-def _emit_correlation_completed(count: int) -> None:
+def _emit_correlation_completed(count: int, batch_id: str | None) -> None:
+    """batch_id는 normalize가 시작한 트레이싱 상관관계 키를 orchestrator까지 이어 전달(X-Ray, 2026-07-07)."""
     import boto3
     events = boto3.client("events", region_name=os.environ.get("AWS_REGION", "ap-northeast-2"))
+    detail = {"paths": count}
+    if batch_id:
+        detail["batch_id"] = batch_id
     events.put_events(Entries=[{
         "Source": "cnapp.attackpath",
         "DetailType": "cnapp.attackpath.correlation.completed",
-        "Detail": json.dumps({"paths": count}),
+        "Detail": json.dumps(detail),
         "EventBusName": os.environ.get("EVENT_BUS_NAME", "default"),
     }])
 

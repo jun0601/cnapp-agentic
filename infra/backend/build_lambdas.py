@@ -75,8 +75,32 @@ def build_psycopg2_layer() -> None:
     print(f"OK layer: psycopg2-binary (manylinux2014_x86_64, cp312) -> {target}")
 
 
+def build_xray_layer() -> None:
+    """aws-xray-sdk(순수 파이썬, C 확장 없음 — psycopg2와 달리 --platform 불요)를 별도 레이어로.
+    5개 Lambda(ingest·normalize·correlation·orchestrator·remediation) 전부가 X-Ray 분산 트레이싱용으로 부착.
+
+    ⚠️ --no-deps 필수: aws-xray-sdk의 기본 설치는 botocore/boto3/urllib3까지 통째로 딸려와서(30MB+)
+    레이어가 불필요하게 커지고, Lambda 런타임이 이미 제공하는 botocore와 버전이 달라 섀도잉될 위험이
+    있다(patch()는 '이미 임포트된' botocore를 몽키패치하는 것이지 자체 botocore가 필요한 게 아님).
+    실제 필요한 건 순수 패칭 의존성인 wrapt뿐.
+    """
+    target = BUILD / "layer-xray" / "python"
+    if (BUILD / "layer-xray").exists():
+        shutil.rmtree(BUILD / "layer-xray")
+    target.mkdir(parents=True)
+    cmd = [
+        sys.executable, "-m", "pip", "install", "aws-xray-sdk", "wrapt",
+        "--no-deps", "--target", str(target), "--quiet",
+    ]
+    subprocess.run(cmd, check=True)
+    assert (target / "aws_xray_sdk").is_dir(), "aws-xray-sdk 레이어 설치 실패"
+    assert (target / "wrapt").is_dir(), "wrapt(aws-xray-sdk 의존성) 설치 실패"
+    print(f"OK layer: aws-xray-sdk(+wrapt, --no-deps로 botocore 재번들 회피) -> {target}")
+
+
 if __name__ == "__main__":
     BUILD.mkdir(exist_ok=True)
     build_bundles()
     build_psycopg2_layer()
+    build_xray_layer()
     print("BUILD DONE - terraform(archive_file)이 이 디렉터리들을 zip합니다.")

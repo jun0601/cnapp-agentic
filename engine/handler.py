@@ -12,6 +12,7 @@ Lambda 설정:
   env     = DB_HOST · DB_SECRET_ARN · BEDROCK_MODEL_ID(global inference profile) · REAL_TOOLS
   role    = shared evidence-readonly(계약④) + bedrock-invoke 정책(infra/engine에서 attach)
   psycopg2 레이어 + VPC. ⚠️ 실 RDS·실 Bedrock 코드 — apply 세션에서 검증.
+  레이어  xray-sdk(2026-07-07 추가, X-Ray 분산 트레이싱 — Bedrock 호출도 subsegment로 보임).
 """
 from __future__ import annotations
 
@@ -19,6 +20,17 @@ import json
 import os
 
 from engine.reasoning.orchestrator import Orchestrator
+
+# X-Ray(2026-07-07): correlation이 전달한 batch_id를 이 Lambda 세그먼트에도 annotation으로 남겨
+# 파이프라인 전체(ingest→normalize→correlation→orchestrator)를 하나의 검색 키로 찾을 수 있게 한다
+# (EventBridge 구간은 진짜 트레이스 병합이 아니라 annotation 상관관계 — normalize/handler.py 주석 참고).
+try:
+    from aws_xray_sdk.core import patch_all, xray_recorder
+
+    patch_all()
+    _XRAY = True
+except ImportError:
+    _XRAY = False
 
 _SELECT_FINDINGS = """
 SELECT finding_id, cloud, resource_id, resource_type, pillar, control_id,
@@ -61,6 +73,12 @@ ON CONFLICT (finding_id) DO UPDATE SET
 
 
 def handler(event: dict, context=None) -> dict:
+    batch_id = (event or {}).get("detail", {}).get("batch_id")
+    if _XRAY and batch_id:
+        seg = xray_recorder.current_segment()
+        if seg is not None:
+            seg.put_annotation("batch_id", batch_id)
+
     findings = _load(_SELECT_FINDINGS)
     paths = _load(_SELECT_PATHS)  # nodes/edges는 psycopg2가 jsonb→list로 디코드
     if not paths:

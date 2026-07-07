@@ -258,6 +258,43 @@ resource "aws_lambda_layer_version" "psycopg2" {
   compatible_architectures = ["x86_64"]
 }
 
+data "archive_file" "xray_layer" {
+  type        = "zip"
+  source_dir  = "${path.module}/build/layer-xray"
+  output_path = "${path.module}/build/xray-layer.zip"
+}
+
+# X-Ray 분산 트레이싱(2026-07-07) — 5개 Lambda 전부가 부착(ingest 포함, psycopg2와 달리 전부 필요).
+resource "aws_lambda_layer_version" "xray" {
+  layer_name               = "${var.project}-xray-sdk"
+  filename                 = data.archive_file.xray_layer.output_path
+  source_code_hash         = data.archive_file.xray_layer.output_base64sha256
+  compatible_runtimes      = ["python3.12"]
+  compatible_architectures = ["x86_64"]
+}
+
+# 5개 Lambda 모두에 X-Ray 트레이스 전송 권한(AWS 관리형, PutTraceSegments/PutTelemetryRecords) 부여.
+resource "aws_iam_role_policy_attachment" "xray_ingest" {
+  role       = aws_iam_role.ingest.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+resource "aws_iam_role_policy_attachment" "xray_normalize" {
+  role       = aws_iam_role.normalize.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+resource "aws_iam_role_policy_attachment" "xray_correlation" {
+  role       = aws_iam_role.correlation.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+resource "aws_iam_role_policy_attachment" "xray_orchestrator" {
+  role       = aws_iam_role.orchestrator.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+resource "aws_iam_role_policy_attachment" "xray_remediation" {
+  role       = aws_iam_role.remediation_lambda.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+
 resource "aws_cloudwatch_log_group" "ingest" {
   name              = "/aws/lambda/${var.project}-ingest"
   retention_in_days = var.log_retention_days
@@ -272,11 +309,15 @@ resource "aws_lambda_function" "ingest" {
   function_name    = "${var.project}-ingest"
   role             = aws_iam_role.ingest.arn
   runtime          = "python3.12"
-  handler          = "pipeline.ingest.handler.handler" # 실코드(pipeline/ingest/handler.py) — RDS 불요·레이어 불요
+  handler          = "pipeline.ingest.handler.handler" # 실코드(pipeline/ingest/handler.py) — RDS 불요, psycopg2 레이어만 불요
   filename         = data.archive_file.pipeline_pkg.output_path
   source_code_hash = data.archive_file.pipeline_pkg.output_base64sha256
+  layers           = [aws_lambda_layer_version.xray.arn]
   timeout          = 30
   memory_size      = 256
+  tracing_config {
+    mode = "Active" # X-Ray(2026-07-07) — patch_all()로 SQS send_message에 AWSTraceHeader 자동 부착
+  }
   environment {
     variables = {
       QUEUE_URL = aws_sqs_queue.ingest.url
@@ -292,9 +333,12 @@ resource "aws_lambda_function" "normalize" {
   handler          = "pipeline.normalize.handler.handler" # 실코드(SQS 봉투→정규화→RDS upsert→batch.completed)
   filename         = data.archive_file.pipeline_pkg.output_path
   source_code_hash = data.archive_file.pipeline_pkg.output_base64sha256
-  layers           = [aws_lambda_layer_version.psycopg2.arn]
+  layers           = [aws_lambda_layer_version.psycopg2.arn, aws_lambda_layer_version.xray.arn]
   timeout          = 60
   memory_size      = 512
+  tracing_config {
+    mode = "Active" # X-Ray(2026-07-07) — SQS 이벤트소스면 Lambda가 AWSTraceHeader로 ingest 트레이스를 자동 이어줌
+  }
   vpc_config {
     subnet_ids         = local.private_subnets
     security_group_ids = [aws_security_group.lambda.id]
@@ -451,9 +495,12 @@ resource "aws_lambda_function" "correlation" {
   handler          = "attackpath.correlation.handler.handler" # 실코드(R1~R5 상관→attack_paths upsert→2-pass 발행)
   filename         = data.archive_file.attackpath_pkg.output_path
   source_code_hash = data.archive_file.attackpath_pkg.output_base64sha256
-  layers           = [aws_lambda_layer_version.psycopg2.arn]
+  layers           = [aws_lambda_layer_version.psycopg2.arn, aws_lambda_layer_version.xray.arn]
   timeout          = 120
   memory_size      = 512
+  tracing_config {
+    mode = "Active" # X-Ray(2026-07-07) — EventBridge는 트레이스 자동전파 미지원이라 batch_id 애노테이션으로 상관(infra/backend/README.md 참고)
+  }
   vpc_config {
     subnet_ids         = local.private_subnets
     security_group_ids = [aws_security_group.lambda.id]
@@ -471,9 +518,12 @@ resource "aws_lambda_function" "orchestrator" {
   handler          = "engine.handler.handler" # 실코드 — ★심장 배포판(Triage→Hypothesis→Evidence tool-use→Reasoning)
   filename         = data.archive_file.engine_pkg.output_path
   source_code_hash = data.archive_file.engine_pkg.output_base64sha256
-  layers           = [aws_lambda_layer_version.psycopg2.arn]
+  layers           = [aws_lambda_layer_version.psycopg2.arn, aws_lambda_layer_version.xray.arn]
   timeout          = 300 # Evidence tool-use 루프(Bedrock 왕복) 여유
   memory_size      = 1024
+  tracing_config {
+    mode = "Active" # X-Ray(2026-07-07) — Bedrock tool-use 호출도 subsegment로 보임(patch_all)
+  }
   vpc_config {
     subnet_ids         = local.private_subnets
     security_group_ids = [aws_security_group.lambda.id]
@@ -645,9 +695,12 @@ resource "aws_lambda_function" "remediation" {
   handler          = "engine.remediation.handler" # 실코드 — 유일한 '쓰기' 경로(S3 block·SG revoke·IAM diff + Object Lock 감사)
   filename         = data.archive_file.engine_pkg.output_path
   source_code_hash = data.archive_file.engine_pkg.output_base64sha256
-  layers           = [aws_lambda_layer_version.psycopg2.arn]
+  layers           = [aws_lambda_layer_version.psycopg2.arn, aws_lambda_layer_version.xray.arn]
   timeout          = 120
   memory_size      = 256
+  tracing_config {
+    mode = "Active" # X-Ray(2026-07-07) — 조치 실행도 파이프라인 트레이스에 포함(보너스, 원 스코프 밖)
+  }
   # RDS 상태 갱신(수정→소멸 루프) 위해 VPC 배치. S3/EC2/IAM 변경 API는 NAT로 egress.
   vpc_config {
     subnet_ids         = local.private_subnets
