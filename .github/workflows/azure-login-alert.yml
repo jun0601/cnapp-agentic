@@ -9,9 +9,12 @@ name: azure-login-alert
 #   Azure — cnapp-agentic-prowler-sp의 Federated Credential(AuditLog.Read.All 권한 이미 있음)
 #   AWS   — infra/shared의 github-ci 역할(OIDC) — Teams 웹훅 URL을 Secrets Manager에서 읽기 위함만
 #
-# 중복 알림 방지: 상태 저장소 없이 "조회 주기보다 조금 더 긴 창"(20분)으로 최근 로그인만 봄 —
-# 겹치는 구간에서 드물게 중복 알림이 갈 수 있으나(로그인 알림 특성상 허용 가능한 수준), 상태
-# 관리 인프라(DynamoDB 등)를 새로 만드는 것보다 훨씬 단순함.
+# 중복 알림 방지: 상태 저장소 없이 "조회 주기보다 넉넉히 긴 창"(45분, 주기의 3배)으로 최근
+# 로그인만 봄 — 겹치는 구간에서 드물게 중복 알림이 갈 수 있으나(로그인 알림 특성상 허용
+# 가능한 수준), 상태 관리 인프라(DynamoDB 등)를 새로 만드는 것보다 훨씬 단순함.
+# ⚠️ 창을 주기(15분)보다 넉넉히 크게 잡은 이유: GitHub Actions의 schedule 트리거는 저장소
+# 활동이 적으면 지연되거나 스킵될 수 있다고 공식 문서화돼 있음 — 창이 주기와 같으면 스킵된
+# 회차의 로그인을 완전히 놓칠 수 있어서(중복보다 훨씬 나쁨), 안전마진을 넉넉히 둠.
 
 on:
   schedule:
@@ -63,7 +66,7 @@ jobs:
         run: |
           set -e
           TOKEN=$(az account get-access-token --resource https://graph.microsoft.com --query accessToken -o tsv)
-          SINCE=$(date -u -d '20 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+          SINCE=$(date -u -d '45 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
           export WEBHOOK_URL=$(cat /tmp/webhook_url)
           rm -f /tmp/webhook_url
 
