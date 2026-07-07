@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: alb-controller
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://aws.github.io/eks-charts
+    chart: aws-load-balancer-controller
+    targetRevision: "1.13.0"
+    helm:
+      releaseName: aws-load-balancer-controller
+      values: |
+        clusterName: cnapp-agentic-shared
+        region: ap-northeast-2
+        vpcId: vpc-0087d2c592b8fe01f
+        serviceAccount:
+          create: true
+          name: aws-load-balancer-controller
+          annotations:
+            eks.amazonaws.com/role-arn: arn:aws:iam::066107819776:role/cnapp-agentic-alb-controller-irsa
+        resources:
+          requests: { cpu: 50m, memory: 128Mi }
+          limits: { cpu: 200m, memory: 256Mi }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

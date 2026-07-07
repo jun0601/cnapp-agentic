@@ -37,3 +37,8 @@ output "teams_webhook_login_secret_arn" {
   description = "cnapp-login 채널 webhook URL 주입 대상(login_notifier 전용, aws secretsmanager put-secret-value)"
   value       = aws_secretsmanager_secret.teams_webhook_login.arn
 }
+
+output "alb_controller_role_arn" {
+  description = "AWS Load Balancer Controller ServiceAccount(kube-system)의 IRSA annotation에 넣을 값 — Helm values eks.amazonaws.com/role-arn"
+  value       = aws_iam_role.alb_controller.arn
+}

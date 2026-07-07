@@ -202,6 +202,49 @@ resource "aws_iam_role_policy" "grafana_cloudwatch" {
 }
 
 # =============================================================================
+# [ALB CONTROLLER] AWS Load Balancer Controller IRSA — Grafana를 도메인으로 노출하는 데 필요
+#   (2026-07-07 추가). Karpenter 노드는 ASG가 아니라서 NodePort+수동 Target Group 등록이
+#   안 통함 — 이 컨트롤러가 파드 IP를 직접 Target Group에 등록(IP 모드)해서 노드가 계속
+#   바뀌어도 문제없음. K8s Ingress 하나로 ALB를 선언적으로 관리(현업 표준 패턴).
+#   IAM 정책은 공식 문서 그대로(iam/aws-load-balancer-controller-policy.json).
+# =============================================================================
+data "aws_iam_policy_document" "alb_controller_irsa_trust" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    effect  = "Allow"
+    principals {
+      type        = "Federated"
+      identifiers = [local.oidc_provider_arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_provider}:sub"
+      values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_provider}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "alb_controller" {
+  name               = "${var.project}-alb-controller-irsa"
+  assume_role_policy = data.aws_iam_policy_document.alb_controller_irsa_trust.json
+}
+
+resource "aws_iam_policy" "alb_controller" {
+  name   = "${var.project}-alb-controller-policy"
+  policy = file("${path.module}/iam/aws-load-balancer-controller-policy.json")
+}
+
+resource "aws_iam_role_policy_attachment" "alb_controller" {
+  role       = aws_iam_role.alb_controller.name
+  policy_arn = aws_iam_policy.alb_controller.arn
+}
+
+# =============================================================================
 # [DASHBOARD] CloudWatch Dashboard — EKS 밖(①②③ 전 축) 한 화면
 #   Prometheus/Grafana(EKS 안)와 상호보완 — 이 대시보드는 콘솔에서도 바로 보임(Grafana 없이도 유효).
 #
