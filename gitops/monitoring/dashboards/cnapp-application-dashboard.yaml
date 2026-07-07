@@ -595,7 +595,7 @@ data:
               "namespace": "AWS/ApplicationELB",
               "metricName": "RequestCount",
               "dimensions": {
-                "LoadBalancer": "app/cnapp-agentic-console/448e0d449ea20779"
+                "LoadBalancer": "app/cnapp-agentic-console/4c33efc8f675e43c"
               },
               "statistic": "Sum",
               "matchExact": true,
@@ -612,7 +612,7 @@ data:
               "namespace": "AWS/ApplicationELB",
               "metricName": "TargetResponseTime",
               "dimensions": {
-                "LoadBalancer": "app/cnapp-agentic-console/448e0d449ea20779"
+                "LoadBalancer": "app/cnapp-agentic-console/4c33efc8f675e43c"
               },
               "statistic": "Average",
               "matchExact": true,
@@ -629,7 +629,7 @@ data:
               "namespace": "AWS/ApplicationELB",
               "metricName": "HTTPCode_Target_5XX_Count",
               "dimensions": {
-                "LoadBalancer": "app/cnapp-agentic-console/448e0d449ea20779"
+                "LoadBalancer": "app/cnapp-agentic-console/4c33efc8f675e43c"
               },
               "statistic": "Sum",
               "matchExact": true,
@@ -669,7 +669,7 @@ data:
               "namespace": "AWS/Cognito",
               "metricName": "SignInSuccesses",
               "dimensions": {
-                "UserPool": "ap-northeast-2_axVuh328G"
+                "UserPool": "ap-northeast-2_g7Q21LGFJ"
               },
               "statistic": "Sum",
               "matchExact": true,
@@ -709,7 +709,7 @@ data:
               "namespace": "AWS/CloudFront",
               "metricName": "Requests",
               "dimensions": {
-                "DistributionId": "E3S3Z9ELLI9RNV",
+                "DistributionId": "E2EZ8999R3IT8B",
                 "Region": "Global"
               },
               "statistic": "Sum",
@@ -727,7 +727,7 @@ data:
               "namespace": "AWS/CloudFront",
               "metricName": "4xxErrorRate",
               "dimensions": {
-                "DistributionId": "E3S3Z9ELLI9RNV",
+                "DistributionId": "E2EZ8999R3IT8B",
                 "Region": "Global"
               },
               "statistic": "Average",
@@ -745,7 +745,7 @@ data:
               "namespace": "AWS/CloudFront",
               "metricName": "5xxErrorRate",
               "dimensions": {
-                "DistributionId": "E3S3Z9ELLI9RNV",
+                "DistributionId": "E2EZ8999R3IT8B",
                 "Region": "Global"
               },
               "statistic": "Average",
