@@ -13,6 +13,7 @@
 | [docs/project-draft.md](docs/project-draft.md) | **전체 설계서(SSOT)** — 방향·범위·핵심 결정(D1~D19)·아키텍처·로드맵·미확정 항목 총괄. 여기부터 읽는다. |
 | [docs/target-app-design.md](docs/target-app-design.md) | **타깃 앱 설계도** — 일부러 취약하게 만드는 고객사 워크로드(findings 소스). 기능 베이스(retail-store)·의도적 결함 목록·골든 attack-path + **§7 구현 청사진**(결함↔IaC 토글 매핑). |
 | [docs/console-app-design.md](docs/console-app-design.md) | **관제 앱 설계도** — 우리가 만드는 보안 관제 플랫폼(NOVA 대응). 화면·백엔드·RBAC·RAG↔UI 매핑 + **§15 구현 청사진**(스택·API 표면·화면↔mock). |
+| [docs/console-manual.md](docs/console-manual.md) | 📖 **관제 콘솔 사용 매뉴얼** — "무엇을 보고 무엇을 누르나". 화면별 기능(대시보드·Findings·Evidence 능동조사·Attack-path·AI 챗·AI·시스템·조치·컴플라이언스·감사)·AI 동작·데모 시연 동선·FAQ. **앱 파악용 첫 문서.** |
 | [docs/manual-infra.md](docs/manual-infra.md) | **수동 관리 리소스 현황** — 콘솔/CLI로 직접 설정한 리소스(계정 초기화·Terraform 부트스트랩·Azure SSO 등). Terraform 관리 대상 제외. |
 | [docs/cost-strategy.md](docs/cost-strategy.md) | 💰 **비용 최적화 전략** — 무료 크레딧·평가판 안에서 프로덕션급 아키텍처를 증명한 FinOps 결정 원장(mock-first·경량 대체·모델 티어링·destroy 규율 + 정직한 트레이드오프). |
 | [CLAUDE.md](CLAUDE.md) | **작업 기준·협업 규칙** — 위 설계서들의 요약 + 협업 규칙. |

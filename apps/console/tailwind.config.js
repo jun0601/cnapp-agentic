@@ -25,8 +25,9 @@ export default {
         },
       },
       boxShadow: {
-        card: '0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.05)',
-        cardhover: '0 6px 20px rgba(15,23,42,0.10), 0 2px 6px rgba(15,23,42,0.05)',
+        // 흰 카드가 밝은 배경 위에서 확실히 '떠 보이게' 강화(2026-07-07 UI 피드백).
+        card: '0 1px 3px rgba(15,23,42,0.08), 0 6px 18px -4px rgba(15,23,42,0.10)',
+        cardhover: '0 10px 32px -6px rgba(15,23,42,0.16), 0 4px 10px -2px rgba(15,23,42,0.08)',
         glow: '0 0 0 1px rgba(79,70,229,0.15), 0 8px 24px rgba(79,70,229,0.18)',
       },
       keyframes: {

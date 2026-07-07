@@ -64,7 +64,7 @@ export default function App() {
   // 실환경(옵션 B): 미인증이면 로그인 화면으로. 목업은 항상 통과(needsLogin=false).
   if (needsLogin()) return <Navigate to="/login" replace />
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100/60 text-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200/60 text-slate-900">
       <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-2.5">
           {/* 로고 마크 */}

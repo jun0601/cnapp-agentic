@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 export function Card({ children, className = '', hover = false }: { children: ReactNode; className?: string; hover?: boolean }) {
   return (
     <div
-      className={`rounded-2xl border border-slate-200/70 bg-white shadow-card ${hover ? 'transition duration-200 hover:-translate-y-0.5 hover:shadow-cardhover' : ''} ${className}`}
+      className={`rounded-2xl border border-slate-200/80 bg-white shadow-card ${hover ? 'transition duration-200 hover:-translate-y-0.5 hover:shadow-cardhover' : ''} ${className}`}
     >
       {children}
     </div>
