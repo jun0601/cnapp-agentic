@@ -190,7 +190,8 @@ aws secretsmanager put-secret-value --secret-id <ARN> --secret-string '<url>'
 |---|---|---|
 | **X-Ray 분산 트레이싱** | `ingest→normalize→correlation→orchestrator` 요청 1건의 전체 경로를 하나의 트레이스로. | 얕게(Lambda 개별 트레이싱만, 경로 안 이어짐): 30~45분. 제대로(SQS·EventBridge 비동기 경계 넘어 컨텍스트 전파, 4개 핸들러 코드 수정): **3.5~4.5시간** |
 | **`infra/monitoring`을 상시 유지할지** | 매일 apply/destroy 반복 시 `daily_cost_notifier`의 09:00 스케줄이 인프라 없는 시간대엔 못 울림. 이 레이어는 비싼 리소스가 없어서(§6) destroy 대상에서 빼는 게 실질적 해법 — 구조적으로 완전히 분리하려면 이 레이어에서 알림 3종만 별도의 작은 레이어(`infra/notify`)로 쪼개는 방법도 있음(웹훅 URL 재주입 1회 필요). **고려 사항으로 보류, 아직 미결정.** | — |
-| **Azure Defender for Cloud** | Azure 쪽 CSPM 보조(콘솔 Scores 화면의 하드코딩된 74점을 실제 값으로 교체 목적). `Microsoft.Security` 프로바이더 등록 + `Discovery`·`FoundationalCspm` Standard 활성화까지 완료(2026-07-07)했으나, **1시간+ 지나도 secure score·assessment가 계속 빈 상태**(이 구독이 M365 체험판에 딸린 트라이얼 SKU라 평가 파이프라인 자체가 제한돼 있을 가능성). 추가로 `CloudPosture`(Defender CSPM, 리소스당 $15/월이지만 우리 계정엔 과금 대상 리소스 0개라 실질 $0 추정) 활성화를 시도하던 중 `"Another update operation is in progress"` Conflict로 중단. **결론 보류 — 다음 세션에서 재시도하거나, 이 트라이얼 구독의 근본 제약으로 판단되면 포기.** | 재확인 10~20분 |
+
+**Azure Defender for Cloud는 시도 후 범위 제외 확정(2026-07-07)** — `Discovery`·`FoundationalCspm`·`CloudPosture`(Defender CSPM, 30일 무료체험) 다 켜고 테넌트 수준 가시성 권한(Security Reader, 루트 관리그룹)까지 부여했지만 "평가된 리소스 0"·"총 보안 점수 해당없음"이 그대로 — 권한 문제가 아니라 **이 프로젝트 Azure 자산이 Entra ID 신원 객체뿐이라 CSPM 엔진(리소스 인벤토리 기반)이 평가할 대상 자체가 없는 것으로 최종 확인**(Azure 포털 인벤토리 "총 리소스 0" 실측). 콘솔 Scores의 Azure 점수는 이 시도와 별개로 준형이 이미 실 open findings 기반 산출로 교체해둠(`apps/console-backend/src/data.ts getScores()`). 상세 근거는 `docs/project-draft.md` D11, 시행착오는 `troubleshooting.md`(2026-07-07). 켜둔 플랜은 `CloudPosture`만 Free로 되돌림 — `Discovery`·`FoundationalCspm`은 Free 옵션이 API에 없어 Standard로 남지만 리소스 0개라 실질 $0.
 
 ---
 

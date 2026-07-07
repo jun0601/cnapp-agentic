@@ -183,7 +183,7 @@
 | **취약점은 IaC에 심음** | 앱 코드 버그가 아니라 인프라/설정 결함. 기능 최소, 결함 다양성 최대. |
 | **Bedrock + 수동 RAG** | SageMaker 미사용. 벡터DB = **pgvector(RDS/Aurora PostgreSQL)** 확정(코퍼스 작아 OpenSearch는 오버스펙). |
 | **앱 SSO = Cognito 허브** | Entra ID(IdP) ─SAML→ Cognito ─OIDC→ ALB(authenticate-cognito). 워크포스 SSO 크레딧 회피. |
-| **Azure = 신원(Entra ID) 중심** | 점검 핵심은 **Entra CIEM**(과도권한 앱 등록·위험한 consent·권한상승) + **Defender for Cloud**(리소스 secure score, 멀티클라우드 통합 뷰). Security Hub는 AWS 전용, Prowler로 멀티클라우드 병행. **Azure에 데이터는 두지 않음**(Defender 데이터 탐지 미사용). |
+| **Azure = 신원(Entra ID) 중심** | 점검 핵심은 **Entra CIEM**(과도권한 앱 등록·위험한 consent·권한상승). Security Hub는 AWS 전용, Prowler로 멀티클라우드 병행. **Azure에 데이터는 두지 않음. Defender for Cloud는 2026-07-07 범위 제외**(Azure 실 리소스 0개라 CSPM 평가 대상 없음 — 실측 확인, D11) — 콘솔 Azure 점수는 실 open findings 기반 산출로 대체. |
 | **데이터는 AWS S3 전용 / Macie도 AWS 전용** | 회원 PII는 AWS S3에만 보관, 데이터 탐지(DSPM 맛)는 **Macie(AWS S3 전용)**. Azure는 데이터 저장소가 아니라 신원의 주인. |
 | **골든 시나리오 = 크로스클라우드 신원 탈취** | product 취약 이미지 침투 → order 과도 IRSA + **평문 시크릿의 Azure 자격증명** → member 공개 S3로 AWS PII 탈취 → 탈취 자격증명으로 **Azure Entra ID 과도권한 앱/계정 장악**(디렉터리 전체 통제권). MVP는 분석·시각화 수준, 실제 횡단 동작은 보너스. |
 | **Read-only first + HITL** | 에이전트는 기본 조회만. 변경(remediation)은 분리된 승인 경로(Step Functions) + 불변 감사로그(S3 Object Lock). |
@@ -313,7 +313,8 @@ cnapp-agentic/
 - ✅ **Grafana 분야별 대시보드 4종(2026-07-06)** — AWS CloudWatch 24위젯과 1:1 대응하는 EKS/애플리케이션/인프라/AI 대시보드(31패널)를 `gitops/monitoring/dashboards/`에 신설, sidecar 자동 로드로 GitOps 관리. CloudWatch metric math 버그 3건 발견·수정 후 실데이터 검증 완료. 상세는 변경 로그·troubleshooting.md·`gitops/README.md`.
 - ✅ **Grafana 커스텀 도메인(2026-07-07)** — AWS Load Balancer Controller+Ingress+ACM+Route53로 `https://grafana.cnapp-agentic.cloud` 상시 접속(port-forward 불필요). Karpenter 노드가 ASG가 아니라 NodePort+수동 Target Group 방식이 안 통해서 파드 IP 직접등록(IP 모드) 컨트롤러로 결정.
 - ✅ **CloudWatch 대시보드 3종 "No data" 완전 정상화 + 골든 시나리오 실행 + Postgres 데이터소스·5번째 대시보드 + admin 비밀번호 교체(2026-07-07)** — 버그 4층(queryMode 필드 누락·metricEditorMode가 expression 쿼리 깨뜨림·Cognito FederationSuccesses 오인) 전부 수정, 실 파이프라인(ingest→normalize→correlation→orchestrator→remediation) 한 번 관통시켜 나머지 빈 패널도 채움. RDS `grafana_readonly` 계정+Postgres 데이터소스 신설(마스터 비밀번호 비노출 처리) + "데이터 파이프라인 운영 건강" 대시보드(콘솔과 안 겹치게 파이프라인 자체 건강만) + admin 비밀번호를 전용 랜덤값으로 교체. ArgoCD 컨트롤러 상태캐시 버그도 발견·해결. 상세는 변경 로그·`infra/monitoring/README.md` §3.2~3.5·7·`troubleshooting.md`.
-- ▶ 다음: **Defender for Cloud 결론 미확정**(Discovery·FoundationalCspm Standard 활성화했지만 1시간+ secure score 안 뜸, CloudPosture 추가 시도 중 Conflict — 재시도 또는 포기 판단 필요, `infra/monitoring/README.md` §7) · X-Ray 분산 트레이싱(보류) · `shop-target`(타깃 앱) ECR 이미지 push 상태 재확인 필요 · `infra/console` 재apply 시 ALB/Cognito/CloudFront 대시보드 값 갱신 필요(gitops/README.md 참고)
+- ✅ **Defender for Cloud 결론 확정(2026-07-07, 범위 제외)** — CloudPosture(Defender CSPM)까지 켜고 30일 무료체험 확인, "테넌트 수준 가시성" 권한(Security Reader, 루트 관리그룹)까지 부여했지만 그래도 "평가된 리소스 0"·"총 보안 점수 해당없음" — **권한 문제가 아니라 애초에 Azure 실 리소스가 0개(신원 객체뿐)라 CSPM 엔진이 평가할 대상 자체가 없는 것으로 최종 확인**(포털 인벤토리 "총 리소스 0"으로 실측). CloudPosture는 Free로 되돌림, Discovery·FoundationalCspm은 Free 옵션이 API에 없어 Standard로 남지만 리소스 0개라 실질 $0. `docs/project-draft.md`(D11·§16 Azure 자산표·아키텍처 다이어그램)에 이 결정 반영 — Azure는 이제 순수 Entra CIEM만. 콘솔 Scores의 Azure 점수는 원래 목표(가짜 74점 교체)를 준형이 이미 다른 방식(실 open findings 심각도 가중 페널티, `console-backend/data.ts getScores()`)으로 해결해뒀음 확인.
+- ▶ 다음: X-Ray 분산 트레이싱(보류) · `shop-target`(타깃 앱) ECR 이미지 push 상태 재확인 필요 · `infra/console` 재apply 시 ALB/Cognito/CloudFront 대시보드 값 갱신 필요(gitops/README.md 참고)
 - ✅ 폴더 정리 완료: `engine/` = `core/`(공유) + `evidence/`(준형) + `reasoning/`(진우) 3폴더 확정(진우가 reasoning/로 합침 — 조율 완료)
 
 *공통 미완:* 타깃 앱 이미지 push(ImagePullBackOff) · 스캐너 실클러스터 검증 · Teams webhook 주입
