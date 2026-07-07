@@ -32,8 +32,14 @@ export interface AttackPath {
 export interface Case {
   case_id: string
   finding: { finding_ids?: string[] }
-  reasoning?: { narrative?: string }
+  // Evidence 탭(계약⑦)이 전부 렌더 — 실쿼리에서 빠지면 탭이 반쪽(triage/가설/tool호출수/토큰 누락). 2026-07-07.
+  stage?: string
+  triage?: unknown
+  hypotheses?: unknown[]
   evidence?: unknown[]
+  evidence_meta?: unknown
+  reasoning?: { narrative?: string }
+  model_trace?: unknown[]
 }
 export interface FindingExplanation {
   finding_id: string
@@ -414,14 +420,28 @@ async function pgFindingDetail(id: string): Promise<FindingDetail | null> {
     | undefined
   let caseObj: Case | null = null
   if (e?.case_id) {
-    const cr = await p.query('SELECT case_id, finding_ids, reasoning, evidence FROM cases WHERE case_id = $1', [e.case_id])
-    const row = cr.rows[0] as { case_id: string; finding_ids: string[]; reasoning: unknown; evidence: unknown } | undefined
+    // Evidence 탭이 전 필드 렌더 — triage·hypotheses·evidence_meta·model_trace·stage까지 다 가져와야 반쪽 안 됨.
+    const cr = await p.query(
+      'SELECT case_id, finding_ids, stage, triage, hypotheses, evidence, evidence_meta, reasoning, model_trace FROM cases WHERE case_id = $1',
+      [e.case_id],
+    )
+    const row = cr.rows[0] as
+      | {
+          case_id: string; finding_ids: string[]; stage: string; triage: unknown; hypotheses: unknown
+          evidence: unknown; evidence_meta: unknown; reasoning: unknown; model_trace: unknown
+        }
+      | undefined
     if (row) {
       caseObj = {
         case_id: row.case_id,
         finding: { finding_ids: row.finding_ids },
-        reasoning: (row.reasoning as { narrative?: string }) ?? undefined,
+        stage: row.stage,
+        triage: row.triage ?? undefined,
+        hypotheses: (row.hypotheses as unknown[]) ?? [],
         evidence: (row.evidence as unknown[]) ?? [],
+        evidence_meta: row.evidence_meta ?? undefined,
+        reasoning: (row.reasoning as { narrative?: string }) ?? undefined,
+        model_trace: (row.model_trace as unknown[]) ?? [],
       }
     }
   }
