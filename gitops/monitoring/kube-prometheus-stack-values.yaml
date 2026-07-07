@@ -34,7 +34,12 @@ grafana:
   # RDS 마스터 계정 아님(최소권한). 시크릿 재발급 시 이 Deployment만 재시작하면 자동 반영.
   envFromSecret: grafana-pg-datasource
 
-  # Prometheus는 차트가 자동으로 기본 데이터소스로 등록 — CloudWatch·Postgres 추가.
+  # X-Ray 트레이스를 Grafana에서 바로 보기 위한 공식 무료 플러그인(2026-07-07) — 차트가 시작 시
+  # GF_INSTALL_PLUGINS로 자동 설치. IAM 권한은 infra/monitoring의 grafana_xray 정책 attach(AWSXRayReadOnlyAccess).
+  plugins:
+    - grafana-x-ray-datasource
+
+  # Prometheus는 차트가 자동으로 기본 데이터소스로 등록 — CloudWatch·Postgres·X-Ray 추가.
   additionalDataSources:
     - name: CloudWatch
       type: cloudwatch
@@ -59,6 +64,13 @@ grafana:
       jsonData:
         sslmode: require
         postgresVersion: 1600 # RDS PostgreSQL 16.x
+    - name: X-Ray
+      type: grafana-x-ray-datasource
+      access: proxy
+      uid: xray-monitoring
+      jsonData:
+        authType: default # IRSA(위 role-arn, AWSXRayReadOnlyAccess)로 자동 인증
+        defaultRegion: ap-northeast-2
 
   # 데모 규모(비용 규율) — 영구볼륨 없이 파드 재시작 시 대시보드 정의는 그대로(ConfigMap
   # 프로비저닝, 아래 dashboardProviders)라 무방. 로그인 정보만 데모용 기본값.

@@ -201,6 +201,13 @@ resource "aws_iam_role_policy" "grafana_cloudwatch" {
   policy = data.aws_iam_policy_document.grafana_cloudwatch.json
 }
 
+# X-Ray 데이터소스(2026-07-07, grafana-x-ray-datasource 플러그인) — AWS 관리형 read-only 정책 재사용
+# (BatchGetTraces·GetTraceSummaries·GetTraceGraph 등 플러그인 공식 요구 권한을 정확히 커버).
+resource "aws_iam_role_policy_attachment" "grafana_xray" {
+  role       = aws_iam_role.grafana.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXrayReadOnlyAccess" # 주의: 대문자 R이 아니라 소문자 r("Xray")가 실제 AWS 정책명
+}
+
 # =============================================================================
 # [ALB CONTROLLER] AWS Load Balancer Controller IRSA — Grafana를 도메인으로 노출하는 데 필요
 #   (2026-07-07 추가). Karpenter 노드는 ASG가 아니라서 NodePort+수동 Target Group 등록이
