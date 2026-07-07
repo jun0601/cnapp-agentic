@@ -1,0 +1,28 @@
+# Grafana를 grafana.cnapp-agentic.cloud로 노출(2026-07-07 추가).
+# AWS Load Balancer Controller가 이 Ingress를 보고 전용 ALB를 자동 생성·관리한다
+# (target-type=ip라 파드 IP를 직접 등록 — Karpenter로 노드가 계속 바뀌어도 문제없음).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: monitoring
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP":80}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:066107819776:certificate/99201dec-cd90-4fdc-9fd4-3f68c6c85850
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
+spec:
+  rules:
+    - host: grafana.cnapp-agentic.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kube-prometheus-stack-grafana
+                port:
+                  number: 80
