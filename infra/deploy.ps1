@@ -47,10 +47,15 @@ param(
 # below relies on explicit throw + $LASTEXITCODE instead.
 $ErrorActionPreference = 'Continue'
 
-# Dependency order (SSOT). apply = forward, destroy = reverse.
+# Dependency order (SSOT) for the 'all' sweep. apply = forward, destroy = reverse.
 #   karpenter right after shared (needs the live cluster).
-#   monitoring last (reads backend + console outputs).
-$ApplyOrder = @('shared', 'karpenter', 'target', 'backend', 'console', 'monitoring')
+# NOTE: 'monitoring' is intentionally EXCLUDED from 'all' -- it is owned/operated by
+#   jw_kim and applied/destroyed on its own cadence (its state lives in the shared S3
+#   backend, so it is independent). Manage it explicitly:
+#       ./infra/deploy.ps1 -Action <apply|destroy> -Layer monitoring
+#   To fold it back into 'all' later, just append 'monitoring' to this list -- it reads
+#   shared+backend+console, so it lands LAST in apply / FIRST in destroy automatically.
+$ApplyOrder = @('shared', 'karpenter', 'target', 'backend', 'console')
 
 $InfraRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
@@ -68,8 +73,11 @@ else {
 
 Write-Host ""
 Write-Host "== terraform $Action | order: $($layers -join ' -> ') ==" -ForegroundColor Cyan
-if ($Action -eq 'destroy' -and $Layer -eq 'all') {
-  Write-Host "   (destroy is reverse: monitoring first, shared last)" -ForegroundColor Yellow
+if ($Layer -eq 'all') {
+  Write-Host "   NOTE: 'monitoring' is NOT in 'all' (owned by jw_kim). Run it separately: -Layer monitoring" -ForegroundColor Yellow
+  if ($Action -eq 'destroy') {
+    Write-Host "   (destroy is reverse: console first, shared last -- and confirm jw_kim tore down monitoring)" -ForegroundColor Yellow
+  }
 }
 Write-Host ""
 
