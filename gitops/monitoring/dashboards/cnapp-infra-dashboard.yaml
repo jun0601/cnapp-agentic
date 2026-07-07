@@ -53,7 +53,10 @@ data:
               },
               "statistic": "Average",
               "matchExact": true,
-              "label": "CPU%"
+              "label": "CPU%",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -70,7 +73,10 @@ data:
               },
               "statistic": "Average",
               "matchExact": true,
-              "label": "Connections"
+              "label": "Connections",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
@@ -110,7 +116,10 @@ data:
               },
               "statistic": "Average",
               "matchExact": true,
-              "label": "FreeStorage"
+              "label": "FreeStorage",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -127,7 +136,10 @@ data:
               },
               "statistic": "Average",
               "matchExact": true,
-              "label": "ReadIOPS"
+              "label": "ReadIOPS",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
@@ -167,7 +179,10 @@ data:
               },
               "statistic": "Average",
               "matchExact": true,
-              "label": "ingest"
+              "label": "ingest",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -184,7 +199,10 @@ data:
               },
               "statistic": "Average",
               "matchExact": true,
-              "label": "DLQ"
+              "label": "DLQ",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
@@ -224,7 +242,10 @@ data:
               },
               "statistic": "Maximum",
               "matchExact": true,
-              "label": "age(s)"
+              "label": "age(s)",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
@@ -264,7 +285,10 @@ data:
               },
               "statistic": "Sum",
               "matchExact": true,
-              "label": "Succeeded"
+              "label": "Succeeded",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -281,7 +305,10 @@ data:
               },
               "statistic": "Sum",
               "matchExact": true,
-              "label": "Failed"
+              "label": "Failed",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -298,7 +325,10 @@ data:
               },
               "statistic": "Sum",
               "matchExact": true,
-              "label": "Aborted"
+              "label": "Aborted",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
@@ -339,7 +369,10 @@ data:
               },
               "statistic": "Average",
               "matchExact": true,
-              "label": "Objects"
+              "label": "Objects",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -357,7 +390,10 @@ data:
               },
               "statistic": "Average",
               "matchExact": true,
-              "label": "SizeBytes"
+              "label": "SizeBytes",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {

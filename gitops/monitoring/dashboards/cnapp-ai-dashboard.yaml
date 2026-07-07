@@ -53,7 +53,10 @@ data:
               },
               "statistic": "Sum",
               "matchExact": true,
-              "label": "Invocations"
+              "label": "Invocations",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -70,7 +73,10 @@ data:
               },
               "statistic": "Average",
               "matchExact": true,
-              "label": "Latency(ms)"
+              "label": "Latency(ms)",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
@@ -110,7 +116,10 @@ data:
               },
               "statistic": "Sum",
               "matchExact": true,
-              "label": "ClientErrors"
+              "label": "ClientErrors",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -127,7 +136,10 @@ data:
               },
               "statistic": "Sum",
               "matchExact": true,
-              "label": "ServerErrors"
+              "label": "ServerErrors",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -144,7 +156,10 @@ data:
               },
               "statistic": "Sum",
               "matchExact": true,
-              "label": "InputTokens"
+              "label": "InputTokens",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -161,7 +176,10 @@ data:
               },
               "statistic": "Sum",
               "matchExact": true,
-              "label": "OutputTokens"
+              "label": "OutputTokens",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
@@ -203,7 +221,10 @@ data:
               "statistic": "Sum",
               "matchExact": true,
               "label": "",
-              "hide": true
+              "hide": true,
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -222,7 +243,10 @@ data:
               "statistic": "Sum",
               "matchExact": true,
               "label": "",
-              "hide": true
+              "hide": true,
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -235,7 +259,10 @@ data:
               "id": "cost",
               "expression": "(m1/1000)*0.001 + (m2/1000)*0.005",
               "statistic": "Average",
-              "label": "추정비용(USD)"
+              "label": "추정비용(USD)",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
@@ -273,7 +300,10 @@ data:
               "dimensions": {},
               "statistic": "Sum",
               "matchExact": true,
-              "label": "Evaluated"
+              "label": "Evaluated",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -288,7 +318,10 @@ data:
               "dimensions": {},
               "statistic": "Sum",
               "matchExact": true,
-              "label": "Escalated"
+              "label": "Escalated",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
@@ -326,7 +359,10 @@ data:
               "dimensions": {},
               "statistic": "Average",
               "matchExact": true,
-              "label": "ToolCalls"
+              "label": "ToolCalls",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -341,7 +377,10 @@ data:
               "dimensions": {},
               "statistic": "Average",
               "matchExact": true,
-              "label": "Confidence"
+              "label": "Confidence",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
@@ -379,7 +418,10 @@ data:
               "dimensions": {},
               "statistic": "Average",
               "matchExact": true,
-              "label": "TimeToVerdict"
+              "label": "TimeToVerdict",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
@@ -424,7 +466,10 @@ data:
               },
               "statistic": "Sum",
               "matchExact": false,
-              "label": ""
+              "label": "",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
@@ -462,7 +507,10 @@ data:
               "dimensions": {},
               "statistic": "Sum",
               "matchExact": true,
-              "label": "InputTokens"
+              "label": "InputTokens",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             },
             {
               "datasource": {
@@ -477,7 +525,10 @@ data:
               "dimensions": {},
               "statistic": "Sum",
               "matchExact": true,
-              "label": "OutputTokens"
+              "label": "OutputTokens",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
@@ -519,7 +570,10 @@ data:
               },
               "statistic": "Sum",
               "matchExact": false,
-              "label": ""
+              "label": "",
+              "queryMode": "Metrics",
+              "metricQueryType": 0,
+              "metricEditorMode": 0
             }
           ],
           "fieldConfig": {
