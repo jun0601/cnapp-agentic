@@ -139,9 +139,11 @@ Grafana 쪽은 새 위젯 없이 **Logs Insights 쿼리**만으로 "AI 에이전
 |---|---|---|
 | `cnapp-alerts` | CloudWatch 알람 7종(§2) | `aws_sns_topic.alerts` → `teams_notifier` Lambda → 전용 시크릿 |
 | `cnapp-cost` | `daily_cost_notifier`(EventBridge, 매일 09:00 KST) | SNS 안 거치고 **직접 POST**(전용 시크릿) |
-| `cnapp-login` | `login_notifier`(CloudWatch Logs 구독 필터, CloudTrail `ConsoleLogin`) | SNS 안 거치고 **직접 POST**(전용 시크릿) |
+| `cnapp-login` | `login_notifier`(CloudWatch Logs 구독 필터, CloudTrail `ConsoleLogin`) **+ Azure(2026-07-07, 아래)** | SNS 안 거치고 **직접 POST**(전용 시크릿, AWS·Azure 둘 다 같은 웹훅 재사용) |
 
 **분리 원칙**: 일반 운영 알람은 `cnapp-alerts`가 기본값. 비용·로그인처럼 **보는 사람/노이즈 성격이 뚜렷이 다를 때만** 전용 채널+전용 Power Automate 흐름+전용 Secrets Manager 시크릿을 새로 판다(채널마다 흐름을 손으로 새로 만들어야 해서 비용이 든다 — 남발 금지).
+
+**Azure(Entra ID) 로그인도 같은 `cnapp-login` 채널에 합류(2026-07-07)** — `.github/workflows/azure-login-alert.yml`(15분 cron + 수동). AWS 쪽(`login_notifier`)은 CloudTrail 구독 필터로 이벤트 기반인데, Azure는 그런 값싼 이벤트 기반 경로가 없어서(Log Analytics+Azure Monitor 알림은 별도 유료 리소스 필요, Defender for Cloud 시도에서 봤듯 리소스 기반 서비스는 우리 신원 전용 테넌트와 안 맞음) 대신 **Microsoft Graph `auditLogs/signIns`를 짧은 주기로 폴링**하는 방식으로 근사. 인증은 `prowler-sp`의 Federated Credential(이미 `AuditLog.Read.All` 보유, 새 앱 등록 불필요)과 `github_ci`(OIDC, 웹훅 시크릿 읽기 권한 신규 추가) 둘 다 키리스 재사용. 상태 저장소 없이 "조회 주기보다 긴 창(20분)"으로 최근 로그인만 보는 방식이라 겹치는 구간에서 드물게 중복 알림 가능(로그인 알림 특성상 허용 가능한 수준으로 판단, DynamoDB 등 상태 저장 인프라는 안 만듦).
 
 ### 5.1 daily_cost_notifier
 

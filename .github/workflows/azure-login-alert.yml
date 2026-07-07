@@ -1,0 +1,112 @@
+name: azure-login-alert
+
+# Entra ID(Azure) 로그인 감지 → 기존 cnapp-login Teams 채널에 알림(AWS 콘솔 로그인 알림과 같은 채널).
+# AWS 쪽(login_notifier)은 CloudTrail 구독 필터로 이벤트 기반인데, Azure는 그런 값싼 이벤트 기반
+# 경로가 없어서(Log Analytics+Azure Monitor 알림은 별도 유료 리소스 필요) 대신 짧은 주기로
+# Microsoft Graph 로그인 로그(auditLogs/signIns)를 폴링하는 방식으로 근사.
+#
+# 인증(둘 다 키리스 OIDC, D4, prowler-scan.yml과 동일 자격증명 재사용 — 새 앱 등록 불필요):
+#   Azure — cnapp-agentic-prowler-sp의 Federated Credential(AuditLog.Read.All 권한 이미 있음)
+#   AWS   — infra/shared의 github-ci 역할(OIDC) — Teams 웹훅 URL을 Secrets Manager에서 읽기 위함만
+#
+# 중복 알림 방지: 상태 저장소 없이 "조회 주기보다 조금 더 긴 창"(20분)으로 최근 로그인만 봄 —
+# 겹치는 구간에서 드물게 중복 알림이 갈 수 있으나(로그인 알림 특성상 허용 가능한 수준), 상태
+# 관리 인프라(DynamoDB 등)를 새로 만드는 것보다 훨씬 단순함.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *" # 15분마다(GitHub Actions 스케줄은 부하 시 지연될 수 있음 — 알림 특성상 허용)
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  # cnapp-agentic-prowler-sp (docs/manual-infra.md §3.6, AuditLog.Read.All 보유)
+  AZURE_CLIENT_ID: 82fec3e9-4c20-4d78-bf4a-9e518a86b460
+  AZURE_TENANT_ID: 8e160cea-faa9-47de-a717-6eb01e4a262b
+  WEBHOOK_SECRET_ID: cnapp-agentic/teams/webhook-login
+
+jobs:
+  check-logins:
+    name: Azure 로그인 감지 → Teams
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials (OIDC, keyless) — 웹훅 URL 읽기용
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::066107819776:role/cnapp-agentic-github-ci"
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 인프라 활성 여부 확인(monitoring destroy 상태면 조용히 skip)
+        id: check
+        run: |
+          if aws secretsmanager get-secret-value --secret-id "${WEBHOOK_SECRET_ID}" --query SecretString --output text >/tmp/webhook_url 2>/dev/null; then
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::infra/monitoring이 destroy 상태로 보임(시크릿 없음) — 스킵"
+          fi
+
+      - name: Azure 로그인(OIDC, 키리스)
+        if: steps.check.outputs.active == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Sign-in 로그 조회 → 신규 로그인만 Teams로 전송
+        if: steps.check.outputs.active == 'true'
+        run: |
+          set -e
+          TOKEN=$(az account get-access-token --resource https://graph.microsoft.com --query accessToken -o tsv)
+          SINCE=$(date -u -d '20 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+          export WEBHOOK_URL=$(cat /tmp/webhook_url)
+          rm -f /tmp/webhook_url
+
+          curl -sf -H "Authorization: Bearer ${TOKEN}" \
+            "https://graph.microsoft.com/v1.0/auditLogs/signIns?\$filter=createdDateTime ge ${SINCE}&\$top=50&\$orderby=createdDateTime" \
+            -o signins.json
+
+          python3 - <<'PYEOF'
+          import json, os, datetime, urllib.request
+
+          with open("signins.json", encoding="utf-8") as f:
+              data = json.load(f)
+
+          webhook = os.environ["WEBHOOK_URL"]
+          kst = datetime.timezone(datetime.timedelta(hours=9))
+
+          for item in data.get("value", []):
+              user = item.get("userPrincipalName", "unknown")
+              app = item.get("appDisplayName", "unknown")
+              ip = item.get("ipAddress", "unknown")
+              err = (item.get("status") or {}).get("errorCode", 0)
+              created = item.get("createdDateTime", "")
+              try:
+                  dt = datetime.datetime.strptime(created, "%Y-%m-%dT%H:%M:%S.%fZ" if "." in created else "%Y-%m-%dT%H:%M:%SZ")
+                  when = dt.replace(tzinfo=datetime.timezone.utc).astimezone(kst).strftime("%Y-%m-%d %H:%M:%S") + " KST"
+              except ValueError:
+                  when = created
+              emoji = "✅" if err == 0 else "⚠️"
+              result = "Success" if err == 0 else f"Failed(code {err})"
+              text = (
+                  f"<b>\U0001F510 Azure(Entra ID) 로그인 감지</b><br><br>"
+                  f"사용자: <b>{user}</b><br>앱: {app}<br>결과: {emoji} {result}<br>"
+                  f"IP: {ip}<br>시각(KST): {when}"
+              )
+              req = urllib.request.Request(
+                  webhook,
+                  data=json.dumps({"text": text}).encode("utf-8"),
+                  headers={"Content-Type": "application/json"},
+                  method="POST",
+              )
+              urllib.request.urlopen(req, timeout=10)
+              print(f"notified: {user} {when}")
+
+          if not data.get("value"):
+              print("no sign-ins in window")
+          PYEOF

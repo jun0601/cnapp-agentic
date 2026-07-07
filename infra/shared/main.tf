@@ -442,6 +442,23 @@ resource "aws_iam_role_policy" "github_ci_prowler_s3" {
   policy = data.aws_iam_policy_document.github_ci_prowler_s3.json
 }
 
+# Azure 로그인 알림 워크플로(azure-login-alert.yml, 2026-07-07)가 기존 login_notifier와 같은 Teams
+# 웹훅(cnapp-login 채널)을 재사용하려고 읽는 권한. 시크릿은 infra/monitoring 소유(레이어 역방향 참조
+# 불가) → 이름 접두사 + 랜덤 접미사 와일드카드로 스코프(Secrets Manager ARN 관행).
+data "aws_iam_policy_document" "github_ci_read_login_webhook" {
+  statement {
+    sid       = "ReadLoginWebhookSecret"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = ["arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:${var.project}/teams/webhook-login-*"]
+  }
+}
+
+resource "aws_iam_role_policy" "github_ci_read_login_webhook" {
+  name   = "read-login-webhook"
+  role   = aws_iam_role.github_ci.id
+  policy = data.aws_iam_policy_document.github_ci_read_login_webhook.json
+}
+
 
 # =============================================================================
 # [IAM-ENGINE] 엔진 정책 2종 — 계약과 동기화. 실행 역할(Lambda)은 infra/backend에서 attach
