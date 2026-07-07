@@ -43,6 +43,7 @@ NodePool `cnapp-spot`의 `karpenter.sh/capacity-type = ["spot", "on-demand"]`.
 
 - **apply 순서:** shared **직후**(클러스터·OIDC가 있어야 함). target/backend/console과는 병렬 가능.
 - **destroy 순서:** shared **직전**. shared(=EKS)를 먼저 지우면 이 레이어 destroy가 라이브 클러스터·remote_state를 못 읽어 실패하고, Karpenter가 띄운 노드가 고아로 남아 VPC/EKS destroy를 막는다.
+- **⚠️ 고아 노드 자동 스윕(2026-07-06 실측→코드화):** Karpenter가 만든 스팟 노드는 **terraform이 모르는 리소스**라, 이 레이어 destroy가 컨트롤러(helm)를 노드 회수보다 먼저 지우면 스팟 노드가 **running 고아로 잔존** → 그 pod ENI(`aws-K8S-*`)가 `module.eks.aws_security_group.node`를 붙잡아 **shared destroy가 15분 대기 후 `DependencyViolation`으로 실패**한다(실제 2회 실패). → `deploy.ps1`이 karpenter destroy **직후 `Clear-OrphanKarpenterNodes`로 `karpenter.sh/nodepool` 태그 인스턴스를 자동 종료+대기**(ENI 해제)하도록 코드화됨. **deploy.ps1을 쓰면 수동 개입 불필요**. 개별 `terraform destroy`로 우회하면 스윕이 안 도니 주의(그땐 `aws ec2 terminate-instances`로 직접 정리).
 - apply 머신 전제: aws CLI + 클러스터 admin 자격(생성자 jh_lee 또는 access entry 등록자) — helm/kubectl provider가 `aws eks get-token`으로 인증.
 
 ## 4. 실검증 기록 (2026-07-03 라이브 사이클)

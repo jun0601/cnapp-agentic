@@ -162,9 +162,39 @@ function Test-KarpenterHealth {
   Write-Host "[karpenter] controller healthy (rollout complete)" -ForegroundColor Green
 }
 
+# Karpenter-provisioned nodes are NOT terraform-managed (the Karpenter controller
+# creates them). When the karpenter layer is destroyed, the controller (helm_release)
+# is torn down and can no longer deprovision the spot nodes it made, so they orphan and
+# keep RUNNING. Their pod ENIs (aws-K8S-*) then pin module.eks.aws_security_group.node,
+# and the later 'shared' destroy fails with DependencyViolation after a 15m SG wait
+# (observed 2026-07-06: TWO failed shared destroys, fixed only by manually terminating
+# the orphan). This sweep runs right after the karpenter layer is gone (cluster still
+# up until 'shared') and force-terminates any instance still tagged karpenter.sh/nodepool,
+# then waits so the ENIs release before 'shared' deletes the node SG.
+function Clear-OrphanKarpenterNodes {
+  if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {
+    Write-Host "WARN: aws CLI not found -- cannot sweep orphan Karpenter nodes. If 'shared' destroy" -ForegroundColor Yellow
+    Write-Host "      later fails on a node SG DependencyViolation, terminate cnapp-spot instances by hand." -ForegroundColor Yellow
+    return
+  }
+  $ids = (& aws ec2 describe-instances `
+      --filters "Name=tag:karpenter.sh/nodepool,Values=*" "Name=instance-state-name,Values=pending,running,stopping,stopped" `
+      --query "Reservations[].Instances[].InstanceId" --output text 2>$null)
+  $idList = @($ids -split "\s+" | Where-Object { $_ })
+  if ($idList.Count -eq 0) {
+    Write-Host "[karpenter] orphan-node sweep: none found (controller deprovisioned cleanly)" -ForegroundColor DarkGray
+    return
+  }
+  Write-Host "[karpenter] orphan-node sweep: terminating $($idList.Count) leftover Karpenter node(s): $($idList -join ', ')" -ForegroundColor Yellow
+  & aws ec2 terminate-instances --instance-ids $idList | Out-Null
+  & aws ec2 wait instance-terminated --instance-ids $idList
+  Write-Host "[karpenter] orphan-node sweep: terminated (pod ENIs released -> node SG can now delete)" -ForegroundColor Green
+}
+
 foreach ($l in $layers) {
   Invoke-Layer -L $l -Act $Action
   if ($l -eq 'karpenter' -and $Action -eq 'apply') { Test-KarpenterHealth }
+  if ($l -eq 'karpenter' -and $Action -eq 'destroy') { Clear-OrphanKarpenterNodes }
   Write-Host ""
 }
 
