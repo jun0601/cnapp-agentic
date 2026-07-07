@@ -19,6 +19,15 @@ grafana:
     annotations:
       eks.amazonaws.com/role-arn: "arn:aws:iam::066107819776:role/cnapp-agentic-monitoring-grafana-irsa"
 
+  # admin 로그인 비밀번호 — 차트 기본값(prom-operator, 공개적으로 알려진 값)을 쓰던 걸
+  # 전용 랜덤 비밀번호로 교체(그라파나가 커스텀 도메인으로 외부 공개돼 있어 필요).
+  # k8s Secret "grafana-admin-credentials"(monitoring ns, out-of-band 생성·git 미커밋)를
+  # 참조만 함 — Grafana UI에서 직접 바꾸면 ArgoCD self-heal이 되돌리니 이 경로로만 변경할 것.
+  admin:
+    existingSecret: grafana-admin-credentials
+    userKey: admin-user
+    passwordKey: admin-password
+
   # RDS Postgres 데이터소스 접속 비밀번호 — k8s Secret "grafana-pg-datasource"(monitoring ns,
   # out-of-band로 생성·git 미커밋)를 env로 주입 → 아래 additionalDataSources가 $__env{}로 참조.
   # 비밀번호는 grafana_readonly 전용 계정(SELECT-only, infra/shared/db/schema.sql 6테이블) —
