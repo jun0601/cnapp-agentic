@@ -751,7 +751,8 @@ data:
               "metricName": "FederationSuccesses",
               "dimensions": {
                 "UserPool": "ap-northeast-2_g7Q21LGFJ",
-                "IdentityProvider": "EntraID"
+                "IdentityProvider": "EntraID",
+                "UserPoolClient": "54j6bsgqa7er49nv8au8j5stf4"
               },
               "statistic": "Sum",
               "matchExact": true,
