@@ -45,9 +45,10 @@ grafana:
 prometheus:
   prometheusSpec:
     retention: 6h
+    # 2026-07-07: 512Mi 한도로 OOMKilled 실측(장시간 가동+ServiceMonitor 추가 후 재로딩 중 터짐) — 1Gi로 상향.
     resources:
-      requests: { cpu: 100m, memory: 256Mi }
-      limits: { cpu: 500m, memory: 512Mi }
+      requests: { cpu: 100m, memory: 384Mi }
+      limits: { cpu: 500m, memory: 1Gi }
     storageSpec: {} # emptyDir(기본) — PVC/StorageClass 프로비저닝 불필요
 
 alertmanager:
