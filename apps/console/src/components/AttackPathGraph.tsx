@@ -21,7 +21,7 @@ export function AttackPathGraph({ path }: { path: AttackPath }) {
     // 클라우드별 레인 배치 — 등장 순서대로 y 증가
     let awsI = 0
     let azI = 0
-    const rfNodes: Node[] = path.nodes.map((n) => {
+    const rfNodes: Node[] = (path.nodes ?? []).map((n) => {
       const isAws = n.cloud === 'aws'
       const y = (isAws ? awsI++ : azI++) * Y_STEP + 20
       return {
@@ -40,7 +40,7 @@ export function AttackPathGraph({ path }: { path: AttackPath }) {
       }
     })
 
-    const rfEdges: Edge[] = path.edges.map((e, i) => ({
+    const rfEdges: Edge[] = (path.edges ?? []).map((e, i) => ({
       id: `e${i}`,
       source: e.from,
       target: e.to,

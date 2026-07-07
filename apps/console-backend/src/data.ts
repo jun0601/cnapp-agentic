@@ -15,9 +15,12 @@ export interface Finding {
   title: string
   severity_id: number
   status: string
+  sources: string[] // ⚠️ 프론트 FindingDetail이 f.sources.join()으로 접근 — 실쿼리에서 빠지면 undefined.join 크래시(2026-07-07)
   priority_score: number | null
   attack_path_id: string | null
   ai_status: string
+  first_seen?: string
+  last_seen?: string
 }
 export interface AttackPath {
   attack_path_id: string
@@ -380,8 +383,10 @@ async function pool(): Promise<PgPool> {
   return _pool
 }
 
+// ⚠️ 프론트가 접근하는 필드는 여기서 전부 SELECT해야 함(빠지면 실데이터에서 undefined → 크래시).
+//   sources = FindingDetail의 f.sources.join(), first_seen/last_seen = 계약① 필수 필드.
 const F_COLS =
-  'finding_id, cloud, resource_id, resource_type, pillar, control_id, title, severity_id, status, priority_score, attack_path_id, ai_status'
+  'finding_id, cloud, resource_id, resource_type, pillar, control_id, title, severity_id, status, sources, priority_score, attack_path_id, ai_status, first_seen, last_seen'
 
 async function pgFindings(f: FindingsFilter): Promise<Finding[]> {
   const where: string[] = []

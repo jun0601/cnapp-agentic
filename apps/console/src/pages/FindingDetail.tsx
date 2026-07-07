@@ -119,7 +119,7 @@ export default function FindingDetail() {
           <div>
             control: <span className="font-mono text-slate-700">{f.control_id}</span>
           </div>
-          <div>sources: {f.sources.join(', ')}</div>
+          <div>sources: {f.sources?.join(', ') || '—'}</div>
           {f.attack_path_id && (
             <div className="col-span-2">
               attack-path:{' '}

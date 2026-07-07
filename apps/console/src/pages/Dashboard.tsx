@@ -129,7 +129,7 @@ export default function Dashboard() {
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-rose-600 text-xl text-white shadow-sm">🛑</span>
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 text-sm font-bold text-red-700">
-                    {p.nodes.length}노드 · {p.edges.length}엣지 공격 경로
+                    {p.nodes?.length ?? 0}노드 · {p.edges?.length ?? 0}엣지 공격 경로
                     <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-slate-500">AWS → Azure</span>
                   </p>
                   <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">{p.narrative_text}</p>
