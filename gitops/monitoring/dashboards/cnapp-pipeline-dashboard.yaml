@@ -1,0 +1,132 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cnapp-pipeline-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  pipeline.json: |
+    {
+      "id": null,
+      "uid": "cnapp-pipeline",
+      "title": "CNAPP - 데이터 파이프라인 운영 건강",
+      "tags": [
+        "cnapp-agentic",
+        "pipeline"
+      ],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "1m",
+      "time": {
+        "from": "now-7d",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "type": "stat",
+          "title": "정규화 매핑 실패율(control_id=UNKNOWN)",
+          "description": "카탈로그에 매핑 안 된 채 UNKNOWN으로 떨어진 finding 비율 — 정규화부 커버리지 갭 조기 감지(제품 콘텐츠 아님, 파이프라인 자체 건강 지표)",
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+          "datasource": { "type": "postgres", "uid": "postgres-cnapp" },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "postgres-cnapp" },
+              "refId": "A",
+              "format": "table",
+              "rawSql": "SELECT round(100.0 * count(*) FILTER (WHERE control_id LIKE 'INTERNAL-UNKNOWN%') / NULLIF(count(*), 0), 1) AS unknown_pct FROM findings;"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "percent", "thresholds": { "mode": "absolute", "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 15 }
+            ] } },
+            "overrides": []
+          },
+          "id": 1
+        },
+        {
+          "type": "stat",
+          "title": "승인대기(pending) 조치 적체",
+          "description": "HITL 승인 대기 중인 remediation_requests 건수·가장 오래된 건의 대기시간 — 승인 병목 감지",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+          "datasource": { "type": "postgres", "uid": "postgres-cnapp" },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "postgres-cnapp" },
+              "refId": "A",
+              "format": "table",
+              "rawSql": "SELECT count(*) AS pending_count, round(COALESCE(EXTRACT(EPOCH FROM (now() - min(created_at)))/3600, 0)::numeric, 1) AS oldest_hours FROM remediation_requests WHERE status='pending';"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "short" },
+            "overrides": []
+          },
+          "id": 2
+        },
+        {
+          "type": "timeseries",
+          "title": "스캐너별 finding 유입량 추이(일별)",
+          "description": "출처 스캐너별 하루 신규 finding 수 — 특정 스캐너가 갑자기 멈추는지(커버리지 이상) 조기 감지",
+          "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+          "datasource": { "type": "postgres", "uid": "postgres-cnapp" },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "postgres-cnapp" },
+              "refId": "A",
+              "format": "time_series",
+              "rawSql": "SELECT date_trunc('day', f.first_seen) AS \"time\", CASE WHEN s ILIKE 'trivy%' THEN 'trivy' WHEN s ILIKE 'kube-bench%' THEN 'kube-bench' WHEN s ILIKE '%prowler%' THEN 'prowler' WHEN s ILIKE 'securityhub%' THEN 'securityhub' WHEN s ILIKE 'macie%' THEN 'macie' WHEN s ILIKE '%config%' THEN 'config' ELSE 'other' END AS metric, count(DISTINCT f.finding_id)::float AS value FROM findings f, unnest(f.sources) AS s GROUP BY 1, 2 ORDER BY 1;"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "short" },
+            "overrides": []
+          },
+          "id": 3
+        },
+        {
+          "type": "timeseries",
+          "title": "트리아지→케이스 생성 소요시간(초)",
+          "description": "finding 최초 발견부터 케이스(능동조사) 생성까지 걸린 시간 — 파이프라인 지연/백로그 감지",
+          "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+          "datasource": { "type": "postgres", "uid": "postgres-cnapp" },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "postgres-cnapp" },
+              "refId": "A",
+              "format": "time_series",
+              "rawSql": "SELECT c.created_at AS \"time\", 'triage_to_case_latency_sec' AS metric, EXTRACT(EPOCH FROM (c.created_at - f.first_seen))::float AS value FROM cases c JOIN findings f ON f.finding_id::text = ANY(c.finding_ids) ORDER BY 1;"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "s" },
+            "overrides": []
+          },
+          "id": 4
+        },
+        {
+          "type": "timeseries",
+          "title": "테이블별 row count 추이",
+          "description": "findings·attack_paths·cases·remediation_requests·rag_chunks 각 테이블 총 행 수 — 데이터 증식/누락 이상 감지(매 새로고침 시점 스냅샷이 쌓여 추이가 됨)",
+          "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
+          "datasource": { "type": "postgres", "uid": "postgres-cnapp" },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "postgres-cnapp" },
+              "refId": "A",
+              "format": "time_series",
+              "rawSql": "SELECT now() AS \"time\", 'findings' AS metric, count(*)::float AS value FROM findings UNION ALL SELECT now(), 'attack_paths', count(*)::float FROM attack_paths UNION ALL SELECT now(), 'cases', count(*)::float FROM cases UNION ALL SELECT now(), 'remediation_requests', count(*)::float FROM remediation_requests UNION ALL SELECT now(), 'rag_chunks', count(*)::float FROM rag_chunks;"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "short" },
+            "overrides": []
+          },
+          "id": 5
+        }
+      ]
+    }

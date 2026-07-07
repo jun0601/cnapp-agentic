@@ -19,7 +19,13 @@ grafana:
     annotations:
       eks.amazonaws.com/role-arn: "arn:aws:iam::066107819776:role/cnapp-agentic-monitoring-grafana-irsa"
 
-  # Prometheus는 차트가 자동으로 기본 데이터소스로 등록 — CloudWatch만 추가.
+  # RDS Postgres 데이터소스 접속 비밀번호 — k8s Secret "grafana-pg-datasource"(monitoring ns,
+  # out-of-band로 생성·git 미커밋)를 env로 주입 → 아래 additionalDataSources가 $__env{}로 참조.
+  # 비밀번호는 grafana_readonly 전용 계정(SELECT-only, infra/shared/db/schema.sql 6테이블) —
+  # RDS 마스터 계정 아님(최소권한). 시크릿 재발급 시 이 Deployment만 재시작하면 자동 반영.
+  envFromSecret: grafana-pg-datasource
+
+  # Prometheus는 차트가 자동으로 기본 데이터소스로 등록 — CloudWatch·Postgres 추가.
   additionalDataSources:
     - name: CloudWatch
       type: cloudwatch
@@ -30,6 +36,20 @@ grafana:
       jsonData:
         authType: default # IRSA(위 role-arn)로 자동 인증 — 액세스키 불필요
         defaultRegion: ap-northeast-2
+    - name: PostgreSQL
+      type: postgres
+      access: proxy
+      uid: postgres-cnapp
+      # host/user/dbname은 민감정보 아님(RDS는 private subnet+SG로 격리, 계정도 SELECT-only) —
+      # 값 자체는 하드코딩, 비밀번호만 envFromSecret(PG_PASSWORD)로 분리.
+      url: "cnapp-agentic-pgvector.cteocouieix7.ap-northeast-2.rds.amazonaws.com:5432"
+      database: cnapp
+      user: grafana_readonly
+      secureJsonData:
+        password: "$__env{PG_PASSWORD}"
+      jsonData:
+        sslmode: require
+        postgresVersion: 1600 # RDS PostgreSQL 16.x
 
   # 데모 규모(비용 규율) — 영구볼륨 없이 파드 재시작 시 대시보드 정의는 그대로(ConfigMap
   # 프로비저닝, 아래 dashboardProviders)라 무방. 로그인 정보만 데모용 기본값.
