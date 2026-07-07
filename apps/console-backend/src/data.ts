@@ -293,23 +293,37 @@ export async function triggerReanalyze(findingId: string): Promise<{ accepted: b
   return { accepted: true, mode: 'live' }
 }
 
-// scores·audit·compliance는 MVP에선 상수/배치 산출(§15.2). 실 전환 시 scores/audit/compliance 조회.
-export function getScores() {
+// scores·audit·compliance — real 모드에선 RDS 실조회(findings/remediation_requests/cases), mock은 정적 픽스처.
+// (2026-07-07: 하드코딩 상수 → 실데이터화. ⚠️ AWS Security Hub는 이 계정 구독제약(SubscriptionRequired)으로
+//  실점수 불가, Azure Defender secure score는 집계 대기 → 둘 다 '실 open findings 기반 posture'로 산출·라벨 명시.)
+
+// AWS/Azure posture 점수 — open findings의 심각도 가중 패널티로 산출(취약 타깃이라 낮게 나오는 게 정상·정직).
+export async function getScores() {
+  if (USE_MOCK) {
+    return {
+      aws: { secure_score: 62, label: 'AWS Security Hub' },
+      azure: { secure_score: 74, label: 'Azure Defender / Entra' },
+    }
+  }
+  const r = await (await pool()).query(
+    "SELECT cloud, severity_id, count(*)::int AS n FROM findings WHERE status = 'open' GROUP BY cloud, severity_id",
+  )
+  const W: Record<number, number> = { 1: 8, 2: 4, 3: 2, 4: 1 } // critical..low 심각도 가중
+  const penalty: Record<string, number> = {}
+  for (const row of r.rows as { cloud: string; severity_id: number; n: number }[]) {
+    penalty[row.cloud] = (penalty[row.cloud] ?? 0) + (W[row.severity_id] ?? 1) * row.n
+  }
+  const score = (c: string) => Math.max(10, Math.min(100, 100 - (penalty[c] ?? 0)))
   return {
-    aws: { secure_score: 62, label: 'AWS Security Hub' },
-    azure: { secure_score: 74, label: 'Azure Defender / Entra' },
+    aws: { secure_score: score('aws'), label: '실 open findings 기반 posture' },
+    azure: { secure_score: score('azure'), label: '실 open findings 기반 posture' },
   }
 }
 
-// ⚠️ 응답 shape·**값**은 프론트 계약(apps/console/src/api/view-types.ts)·프론트 로컬 mock
-// (apps/console/src/mocks/view-fixtures.ts)과 정확히 일치해야 함 — audit/compliance는 아직
-// contracts로 안 졸업해서 view-fixtures.ts가 사실상 SSOT다. VITE_USE_MOCK=false로 스왑해도
-// 화면 숫자(컴플라이언스 점수·감사 건수)가 안 바뀌어야 "MSW→실 API 무변경 스왑"이 성립한다.
-// (2026-07-03 검증에서 발견: 이전엔 shape만 맞고 값이 달라 스왑 시 점수·건수가 바뀌는
-//  버그가 있었음 — view-fixtures.ts와 항목 수·내용 전부 동일하게 맞춤)
 // AuditEvent = {id, ts, actor, role, action, target, result}
-export function getAudit() {
-  return [
+// ⚠️ shape는 프론트 계약(view-types.ts)과 일치해야 함. 단 real 모드는 이제 실 RDS 값을 반환하므로
+// mock(아래 MOCK_AUDIT)과 값이 다르다(의도적 — 2026-07-07 실데이터화). MOCK_AUDIT는 dev/CI 픽스처.
+const MOCK_AUDIT = [
     { id: 'a12', ts: '2026-06-30T02:15:40Z', actor: 'jh_lee@demo', role: 'approver', action: 'approve', target: 'aws:s3_bucket:member-pii-prod', result: 'S3 Public Access Block 적용 → SFn 실행 시작' },
     { id: 'a11', ts: '2026-06-30T02:14:02Z', actor: 'jh_lee@demo', role: 'approver', action: 'view', target: 'case c0000000-…-0001', result: 'Evidence 4건·판정 confirmed 확인' },
     { id: 'a10', ts: '2026-06-30T02:12:30Z', actor: 'jw_kim@demo', role: 'viewer', action: 'reject', target: 'aws:security_group:sg-0product1234', result: '자동 SG 제거 보류 — 변경창구 협의 필요' },
@@ -322,42 +336,144 @@ export function getAudit() {
     { id: 'a03', ts: '2026-06-30T02:00:00Z', actor: 'scanner:securityhub', role: 'system', action: 'scan', target: 'batch scan_2026-06-30', result: 'findings 20건 수집 → cnapp.findings.batch.completed 발행' },
     { id: 'a02', ts: '2026-06-30T01:58:40Z', actor: 'jh_lee@demo', role: 'approver', action: 'login', target: 'console', result: 'Entra SSO 로그인 (custom:groups=approver)' },
     { id: 'a01', ts: '2026-06-30T01:50:00Z', actor: 'jw_kim@demo', role: 'viewer', action: 'login', target: 'console', result: 'Entra SSO 로그인 (custom:groups=viewer)' },
-  ]
+]
+
+// 감사로그 — real: 실 RDS 기록을 시간순 병합(HITL 조치[remediation_requests]·엔진 판정[cases]·스캔 탐지[findings]).
+export async function getAudit() {
+  if (USE_MOCK) return MOCK_AUDIT
+  const p = await pool()
+  const [rem, cs, scans] = await Promise.all([
+    p.query(
+      `SELECT r.id, r.status, r.approver, r.step_function_arn, r.updated_at, f.resource_id
+       FROM remediation_requests r JOIN findings f ON f.finding_id = r.finding_id
+       ORDER BY r.updated_at DESC LIMIT 8`,
+    ),
+    p.query(
+      `SELECT case_id, evidence_meta->>'verdict' AS verdict, evidence_meta->>'confidence_score' AS conf, updated_at
+       FROM cases WHERE evidence_meta IS NOT NULL ORDER BY updated_at DESC LIMIT 6`,
+    ),
+    p.query(
+      `SELECT finding_id, resource_id, control_id, sources, first_seen
+       FROM findings WHERE first_seen IS NOT NULL ORDER BY first_seen DESC LIMIT 10`,
+    ),
+  ])
+  type Ev = { id: string; ts: string; actor: string; role: string; action: string; target: string; result: string }
+  const ev: Ev[] = []
+  const ACT: Record<string, string> = { approved: 'approve', rejected: 'reject', applied: 'apply', pending: 'request' }
+  for (const r of rem.rows as Record<string, unknown>[]) {
+    ev.push({
+      id: 'r' + String(r.id).slice(0, 8),
+      ts: new Date(r.updated_at as string).toISOString(),
+      actor: (r.approver as string) ?? 'engine',
+      role: r.approver ? 'approver' : 'system',
+      action: ACT[r.status as string] ?? (r.status as string),
+      target: r.resource_id as string,
+      result:
+        r.status === 'applied' ? `조치 적용됨${r.step_function_arn ? ' → SFn 실행' : ''}` :
+        r.status === 'rejected' ? '조치 반려(변경창구 협의)' : `조치 ${r.status}`,
+    })
+  }
+  for (const c of cs.rows as Record<string, unknown>[]) {
+    const conf = c.conf != null ? Math.round(Number(c.conf) * 100) : null
+    ev.push({
+      id: 'c' + String(c.case_id).slice(0, 8),
+      ts: new Date(c.updated_at as string).toISOString(),
+      actor: 'engine',
+      role: 'system',
+      action: 'verdict',
+      target: 'case ' + String(c.case_id).slice(0, 8),
+      result: `AI 능동조사 판정 ${(c.verdict as string) ?? '—'}${conf != null ? ` (신뢰도 ${conf}%)` : ''}`,
+    })
+  }
+  for (const s of scans.rows as Record<string, unknown>[]) {
+    const src = Array.isArray(s.sources) && s.sources[0] ? String(s.sources[0]).split(':')[0] : 'scan'
+    ev.push({
+      id: 's' + String(s.finding_id).slice(0, 8),
+      ts: new Date(s.first_seen as string).toISOString(),
+      actor: 'scanner:' + src,
+      role: 'system',
+      action: 'scan',
+      target: s.resource_id as string,
+      result: `${s.control_id} 탐지`,
+    })
+  }
+  ev.sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0))
+  return ev.slice(0, 18)
 }
 // ComplianceReport = {framework, generated_at, score, domains:[{code, name, controls:[{code, title, status, mapped_control?, findings}]}]}
-export function getCompliance() {
-  const domains = [
-    { code: '2.5', name: '인증 및 권한관리', controls: [
-      { code: '2.5.1', title: '사용자 MFA 적용', status: 'pass', findings: 0 },
-      { code: '2.5.3', title: 'IAM/IRSA 최소권한', status: 'fail', mapped_control: 'INTERNAL-IAM-OVERPRIV-001', findings: 1 },
-      { code: '2.5.6', title: 'Entra 앱 과도권한 금지', status: 'fail', mapped_control: 'INTERNAL-ENTRA-OVERPRIV-APP-001', findings: 1 },
-    ] },
-    { code: '2.6', name: '접근통제', controls: [
-      { code: '2.6.1', title: '인터넷 노출 최소화(SG)', status: 'fail', mapped_control: 'INTERNAL-SG-OPEN-INGRESS-001', findings: 1 },
-      { code: '2.6.4', title: 'S3 공개 접근 차단', status: 'fail', mapped_control: 'INTERNAL-S3-PUBLIC-001', findings: 1 },
-    ] },
-    { code: '2.7', name: '암호화', controls: [
-      { code: '2.7.1', title: '저장 데이터 암호화(S3 KMS)', status: 'fail', mapped_control: 'INTERNAL-S3-NOENCRYPT-001', findings: 2 },
-      { code: '2.7.3', title: '시크릿 평문 저장 금지', status: 'fail', mapped_control: 'INTERNAL-SECRET-PLAINTEXT-001', findings: 1 },
-    ] },
-    { code: '2.9', name: '로그 및 모니터링', controls: [
-      { code: '2.9.1', title: 'CloudTrail 전 리전 수집', status: 'pass', findings: 0 },
-      { code: '2.9.4', title: 'S3 접근로깅/버저닝', status: 'fail', mapped_control: 'INTERNAL-S3-LOGGING-DISABLED-001', findings: 1 },
-    ] },
-    { code: '2.11', name: '취약점 관리', controls: [
-      { code: '2.11.1', title: '이미지 취약점(KEV) 차단', status: 'fail', mapped_control: 'INTERNAL-VULN-KEV-001', findings: 1 },
-      { code: '2.11.2', title: 'ECR 스캔 활성화', status: 'fail', mapped_control: 'INTERNAL-ECR-SCAN-DISABLED-001', findings: 1 },
-      { code: '2.11.5', title: '파드 권한 최소화(KSPM)', status: 'fail', mapped_control: 'INTERNAL-KSPM-PRIVILEGED-001', findings: 1 },
-    ] },
-    { code: '3.2', name: '개인정보 보호', controls: [
-      { code: '3.2.2', title: '개인정보 공개노출 금지', status: 'fail', mapped_control: 'INTERNAL-DATA-PII-EXPOSED-001', findings: 1 },
-    ] },
-  ]
+// 프레임워크↔control 매핑(ISMS-P)은 표준 정의라 정적. status·findings·score는 real 모드에서 실 findings 집계
+// (control별 open finding 수 → 있으면 fail·건수, 없으면 pass). 조치로 finding이 사라지면 해당 통제가 pass로 바뀜.
+type CtlDef = { code: string; title: string; mapped_control?: string }
+const ISMS_STRUCT: { code: string; name: string; controls: CtlDef[] }[] = [
+  { code: '2.5', name: '인증 및 권한관리', controls: [
+    { code: '2.5.1', title: '사용자 MFA 적용' },
+    { code: '2.5.3', title: 'IAM/IRSA 최소권한', mapped_control: 'INTERNAL-IAM-OVERPRIV-001' },
+    { code: '2.5.6', title: 'Entra 앱 과도권한 금지', mapped_control: 'INTERNAL-ENTRA-OVERPRIV-APP-001' },
+  ] },
+  { code: '2.6', name: '접근통제', controls: [
+    { code: '2.6.1', title: '인터넷 노출 최소화(SG)', mapped_control: 'INTERNAL-SG-OPEN-INGRESS-001' },
+    { code: '2.6.4', title: 'S3 공개 접근 차단', mapped_control: 'INTERNAL-S3-PUBLIC-001' },
+  ] },
+  { code: '2.7', name: '암호화', controls: [
+    { code: '2.7.1', title: '저장 데이터 암호화(S3 KMS)', mapped_control: 'INTERNAL-S3-NOENCRYPT-001' },
+    { code: '2.7.3', title: '시크릿 평문 저장 금지', mapped_control: 'INTERNAL-SECRET-PLAINTEXT-001' },
+  ] },
+  { code: '2.9', name: '로그 및 모니터링', controls: [
+    { code: '2.9.1', title: 'CloudTrail 전 리전 수집' },
+    { code: '2.9.4', title: 'S3 접근로깅/버저닝', mapped_control: 'INTERNAL-S3-LOGGING-DISABLED-001' },
+  ] },
+  { code: '2.11', name: '취약점 관리', controls: [
+    { code: '2.11.1', title: '이미지 취약점(KEV) 차단', mapped_control: 'INTERNAL-VULN-KEV-001' },
+    { code: '2.11.2', title: 'ECR 스캔 활성화', mapped_control: 'INTERNAL-ECR-SCAN-DISABLED-001' },
+    { code: '2.11.5', title: '파드 권한 최소화(KSPM)', mapped_control: 'INTERNAL-KSPM-PRIVILEGED-001' },
+  ] },
+  { code: '3.2', name: '개인정보 보호', controls: [
+    { code: '3.2.2', title: '개인정보 공개노출 금지', mapped_control: 'INTERNAL-DATA-PII-EXPOSED-001' },
+  ] },
+]
+// mock 모드 open 건수(view-fixtures.ts와 동일 — dev/CI 일관성)
+const MOCK_OPEN_BY_CONTROL: Record<string, number> = {
+  'INTERNAL-IAM-OVERPRIV-001': 1, 'INTERNAL-ENTRA-OVERPRIV-APP-001': 1,
+  'INTERNAL-SG-OPEN-INGRESS-001': 1, 'INTERNAL-S3-PUBLIC-001': 1,
+  'INTERNAL-S3-NOENCRYPT-001': 2, 'INTERNAL-SECRET-PLAINTEXT-001': 1,
+  'INTERNAL-S3-LOGGING-DISABLED-001': 1, 'INTERNAL-VULN-KEV-001': 1,
+  'INTERNAL-ECR-SCAN-DISABLED-001': 1, 'INTERNAL-KSPM-PRIVILEGED-001': 1,
+  'INTERNAL-DATA-PII-EXPOSED-001': 1,
+}
+export async function getCompliance() {
+  let openBy: Map<string, number>
+  if (USE_MOCK) {
+    openBy = new Map(Object.entries(MOCK_OPEN_BY_CONTROL))
+  } else {
+    const r = await (await pool()).query(
+      "SELECT control_id, count(*) FILTER (WHERE status = 'open')::int AS n FROM findings GROUP BY control_id",
+    )
+    openBy = new Map((r.rows as { control_id: string; n: number }[]).map((x) => [x.control_id, x.n]))
+  }
+  const domains = ISMS_STRUCT.map((d) => ({
+    code: d.code,
+    name: d.name,
+    controls: d.controls.map((c) => {
+      const n = c.mapped_control ? openBy.get(c.mapped_control) ?? 0 : 0
+      return {
+        code: c.code,
+        title: c.title,
+        ...(c.mapped_control ? { mapped_control: c.mapped_control } : {}),
+        status: n > 0 ? 'fail' : 'pass',
+        findings: n,
+      }
+    }),
+  }))
   const all = domains.flatMap((d) => d.controls)
   const pass = all.filter((c) => c.status === 'pass').length
   const fail = all.filter((c) => c.status === 'fail').length
   const score = Math.round((pass / Math.max(1, pass + fail)) * 100)
-  return { framework: 'ISMS-P (요약 매핑)', generated_at: '2026-06-30T02:20:00Z', score, domains }
+  return {
+    framework: 'ISMS-P (요약 매핑)',
+    generated_at: USE_MOCK ? '2026-06-30T02:20:00Z' : new Date().toISOString(),
+    score,
+    domains,
+  }
 }
 
 // ── 실 pgvector 경로 — USE_MOCK=false. 스키마=infra/shared/db/schema.sql ──

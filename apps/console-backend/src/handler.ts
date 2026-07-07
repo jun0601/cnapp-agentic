@@ -71,9 +71,9 @@ export async function handler(event: AlbEvent): Promise<AlbResult> {
         const p = await data.getAttackPath(decodeURIComponent(pDetail[1]))
         return p ? json(200, p) : json(404, { error: 'attack-path not found' })
       }
-      if (path === '/scores') return json(200, data.getScores())
-      if (path === '/audit') return json(200, data.getAudit())
-      if (path === '/compliance') return json(200, data.getCompliance())
+      if (path === '/scores') return json(200, await data.getScores())
+      if (path === '/audit') return json(200, await data.getAudit())
+      if (path === '/compliance') return json(200, await data.getCompliance())
       if (path === '/system') return json(200, await data.getSystem()) // AI·시스템 관측(모델·RAG·Bedrock 사용량)
     }
 
