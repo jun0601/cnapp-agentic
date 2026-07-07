@@ -1,0 +1,22 @@
+# Prometheus가 Karpenter(kube-system/karpenter Service, 8080/http-metrics)를 스크랩하도록
+# 등록(2026-07-07 추가). kube-prometheus-stack의 Prometheus CR이
+# serviceMonitorSelector: {matchLabels: {release: kube-prometheus-stack}}로 필터링하므로
+# 이 라벨이 없으면 조용히 무시된다(에러 없이 그냥 안 스크랩) — cnapp-eks-dashboard.yaml의
+# Karpenter 패널(karpenter_nodeclaims_*)이 계속 No data였던 진짜 원인.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: karpenter
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - kube-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: karpenter
+  endpoints:
+    - port: http-metrics
+      interval: 30s
