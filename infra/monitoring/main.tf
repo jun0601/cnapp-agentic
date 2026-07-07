@@ -245,6 +245,54 @@ resource "aws_iam_role_policy_attachment" "alb_controller" {
 }
 
 # =============================================================================
+# [GRAFANA DOMAIN] grafana.cnapp-agentic.cloud — ACM+Route53 (2026-07-07 추가)
+#   Ingress·ALB 자체는 GitOps(gitops/monitoring/grafana-ingress.yaml)가 관리 — 여긴 그
+#   앞단(인증서+DNS)만. 기존 Route53 호스팅영역(CLI로 만든 영구 존)은 infra/console의
+#   domain-sso.tf와 동일 패턴으로 참조만 하고 소유 안 함(destroy 대상 아님).
+#   ⚠️ ALB DNS 이름은 Kubernetes(ALB Controller)가 발급해서 Terraform이 모른다 — EKS나
+#   Ingress가 재생성되면 이름이 바뀌므로 var.grafana_alb_dns_name을 새 값으로 갱신 후
+#   재apply 필요(infra/console의 ALB ARN suffix 등 비고정 값과 동일한 처지, gitops/README.md 참고).
+# =============================================================================
+data "aws_route53_zone" "grafana" {
+  name = "cnapp-agentic.cloud."
+}
+
+resource "aws_acm_certificate" "grafana" {
+  domain_name       = "grafana.cnapp-agentic.cloud"
+  validation_method = "DNS"
+  lifecycle { create_before_destroy = true }
+}
+
+resource "aws_route53_record" "grafana_cert_validation" {
+  for_each = {
+    for o in aws_acm_certificate.grafana.domain_validation_options :
+    o.domain_name => { name = o.resource_record_name, type = o.resource_record_type, value = o.resource_record_value }
+  }
+  zone_id         = data.aws_route53_zone.grafana.zone_id
+  name            = each.value.name
+  type            = each.value.type
+  records         = [each.value.value]
+  ttl             = 300
+  allow_overwrite = true
+}
+
+resource "aws_acm_certificate_validation" "grafana" {
+  certificate_arn         = aws_acm_certificate.grafana.arn
+  validation_record_fqdns = [for r in aws_route53_record.grafana_cert_validation : r.fqdn]
+}
+
+resource "aws_route53_record" "grafana" {
+  zone_id = data.aws_route53_zone.grafana.zone_id
+  name    = "grafana.cnapp-agentic.cloud"
+  type    = "A"
+  alias {
+    name                   = var.grafana_alb_dns_name
+    zone_id                = var.grafana_alb_zone_id
+    evaluate_target_health = true
+  }
+}
+
+# =============================================================================
 # [DASHBOARD] CloudWatch Dashboard — EKS 밖(①②③ 전 축) 한 화면
 #   Prometheus/Grafana(EKS 안)와 상호보완 — 이 대시보드는 콘솔에서도 바로 보임(Grafana 없이도 유효).
 #
