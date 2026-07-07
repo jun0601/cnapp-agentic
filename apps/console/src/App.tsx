@@ -6,7 +6,7 @@ const NAV = [
   { to: '/', label: '대시보드', end: true },
   { to: '/findings', label: 'Findings' },
   { to: '/attack-paths', label: 'Attack-path' },
-  { to: '/chat', label: '🤖 AI 어시스턴트' },
+  { to: '/chat', label: 'AI 챗' },
   { to: '/system', label: 'AI·시스템' },
   { to: '/remediation', label: '조치' },
   { to: '/compliance', label: '컴플라이언스' },
@@ -78,15 +78,15 @@ export default function App() {
             </span>
           </span>
 
-          {/* 내비 — 활성 pill */}
-          <nav className="ml-1 flex gap-0.5 overflow-x-auto text-sm">
+          {/* 내비 — 활성 pill. no-scrollbar로 좁은 화면에서만 조용히 스크롤(바 숨김) */}
+          <nav className="no-scrollbar ml-1 flex gap-0.5 overflow-x-auto text-[13px]">
             {NAV.map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
                 end={n.end}
                 className={({ isActive }) =>
-                  `whitespace-nowrap rounded-lg px-3 py-1.5 font-medium transition ${
+                  `whitespace-nowrap rounded-lg px-2.5 py-1.5 font-medium transition ${
                     isActive ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                   }`
                 }

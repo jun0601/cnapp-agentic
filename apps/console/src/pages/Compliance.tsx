@@ -65,11 +65,11 @@ export default function Compliance() {
           <p className="mt-0.5 text-sm text-slate-500">ISMS-P ↔ INTERNAL control 매핑 · 충족률</p>
         </div>
         <button
-          disabled
-          title="보너스 기능 — 인프라 붙을 때 구현(UC5)"
-          className="cursor-not-allowed rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-400"
+          onClick={() => window.print()}
+          title="브라우저 인쇄 → PDF로 저장"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
         >
-          PDF 내보내기 (보너스)
+          PDF 내보내기
         </button>
       </div>
 

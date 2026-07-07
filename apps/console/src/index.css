@@ -30,3 +30,12 @@ body {
 *::-webkit-scrollbar-thumb:hover {
   background: rgb(148 163 184);
 }
+
+/* 내비게이션 등 가로 스크롤 영역의 스크롤바 숨김(기능은 유지, 바만 안 보임) */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
