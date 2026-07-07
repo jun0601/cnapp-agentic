@@ -173,11 +173,23 @@ resource "aws_iam_role_policy" "member_irsa" {
   role = aws_iam_role.member_irsa.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["s3:PutObject", "s3:HeadObject"]
-      Resource = "${aws_s3_bucket.member_pii.arn}/*"
-    }]
+    Statement = [
+      {
+        Effect = "Allow"
+        # HeadObject(seeder의 존재 확인)는 IAM에 별도 액션이 없고 s3:GetObject로 인가된다.
+        # (2026-07-07 실측: s3:HeadObject는 무효 액션 → head_object가 403 → seeder 실패.)
+        Action   = ["s3:PutObject", "s3:GetObject"]
+        Resource = "${aws_s3_bucket.member_pii.arn}/*"
+      },
+      {
+        Effect = "Allow"
+        # ListBucket 없이는 '없는 객체'의 HeadObject를 S3가 404가 아닌 403으로 응답(존재 은닉)
+        # → seeder가 404만 '없음'으로 처리하므로 403에서 재던져 실패했음(2026-07-07 실측).
+        # 버킷 스코프 List만 허용(객체 접근은 위 문 그대로 최소).
+        Action   = ["s3:ListBucket"]
+        Resource = aws_s3_bucket.member_pii.arn
+      },
+    ]
   })
 }
 
