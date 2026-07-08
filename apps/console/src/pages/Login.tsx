@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { IS_MOCK, setRole, getRole, type Role } from '@/lib/auth'
 import { oidcConfigured, beginLogin } from '@/lib/oidc'
 
@@ -14,6 +14,8 @@ const SSO_STEPS = [
 
 export default function Login() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const sessionExpired = params.get('expired') === '1' // App 가드가 세션 만료 감지 시 붙임
   const realSso = !IS_MOCK && oidcConfigured()
 
   function loginAs(role: Role) {
@@ -48,6 +50,12 @@ export default function Login() {
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white p-8 shadow-2xl">
+          {sessionExpired && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              <span className="mt-0.5">⏱️</span>
+              <span>세션이 만료되었습니다. 보안을 위해 다시 로그인해 주세요.</span>
+            </div>
+          )}
           {/* 로그인 버튼 — 실환경에선 IdP 리다이렉트. 목업에선 기본 역할(VITE_MOCK_ROLE)로 입장. */}
           <button
             onClick={() => loginAs(getRole())}

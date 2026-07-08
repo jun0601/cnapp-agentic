@@ -1,6 +1,7 @@
-import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+import { NavLink, Outlet, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { IS_MOCK, useRole, setRole, needsLogin, type Role } from '@/lib/auth'
-import { userEmail, logout, isAuthenticated } from '@/lib/oidc'
+import { userEmail, logout, isAuthenticated, isSessionExpired, clearIdToken } from '@/lib/oidc'
 
 const NAV = [
   { to: '/', label: '대시보드', end: true },
@@ -61,6 +62,28 @@ function UserMenu() {
 
 export default function App() {
   const location = useLocation()
+  const navigate = useNavigate()
+
+  // 세션 만료 감지 → 재로그인 유도(2026-07-08). 가드(needsLogin)는 리렌더 때만 도는데, 유저가
+  // 한 화면에 머무는 중 토큰이 만료되면 리렌더가 안 일어나 "만료됐는데 approver로 보이는" 상태가
+  // 방치됨 → 주기(30s)+창 포커스 복귀 시 만료를 확인해, 만료됐으면 토큰을 비우고 로그인으로 보낸다.
+  useEffect(() => {
+    if (IS_MOCK) return
+    const check = () => {
+      if (isSessionExpired()) {
+        clearIdToken()
+        navigate('/login?expired=1', { replace: true })
+      }
+    }
+    const timer = window.setInterval(check, 30_000)
+    window.addEventListener('focus', check)
+    check()
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', check)
+    }
+  }, [navigate, location.pathname])
+
   // 실환경(옵션 B): 미인증이면 로그인 화면으로. 목업은 항상 통과(needsLogin=false).
   if (needsLogin()) return <Navigate to="/login" replace />
   return (

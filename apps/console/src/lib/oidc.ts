@@ -98,8 +98,29 @@ export function getIdToken(): string | null {
   return typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null
 }
 
+/** 저장된 ID 토큰만 제거(Cognito 로그아웃 리다이렉트 없이) — 세션 만료 시 조용히 정리용. */
+export function clearIdToken(): void {
+  if (typeof localStorage !== 'undefined') localStorage.removeItem(TOKEN_KEY)
+}
+
+// 시계 오차 여유(30s) — exp 직전 요청이 백엔드 도달 시점엔 만료돼 401 나는 걸 방지(선제 재로그인).
+const CLOCK_SKEW_MS = 30_000
+
+/** ID 토큰이 만료됐는가(exp < now+skew). 토큰 없거나 파싱 실패도 만료(=미인증) 취급. */
+export function isTokenExpired(): boolean {
+  const c = claims()
+  const exp = typeof c?.['exp'] === 'number' ? (c['exp'] as number) : 0
+  return exp * 1000 <= Date.now() + CLOCK_SKEW_MS
+}
+
+/** 유효 세션 = 토큰 있고 아직 안 만료. (기존 '존재만 확인'에서 만료 검사 추가 — 2026-07-08) */
 export function isAuthenticated(): boolean {
-  return Boolean(getIdToken())
+  return Boolean(getIdToken()) && !isTokenExpired()
+}
+
+/** 토큰은 있으나 만료됨 = 세션 만료(재로그인 유도 대상). '처음부터 미로그인'과 구분해 안내를 다르게. */
+export function isSessionExpired(): boolean {
+  return Boolean(getIdToken()) && isTokenExpired()
 }
 
 function claims(): Record<string, unknown> | null {
@@ -113,8 +134,11 @@ function claims(): Record<string, unknown> | null {
   }
 }
 
-/** ID 토큰 custom:groups(GUID)로 역할 판정 — 백엔드 roleFromHeaders와 동일 규칙. */
+/** ID 토큰 custom:groups(GUID)로 역할 판정 — 백엔드 roleFromHeaders와 동일 규칙.
+ * ⚠️ 만료 토큰은 approver로 안 봄(백엔드도 서명·exp 검증 실패로 viewer 강등) — 만료됐는데
+ *    approver UI가 보여 조치 버튼을 누르면 백엔드 403(→혼란)이 나던 문제 방지(2026-07-08). */
 export function roleFromToken(): Role {
+  if (isTokenExpired()) return 'viewer'
   const c = claims()
   if (!c) return 'viewer'
   const g = c['custom:groups'] ?? c['cognito:groups'] ?? ''

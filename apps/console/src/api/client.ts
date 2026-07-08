@@ -20,6 +20,18 @@ export class ApiError extends Error {
   }
 }
 
+// CloudFront custom_error_response(403/404 → 200 index.html)가 API 에러를 SPA 껍데기로 가리는
+// 함정 방어(2026-07-08): res.ok(200)여도 본문이 JSON이 아니라 text/html이면 CloudFront가
+// 백엔드 에러(대개 만료·미인증 403)를 index.html로 바꾼 것 → 인증 문제로 명확히 던져 UI가
+// 재로그인을 유도하게 한다(그냥 res.json()하면 "Unexpected token '<'"라는 알 수 없는 에러로 보임).
+async function parseJson<T>(res: Response, path: string): Promise<T> {
+  const ctype = res.headers.get('content-type') ?? ''
+  if (!ctype.includes('application/json')) {
+    throw new ApiError(res.status === 200 ? 401 : res.status, `${path} → 비JSON 응답(세션 만료/권한 문제 가능)`)
+  }
+  return res.json() as Promise<T>
+}
+
 export async function apiGet<T>(path: string, params?: Record<string, string | undefined>): Promise<T> {
   const qs = params
     ? '?' +
@@ -31,7 +43,7 @@ export async function apiGet<T>(path: string, params?: Record<string, string | u
     headers: { Accept: 'application/json', ...authHeaders() },
   })
   if (!res.ok) throw new ApiError(res.status, `GET ${path} → ${res.status}`)
-  return res.json() as Promise<T>
+  return parseJson<T>(res, `GET ${path}`)
 }
 
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
@@ -41,7 +53,7 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
     body: body ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) throw new ApiError(res.status, `POST ${path} → ${res.status}`)
-  return res.json() as Promise<T>
+  return parseJson<T>(res, `POST ${path}`)
 }
 
 export { API_BASE }
