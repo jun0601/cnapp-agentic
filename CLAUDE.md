@@ -13,6 +13,10 @@
 4. **작업 후:** `commit` + `push`로 공유한다(커밋 메시지 `타입: 내용`). 상세 협업 규칙은 [6번](#6-협업-규칙-) 참조.
 5. **작업 로그 기입:** 구현하며 겪은 문제·해결과 추가·작업한 것은 루트의 **[troubleshooting.md](troubleshooting.md)** 에 한 줄씩 남긴다(중앙 1개 파일, 영역별 파일 금지). 형식 `YYYY-MM-DD / 작성자 / [영역] / 내용`, 영역 태그 `[infra]` `[scanners]` `[pipeline]` `[engine]` `[rag]` `[attackpath]` `[apps-target]` `[apps-console]` `[contracts]` `[docs]` `[ci]`. *굵직한 설계 변경*은 여기 말고 위 변경 로그에(목적 분리: troubleshooting=작업 디테일, 변경 로그=pull 알림).
 6. **진척 갱신:** 굵직한 진척(영역 완료·다음 착수 변경)이 생기면 **[§7.1 현황+다음](#71-현황--다음-할-일-next-up--진행-관리-단일-지점-작업-후-여기부터-갱신)**을 갱신한다(진행 관리 단일 지점 — "지금 어디까지/다음 뭐"를 여기서 관리).
+7. **⚠️ 인프라 destroy 순서 (에러 방지 — destroy 전 반드시 읽을 것):**
+   - **ALB Ingress가 있는 레이어는 `terraform destroy` 전에 Ingress를 먼저 `kubectl delete`한다.** 현재 해당 = **`infra/monitoring`**(Grafana Ingress → `grafana.cnapp-agentic.cloud` ALB). 순서: ① `kubectl -n argocd patch application monitoring --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'`(self-heal 중단, 이미 없으면 무해) → ② `kubectl -n monitoring delete ingress grafana`(AWS Load Balancer Controller가 **살아있을 때** ALB 자동 정리) → ③ ALB 사라진 것 확인 후 `terraform destroy`.
+   - **이유:** `terraform destroy`가 ALB Controller IRSA(`aws_iam_role.alb_controller`)를 먼저 지워버리면, ALB Controller 파드가 IAM 권한을 잃어 Ingress finalizer(`ingress.k8s.aws/resources`)를 못 떼고 → Ingress가 Terminating에 멈추고 → ALB가 **고아로 남는다**(2026-07-08 실측). 이미 꼬였다면 수동 복구: `aws elbv2 delete-load-balancer` → `kubectl patch ingress grafana -p '{"metadata":{"finalizers":[]}}' --type merge` → grafana 전용 SG(`k8s-monitori-grafana-*`) 삭제. 상세는 troubleshooting(2026-07-08).
+   - **monitoring 재apply 후 복구할 것:** Teams 웹훅 URL 3종 재주입 · Grafana admin/pg 시크릿 재발급(`infra/monitoring/README.md` §3.4·3.5). 다른 destroy 함정(무인자 apply 금지·SG delete 지연 등)은 변경 로그·`infra/README`·각 레이어 README 참조.
 
 ### 변경 로그 (최신이 위로)
 
