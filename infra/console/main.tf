@@ -395,6 +395,13 @@ resource "aws_cognito_user_pool" "this" {
   admin_create_user_config {
     allow_admin_create_user_only = true # 실제 사용자는 Entra 페더레이션으로만
   }
+
+  # 실 로그인 감사(2026-07-08) — 로그인 성공마다 login_events RDS 기록. 이 블록은 lambda_config만
+  # 갱신하는 in-place 변경(User Pool 자체는 재생성 안 됨 — Cognito Pool ID 불변, SAML 식별자
+  # 재갱신 불필요). login-trigger.ts가 fail-open이라 이 Lambda 장애가 로그인을 막지 않는다.
+  lambda_config {
+    post_authentication = aws_lambda_function.login_trigger.arn
+  }
 }
 
 resource "aws_cognito_user_pool_domain" "this" {
@@ -557,6 +564,76 @@ resource "aws_lambda_function" "backend" {
     }
   }
   depends_on = [aws_cloudwatch_log_group.backend, aws_iam_role_policy_attachment.backend_vpc]
+}
+
+# =============================================================================
+# [LOGIN-TRIGGER] Cognito Post-Authentication → login_events RDS 기록(실 로그인 감사, 2026-07-08)
+# ⚠️ 이 Lambda가 예외를 던지면 로그인 자체가 실패한다(login-trigger.ts가 전부 try/catch로 감싸
+#    fail-open — 여기서 IAM/네트워크 설정이 잘못돼도 "로그인은 되는데 감사만 안 남는" 정도로
+#    영향을 최소화하려는 설계다). backend Lambda와 같은 zip(archive_file.backend, dist/ 전체
+#    포함)을 재사용 — handler만 다르게 지정.
+# =============================================================================
+resource "aws_iam_role" "login_trigger" {
+  name               = "${var.project}-console-login-trigger"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "login_trigger_vpc" {
+  role       = aws_iam_role.login_trigger.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+data "aws_iam_policy_document" "login_trigger" {
+  statement {
+    sid       = "Logs"
+    actions   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = ["arn:aws:logs:${var.region}:${local.account_id}:*"]
+  }
+  statement {
+    sid       = "ReadDbSecret"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [local.rds_secret_arn]
+  }
+}
+resource "aws_iam_role_policy" "login_trigger" {
+  name   = "login-trigger"
+  role   = aws_iam_role.login_trigger.id
+  policy = data.aws_iam_policy_document.login_trigger.json
+}
+
+resource "aws_cloudwatch_log_group" "login_trigger" {
+  name              = "/aws/lambda/${var.project}-console-login-trigger"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_lambda_function" "login_trigger" {
+  function_name    = "${var.project}-console-login-trigger"
+  role             = aws_iam_role.login_trigger.arn
+  runtime          = "nodejs20.x"
+  handler          = "login-trigger.handler" # dist/login-trigger.js export handler(같은 zip, archive_file.backend)
+  filename         = data.archive_file.backend.output_path
+  source_code_hash = data.archive_file.backend.output_base64sha256
+  timeout          = 10 # 로그인 흐름 지연 최소화(RDS insert 1건뿐)
+  memory_size      = 256
+  vpc_config {
+    subnet_ids         = local.private_subnets
+    security_group_ids = [aws_security_group.backend_lambda.id] # 동일 RDS egress 규칙 재사용
+  }
+  environment {
+    variables = {
+      DB_HOST       = local.rds_endpoint
+      DB_SECRET_ARN = local.rds_secret_arn
+    }
+  }
+  depends_on = [aws_cloudwatch_log_group.login_trigger, aws_iam_role_policy_attachment.login_trigger_vpc]
+}
+
+resource "aws_lambda_permission" "cognito_invoke_login_trigger" {
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.login_trigger.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.this.arn
 }
 
 # =============================================================================

@@ -342,7 +342,7 @@ const MOCK_AUDIT = [
 export async function getAudit() {
   if (USE_MOCK) return MOCK_AUDIT
   const p = await pool()
-  const [rem, cs, scans] = await Promise.all([
+  const [rem, cs, scans, logins] = await Promise.all([
     p.query(
       `SELECT r.id, r.status, r.approver, r.step_function_arn, r.updated_at, f.resource_id
        FROM remediation_requests r JOIN findings f ON f.finding_id = r.finding_id
@@ -356,6 +356,10 @@ export async function getAudit() {
       `SELECT finding_id, resource_id, control_id, sources, first_seen
        FROM findings WHERE first_seen IS NOT NULL ORDER BY first_seen DESC LIMIT 10`,
     ),
+    // login_events(2026-07-08 신설, Cognito 트리거가 씀) — 스키마 미적용 배포 타이밍이면
+    // 테이블이 아직 없을 수 있어 실패해도 감사로그 전체가 안 죽게 개별 catch(빈 배열 폴백).
+    p.query(`SELECT id, actor, role, logged_in_at FROM login_events ORDER BY logged_in_at DESC LIMIT 8`)
+      .catch(() => ({ rows: [] as Record<string, unknown>[] })),
   ])
   type Ev = { id: string; ts: string; actor: string; role: string; action: string; target: string; result: string }
   const ev: Ev[] = []
@@ -395,6 +399,17 @@ export async function getAudit() {
       action: 'scan',
       target: s.resource_id as string,
       result: `${s.control_id} 탐지`,
+    })
+  }
+  for (const l of logins.rows as Record<string, unknown>[]) {
+    ev.push({
+      id: 'l' + String(l.id).slice(0, 8),
+      ts: new Date(l.logged_in_at as string).toISOString(),
+      actor: l.actor as string,
+      role: l.role as string,
+      action: 'login',
+      target: 'console',
+      result: `Entra SSO 로그인 (${l.role})`,
     })
   }
   ev.sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0))

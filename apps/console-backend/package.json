@@ -8,9 +8,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "npm run clean && npm run typecheck && esbuild src/handler.ts --bundle --platform=node --target=node20 --format=cjs --external:@aws-sdk/* --outfile=dist/handler.js"
+    "build": "npm run clean && npm run typecheck && esbuild src/handler.ts --bundle --platform=node --target=node20 --format=cjs --external:@aws-sdk/* --outfile=dist/handler.js && esbuild src/login-trigger.ts --bundle --platform=node --target=node20 --format=cjs --external:@aws-sdk/* --outfile=dist/login-trigger.js"
   },
-  "//": "build = esbuild 번들(pg를 dist/handler.js에 인라인 → VPC Lambda에서 real pg 경로 동작). @aws-sdk/*는 Node20 Lambda 런타임에 이미 포함되어 external. typecheck 선행으로 타입 게이트 유지.",
+  "//": "build = esbuild 번들(pg를 dist/*.js에 인라인 → VPC Lambda에서 real pg 경로 동작). @aws-sdk/*는 Node20 Lambda 런타임에 이미 포함되어 external. typecheck 선행으로 타입 게이트 유지. login-trigger = Cognito Post-Authentication 트리거(별도 소형 Lambda, 2026-07-08).",
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.600.0",
     "@aws-sdk/client-cloudwatch": "^3.1079.0",

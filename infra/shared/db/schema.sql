@@ -128,3 +128,17 @@ CREATE TABLE IF NOT EXISTS rag_chunks (
 CREATE INDEX IF NOT EXISTS idx_rag_control ON rag_chunks ((metadata->>'control_id'));
 -- cosine similarity ANN 인덱스(pgvector HNSW). 코퍼스 작아 lists/m 기본이면 충분.
 CREATE INDEX IF NOT EXISTS idx_rag_embedding ON rag_chunks USING hnsw (embedding vector_cosine_ops);
+
+-- =============================================================================
+-- login_events — 실 SSO 로그인 감사(2026-07-08). Cognito Post-Authentication 트리거
+-- (apps/console-backend/src/login-trigger.ts)가 로그인 성공마다 1행 기록. 감사로그 페이지가
+-- 이 테이블 + remediation_requests + cases + findings를 시간순 병합해서 보여준다
+-- (console-backend/src/data.ts getAudit()).
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS login_events (
+  id            uuid PRIMARY KEY,
+  actor         text NOT NULL,   -- 이메일(Entra 클레임 email, 없으면 userName)
+  role          text NOT NULL,   -- 로그인 시점 판정된 역할(viewer/approver) — 스냅샷, 이후 그룹변경은 반영 안 됨
+  logged_in_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_login_events_time ON login_events (logged_in_at DESC);
