@@ -61,7 +61,12 @@ jobs:
         run: |
           set -x
           mkdir -p out-aws
-          prowler aws -M json-ocsf --output-directory out-aws
+          # ⚠️ 2026-07-08 실측 버그 수정: GitHub Actions run: 스크립트는 기본 set -e라, prowler가
+          # FAIL 발견 시 의도적으로 내는 non-zero exit(1/3)에서 스크립트가 그 줄에서 멈춰
+          # 아래 aws s3 cp가 한 번도 실행되지 못했다(step continue-on-error는 "이 step 실패해도
+          # job은 안 죽게"만 해줄 뿐, 같은 step 스크립트의 조기 종료는 못 막음 — S3에 실측 0건으로 확인).
+          # || true로 이 줄만 -e에서 면제해 이후 업로드 줄까지 반드시 실행되게 한다.
+          prowler aws -M json-ocsf --output-directory out-aws || true
           f=$(ls out-aws/*.ocsf.json | head -1)
           test -n "$f"
           aws s3 cp "$f" "s3://${PROWLER_BUCKET}/aws/$(date -u +%Y-%m-%dT%H%M%SZ).ocsf.json"
@@ -80,7 +85,8 @@ jobs:
         run: |
           set -x
           mkdir -p out-azure
-          prowler azure --az-cli-auth -M json-ocsf --output-directory out-azure
+          # 2026-07-08: AWS 스캔 단계와 동일한 이유로 || true(위 주석 참고).
+          prowler azure --az-cli-auth -M json-ocsf --output-directory out-azure || true
           f=$(ls out-azure/*.ocsf.json | head -1)
           test -n "$f"
           aws s3 cp "$f" "s3://${PROWLER_BUCKET}/azure/$(date -u +%Y-%m-%dT%H%M%SZ).ocsf.json"
