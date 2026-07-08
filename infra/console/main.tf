@@ -174,6 +174,9 @@ resource "aws_cloudfront_distribution" "front" {
   default_root_object = "index.html"
   comment             = "${var.project} console SPA"
 
+  # 🛡️ WAF(WebACL, us-east-1) — 관제 플랫폼 진입점 L7 방어(waf.tf). 관리규칙+rate limit.
+  web_acl_id = aws_wafv2_web_acl.front.arn
+
   origin {
     domain_name              = aws_s3_bucket.front.bucket_regional_domain_name
     origin_id                = "s3-front"
