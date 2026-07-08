@@ -8,7 +8,7 @@
   "additionalProperties": false,
   "properties": {
     "envelope_id": { "type": "string", "format": "uuid" },
-    "source": { "enum": ["securityhub", "config", "inspector", "prowler-aws", "prowler-azure", "trivy", "kube-bench", "macie", "synthetic"] },
+    "source": { "enum": ["securityhub", "config", "inspector", "prowler-aws", "prowler-azure", "trivy", "kube-bench", "macie", "access-analyzer", "synthetic"] },
     "source_format": { "enum": ["asff", "ocsf", "prowler-json", "trivy-json", "custom"] },
     "cloud_hint": { "enum": ["aws", "azure"] },
     "scan_batch_id": {

@@ -30,7 +30,7 @@ from typing import List, Optional
 
 # 계약⑤ source/source_format enum(스키마와 동일하게 유지)
 _SOURCES = {"securityhub", "config", "inspector", "prowler-aws", "prowler-azure",
-            "trivy", "kube-bench", "macie", "synthetic"}
+            "trivy", "kube-bench", "macie", "access-analyzer", "synthetic"}
 _FORMATS = {"asff", "ocsf", "prowler-json", "trivy-json", "custom"}
 
 

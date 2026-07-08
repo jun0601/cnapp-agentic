@@ -96,6 +96,11 @@ _PROWLER_RTYPE = {
     "entra_id":      "service_principal",
     "appregistration": "app_registration",
 }
+_ACCESS_ANALYZER_RTYPE = {
+    "AWS::S3::Bucket":       "s3_bucket",
+    "AWS::IAM::Role":        "iam_role",
+    "AWS::ECR::Repository":  "ecr_repo",
+}
 
 def _arn_to_native(arn: str) -> str:
     """ARN → native_id: 마지막 세그먼트(/ 또는 : 구분). S3는 버킷명만."""
@@ -362,6 +367,52 @@ def _parse_kube_bench(raw: dict, cloud_hint: str) -> List[dict]:
     return findings
 
 
+# ── IAM Access Analyzer 파서 (CIEM, custom 포맷) ───────────────────────
+# boto3 accessanalyzer.list_findings() Findings[] 원소를 직접 받는다(Prowler 경유 아님 —
+# AWS 네이티브 정책 도달성 분석 엔진, scanners/ciem/aws_access_analyzer.py). 이미 계약
+# control-catalog.json의 INTERNAL-IAM-OVERPRIV-001.sources에 "accessanalyzer:*" 와일드카드가
+# 예비 등록돼 있었음 — 이 파서가 그 자리를 채운다(신규 control 안 만듦, 기존 설계 의도 재사용).
+def _parse_access_analyzer(raw: dict, cloud_hint: str) -> List[dict]:
+    """Access Analyzer finding(단건) → finding 1건. severity는 카탈로그가 안 주는 신호라
+    isPublic으로 산출(퍼블릭=Critical, 특정 계정/주체로 스코프된 외부접근=High)."""
+    rtype_aa = raw.get("resourceType", "")
+    source_key = f"accessanalyzer:{rtype_aa}"
+    control_id = lookup_control(source_key) or "INTERNAL-UNKNOWN-001"
+
+    rtype = _ACCESS_ANALYZER_RTYPE.get(rtype_aa, "other")
+    raw_id = raw.get("resource", "")
+    rid = _canon_resource_id(cloud_hint, rtype, raw_id)
+
+    status_raw = str(raw.get("status", "ACTIVE")).upper()
+    status = "open" if status_raw == "ACTIVE" else "remediated"
+
+    severity_id = 1 if raw.get("isPublic") else 2
+    scope = "공개(Public)" if raw.get("isPublic") else "특정 외부 계정/주체"
+    title = f"IAM Access Analyzer: {rtype_aa} externally reachable ({scope})"
+
+    ts = raw.get("createdAt") or raw.get("analyzedAt") or _now()
+    if not isinstance(ts, str):
+        ts = _now()
+    updated = raw.get("updatedAt") or raw.get("analyzedAt") or ts
+    if not isinstance(updated, str):
+        updated = ts
+
+    dedup = f"{rid}|{control_id}"
+    return [_make_finding(
+        cloud=cloud_hint,
+        resource_id=rid,
+        resource_type=rtype,
+        control_id=control_id,
+        title=title,
+        severity_id=severity_id,
+        status=status,
+        source_key=source_key,
+        dedup_key=dedup,
+        first_seen=ts,
+        last_seen=updated,
+    )]
+
+
 # ── finding 조립 헬퍼 ─────────────────────────────────────────────────
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -467,6 +518,8 @@ class Normalizer:
         if fmt == "custom":
             if source == "kube-bench":
                 return _parse_kube_bench(raw, cloud_hint)
+            if source == "access-analyzer":
+                return _parse_access_analyzer(raw, cloud_hint)
             # 그 외 custom(manifest scan 등)은 이미 정규화된 finding dict로 간주
             if "finding_id" in raw:
                 return [raw]

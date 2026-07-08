@@ -1,0 +1,118 @@
+name: live-health-canary
+
+# 라이브 사이트 헬스 캔어리(2026-07-08 신설) — 콘솔 SPA·API가 실제로 정상 응답하는지 주기적으로
+# 직접 확인하고, 실패하면 Teams(cnapp-alerts 기본 채널)로 즉시 알림. 기존 CloudWatch 알람들은
+# "인프라 리소스 자체의 에러 지표"(Lambda Errors 등)만 보는데, 이번 세션에서 겪은 사고들
+# (Cognito 풀ID 드리프트로 SPA가 옛 client-id로 배포된 채 방치·CloudWatch 로그그룹 충돌 등)은
+# 리소스 레벨 에러는 0인데 "사용자 관점에서는 실제로 고장"인 케이스라 CloudWatch 알람이 못 잡음
+# — 실제 엔드포인트를 밖에서 두드려보는 합성 모니터링(synthetic canary)만 잡을 수 있는 부류.
+#
+# 인프라가 destroy 상태일 수 있음(비용 규율) — 의도적 destroy 중엔 "다운"이 정상이라 알림을
+# 안 보내야 함. prowler-scan.yml과 동일하게 backend 레이어 S3 버킷 존재로 "지금 떠 있어야
+# 하는 상태인지"를 판단(버킷 없으면 destroy 상태로 보고 조용히 skip).
+
+on:
+  schedule:
+    - cron: "*/20 * * * *" # 20분마다
+  workflow_dispatch:
+
+permissions:
+  id-token: write # Teams 웹훅 URL을 Secrets Manager에서 읽기 위한 OIDC(키리스)
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  PROWLER_BUCKET: cnapp-agentic-prowler-results-066107819776 # 존재 여부로 backend 레이어 활성 판단(공용 버킷)
+  WEBHOOK_SECRET_ID: cnapp-agentic/teams/webhook # 기본 alerts 채널(전용 채널은 login/cost만)
+  SITE: https://cnapp-agentic.cloud
+
+jobs:
+  canary:
+    name: 라이브 SPA·API 헬스 체크
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials (OIDC, keyless)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::066107819776:role/cnapp-agentic-github-ci"
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 인프라 활성 여부 확인(destroy 상태면 조용히 skip)
+        id: check
+        run: |
+          if aws s3api head-bucket --bucket "${PROWLER_BUCKET}" 2>/dev/null; then
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::infra/backend가 destroy 상태로 보임(버킷 없음) — 캔어리 skip(의도된 다운타임)"
+          fi
+
+      - name: 헬스 체크 3종(SPA·findings·system)
+        if: steps.check.outputs.active == 'true'
+        id: probe
+        continue-on-error: true
+        run: |
+          set -x
+          fail=""
+
+          spa_code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "${SITE}/" || echo "000")
+          [ "$spa_code" = "200" ] || fail="${fail}SPA(/) HTTP ${spa_code}; "
+
+          findings_json=$(curl -sS --max-time 15 "${SITE}/api/findings" || echo "")
+          findings_code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "${SITE}/api/findings" || echo "000")
+          findings_count=$(echo "$findings_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d))" 2>/dev/null || echo "0")
+          if [ "$findings_code" != "200" ] || [ "$findings_count" = "0" ]; then
+            fail="${fail}api/findings HTTP ${findings_code} count=${findings_count}; "
+          fi
+
+          system_json=$(curl -sS --max-time 15 "${SITE}/api/system" || echo "{}")
+          system_live=$(echo "$system_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(str(d.get('live')).lower())" 2>/dev/null || echo "false")
+          if [ "$system_live" != "true" ]; then
+            fail="${fail}api/system live!=true; "
+          fi
+
+          if [ -n "$fail" ]; then
+            echo "detail=${fail}" >> "$GITHUB_OUTPUT"
+            echo "healthy=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "healthy=true" >> "$GITHUB_OUTPUT"
+          echo "findings_count=${findings_count}" >> "$GITHUB_OUTPUT"
+
+      - name: 실패 시 Teams 알림(성공 시엔 조용히 — 알림 피로 방지)
+        if: steps.check.outputs.active == 'true' && steps.probe.outputs.healthy != 'true'
+        env:
+          # bash 문자열 보간 대신 전부 env로 python에 전달(따옴표·특수문자 이스케이프 문제 회피).
+          DETAIL: ${{ steps.probe.outputs.detail }}
+          SITE: ${{ env.SITE }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -e
+          WEBHOOK_URL=$(aws secretsmanager get-secret-value --secret-id "${WEBHOOK_SECRET_ID}" --query SecretString --output text)
+          export WEBHOOK_URL
+          export TS="$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S KST')"
+          python3 - <<'PYEOF'
+          import json, os, urllib.request
+
+          text = (
+              "<b>\U0001F6A8 라이브 헬스 캔어리 실패</b><br><br>"
+              f"사이트: {os.environ['SITE']}<br>"
+              f"실패 내용: {os.environ['DETAIL']}<br>"
+              f"시각: {os.environ['TS']}<br><br>"
+              f"GitHub Actions 로그: {os.environ['RUN_URL']}"
+          )
+          req = urllib.request.Request(
+              os.environ["WEBHOOK_URL"],
+              data=json.dumps({"text": text}).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          urllib.request.urlopen(req, timeout=10)
+          print("Teams 알림 전송 완료")
+          PYEOF
+
+      - name: 최종 판정(job 실패로 표시 — Actions 탭에서 한눈에 상태 확인용)
+        if: steps.check.outputs.active == 'true' && steps.probe.outputs.healthy != 'true'
+        run: |
+          echo "::error::라이브 헬스 체크 실패 — ${{ steps.probe.outputs.detail }}"
+          exit 1

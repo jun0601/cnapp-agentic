@@ -1,0 +1,65 @@
+name: access-analyzer-scan
+
+# IAM Access Analyzer(ACCOUNT 타입, 외부접근 분석기, 무료) 자동 스캔 — CIEM AWS쪽
+# (2026-07-08 신설. scanners/ciem/aws_access_analyzer.py, 역할분담표 원안 "IAM Access
+# Analyzer(AWS)=준형"을 채움. Prowler가 못 보는 신호 — AWS 네이티브 정책 도달성 분석 엔진).
+#
+# scanners.ciem.publish_access_analyzer가 ACTIVE finding을 EventBridge(cnapp.scanner/
+# scan.completed)로 발행 → infra/backend의 aws_cloudwatch_event_rule.scanner_completed
+# → ingest Lambda → SQS → normalize → RDS → correlation → orchestrator(기존 파이프라인 그대로).
+#
+# 인증(키리스 OIDC, D4): infra/shared의 github-ci 역할. 읽기(access-analyzer:List*/Get*)는
+# 기존 SecurityAudit 정책이 커버, 쓰기(events:PutEvents)만 infra/shared에서 좁게 추가 부여.
+#
+# ⚠️ 인프라가 destroy 상태일 수 있음(비용 규율) — prowler-scan.yml과 동일하게 대상 S3 버킷
+#    존재로 활성 여부를 판단하고, 없으면 조용히 skip(매일 빨간 실패 방지).
+
+on:
+  schedule:
+    - cron: "30 17 * * *" # UTC 17:30 = KST 02:30(prowler-scan 30분 뒤, 부하 분산)
+  workflow_dispatch:
+
+permissions:
+  id-token: write # OIDC 토큰 발급(키리스)
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  PROWLER_BUCKET: cnapp-agentic-prowler-results-066107819776 # 존재 여부로 infra 활성 판단(backend 레이어 공용)
+
+jobs:
+  scan:
+    name: IAM Access Analyzer scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC, keyless)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::066107819776:role/cnapp-agentic-github-ci"
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 인프라 활성 여부 확인(destroy 상태면 조용히 skip)
+        id: check
+        run: |
+          if aws s3api head-bucket --bucket "${PROWLER_BUCKET}" 2>/dev/null; then
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::infra/backend가 destroy 상태로 보임(버킷 없음) — 스캔 skip"
+          fi
+
+      - name: Set up Python
+        if: steps.check.outputs.active == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: boto3 설치
+        if: steps.check.outputs.active == 'true'
+        run: pip install --quiet boto3
+
+      - name: Access Analyzer 스캔 → EventBridge 발행
+        if: steps.check.outputs.active == 'true'
+        run: python -m scanners.ciem.publish_access_analyzer

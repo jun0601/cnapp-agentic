@@ -385,6 +385,33 @@ resource "aws_lambda_permission" "eventbridge_ingest" {
   source_arn    = aws_cloudwatch_event_rule.securityhub_imported.arn
 }
 
+# --- [EVENTBRIDGE] 커스텀 스캐너 이벤트(기본 버스) → ingest Lambda ---
+#   pipeline/ingest/ingest.py의 from_eventbridge() 커스텀 "scan.completed" 분기가 처음부터
+#   있었지만 이 규칙이 없어 미사용 코드였음(2026-07-08 — 실제로 살림). IAM Access Analyzer
+#   자동스캔(.github/workflows/access-analyzer-scan.yml)이 이 경로로 발행.
+resource "aws_cloudwatch_event_rule" "scanner_completed" {
+  name        = "${var.project}-scanner-completed"
+  description = "커스텀 스캐너 scan.completed → ingest"
+  event_pattern = jsonencode({
+    source        = ["cnapp.scanner"]
+    "detail-type" = ["scan.completed"]
+  })
+}
+
+resource "aws_cloudwatch_event_target" "scanner_to_ingest" {
+  rule      = aws_cloudwatch_event_rule.scanner_completed.name
+  target_id = "ingest"
+  arn       = aws_lambda_function.ingest.arn
+}
+
+resource "aws_lambda_permission" "eventbridge_scanner_ingest" {
+  statement_id  = "AllowEventBridgeInvokeScanner"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.ingest.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.scanner_completed.arn
+}
+
 # --- [S3] Prowler 스캔 결과 드롭(ingest 2번째 입구, 2026-07-07 추가) ---
 #   GitHub Actions(prowler-scan.yml)가 매일 스캔 후 여기에 OCSF 결과를 올림.
 #   ⚠️ Ingestor.from_s3_event()는 클래식 S3 Event Notification 형태(Records[].s3...)를
@@ -640,8 +667,13 @@ data "aws_iam_policy_document" "remediation" {
   # 조치 3종을 '타깃(shop) 리소스'로 스코프 — 특히 iam:PutRolePolicy를 임의 역할(admin 포함) 재작성 못 하게 제한(권한상승 차단).
   statement {
     sid       = "RemediateS3"
-    actions   = ["s3:PutBucketPublicAccessBlock", "s3:PutBucketPolicy"]
-    resources = ["arn:aws:s3:::${var.project}-*", "arn:aws:s3:::member-pii-*"] # 타깃 버킷만
+    actions   = ["s3:PutBucketPublicAccessBlock", "s3:PutBucketPolicy", "s3:PutBucketEncryption"] # PutBucketEncryption(2026-07-08 추가)
+    resources = ["arn:aws:s3:::${var.project}-*", "arn:aws:s3:::member-pii-*"]                    # 타깃 버킷만
+  }
+  statement {
+    sid       = "RemediateECR" # 2026-07-08 추가 — 우리 프로젝트 리포만(admin 재작성 차단과 동일 스코핑 원칙)
+    actions   = ["ecr:PutImageScanningConfiguration"]
+    resources = ["arn:aws:ecr:${var.region}:${local.account_id}:repository/${var.project}/*"]
   }
   statement {
     sid       = "RemediateSG"

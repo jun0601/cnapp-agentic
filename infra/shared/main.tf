@@ -459,6 +459,49 @@ resource "aws_iam_role_policy" "github_ci_read_login_webhook" {
   policy = data.aws_iam_policy_document.github_ci_read_login_webhook.json
 }
 
+# 라이브 헬스 캔어리(live-health-canary.yml, 2026-07-08)가 기본 알람 채널(cnapp-alerts)로 쓰는
+# 일반 웹훅 — "일반 알람은 cnapp-alerts 기본값" 원칙(login/cost는 전용 채널로 이미 분리됨)에 맞춤.
+data "aws_iam_policy_document" "github_ci_read_default_webhook" {
+  statement {
+    sid       = "ReadDefaultWebhookSecret"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = ["arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:${var.project}/teams/webhook-*"]
+  }
+}
+
+resource "aws_iam_role_policy" "github_ci_read_default_webhook" {
+  name   = "read-default-webhook"
+  role   = aws_iam_role.github_ci.id
+  policy = data.aws_iam_policy_document.github_ci_read_default_webhook.json
+}
+
+# IAM Access Analyzer(외부접근 분석기, ACCOUNT 타입, 무료) — CIEM AWS쪽(scanners/ciem/aws_access_analyzer.py,
+# 2026-07-08 추가). 계정 내 S3/IAM/KMS/ECR 등 리소스 정책을 분석해 외부/퍼블릭 도달 가능 여부를 찾는다
+# (Prowler가 못 보는 신호 — 정책 도달성 분석 엔진). "UNUSED_ACCESS" 타입은 리소스당 소액 과금이라
+# 미사용 — 외부접근(ACCOUNT) 타입만 무료.
+resource "aws_accessanalyzer_analyzer" "external_access" {
+  analyzer_name = "${var.project}-external-access"
+  type          = "ACCOUNT"
+}
+
+# access-analyzer-scan.yml(2026-07-08)이 스캔 결과를 EventBridge(cnapp.scanner/scan.completed)로
+# 발행 → infra/backend의 새 규칙이 ingest Lambda로 라우팅(pipeline/ingest 커스텀 scan.completed
+# 경로 — 원래 있었지만 이 규칙이 없어 미사용이던 코드를 실제로 살림). 읽기는 이미 attach된
+# SecurityAudit이 access-analyzer:List*/Get*을 커버하므로 추가 불요, 쓰기(PutEvents)만 좁게 부여.
+data "aws_iam_policy_document" "github_ci_put_scanner_events" {
+  statement {
+    sid       = "PutScannerEvents"
+    actions   = ["events:PutEvents"]
+    resources = ["arn:aws:events:${var.region}:${data.aws_caller_identity.current.account_id}:event-bus/default"]
+  }
+}
+
+resource "aws_iam_role_policy" "github_ci_put_scanner_events" {
+  name   = "put-scanner-events"
+  role   = aws_iam_role.github_ci.id
+  policy = data.aws_iam_policy_document.github_ci_put_scanner_events.json
+}
+
 
 # =============================================================================
 # [IAM-ENGINE] 엔진 정책 2종 — 계약과 동기화. 실행 역할(Lambda)은 infra/backend에서 attach

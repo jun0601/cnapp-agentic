@@ -27,6 +27,7 @@ except Exception:
     pass
 
 from pipeline.normalize.normalizer import Normalizer
+from scanners.ciem.aws_access_analyzer import AccessAnalyzerScanner
 from scanners.ciem.entra import EntraCIEMScanner
 
 # ── mock Prowler Azure 체크 결과 (실 prowler azure 출력과 동일 필드 구조) ──
@@ -105,6 +106,48 @@ _EXPECTED = {
     ),
 }
 
+# ── mock AWS IAM Access Analyzer ListFindings 결과(boto3 shape) ────────
+# 2026-07-08 추가 — CIEM AWS쪽(역할분담표 원안 "IAM Access Analyzer(AWS)=준형")을 채움.
+# 이미 control-catalog.json의 INTERNAL-IAM-OVERPRIV-001.sources에 "accessanalyzer:*"가
+# 예비 등록돼 있어 새 control 없이 그 자리로 연결(scanners/ciem/aws_access_analyzer.py).
+MOCK_ACCESS_ANALYZER_FINDINGS = [
+    {  # 퍼블릭 S3 버킷(정책상 외부 도달 가능) → isPublic=True → Critical
+        "id": "aa-finding-0001",
+        "status": "ACTIVE",
+        "resource": "arn:aws:s3:::cnapp-agentic-demo-public-bucket",
+        "resourceType": "AWS::S3::Bucket",
+        "isPublic": True,
+        "principal": {"AWS": "*"},
+        "action": ["s3:GetObject"],
+        "createdAt": "2026-07-08T01:00:00Z",
+        "updatedAt": "2026-07-08T01:00:00Z",
+    },
+    {  # 외부 계정에 신뢰정책으로 열린 IAM 역할 → isPublic=False → High
+        "id": "aa-finding-0002",
+        "status": "ACTIVE",
+        "resource": "arn:aws:iam::066107819776:role/cnapp-cross-account-demo-role",
+        "resourceType": "AWS::IAM::Role",
+        "isPublic": False,
+        "principal": {"AWS": "arn:aws:iam::999999999999:root"},
+        "action": ["sts:AssumeRole"],
+        "createdAt": "2026-07-08T01:05:00Z",
+        "updatedAt": "2026-07-08T01:05:00Z",
+    },
+]
+
+_AA_EXPECTED = {
+    "aa-finding-0001": (
+        "INTERNAL-IAM-OVERPRIV-001",
+        "aws:s3_bucket:cnapp-agentic-demo-public-bucket",
+        1, "ciem", "s3_bucket", "open",
+    ),
+    "aa-finding-0002": (
+        "INTERNAL-IAM-OVERPRIV-001",
+        "aws:iam_role:cnapp-cross-account-demo-role",
+        2, "ciem", "iam_role", "open",
+    ),
+}
+
 
 def _hr(title: str) -> None:
     print("\n" + "=" * 64 + "\n" + title + "\n" + "=" * 64)
@@ -164,6 +207,44 @@ def main() -> int:
     # (c) UNKNOWN control 없음
     no_unknown = not any(f["control_id"] == "INTERNAL-UNKNOWN-001" for f in findings)
     checks_result.append(("INTERNAL-UNKNOWN-001 없음", no_unknown))
+
+    # ── AWS IAM Access Analyzer 데모(2026-07-08 추가, CIEM AWS쪽) ─────
+    _hr("AWS IAM Access Analyzer 스캐너 데모 — ListFindings → ingest-envelope → OCSF-lite finding")
+
+    aa_scanner = AccessAnalyzerScanner()
+    aa_findings = []
+    print("\n[1~2단계] AccessAnalyzerScanner.scan_from_json() → Normalizer.normalize() (finding 2건)")
+    for raw in MOCK_ACCESS_ANALYZER_FINDINGS:
+        envelope = aa_scanner.scan_from_json(raw)
+        aa_findings.extend(normalizer.normalize(envelope))
+
+    print(f"  finding {len(aa_findings)}건 생성\n")
+    for f in aa_findings:
+        print(f"  - [{sev_label.get(f['severity_id'], '?')}] {f['control_id']}")
+        print(f"    resource   : {f['resource_id']} ({f['resource_type']})")
+        print(f"    pillar     : {f['pillar']}")
+        print(f"    title      : {f['title']}")
+        print()
+
+    by_aa_id = {f["dedup_key"]: f for f in aa_findings}
+    for raw, (ctrl, rid, sev, pillar, rtype, status) in zip(MOCK_ACCESS_ANALYZER_FINDINGS, _AA_EXPECTED.values()):
+        key = f"{rid}|{ctrl}"
+        f = by_aa_id.get(key)
+        ok = bool(
+            f
+            and f["control_id"] == ctrl
+            and f["resource_id"] == rid
+            and f["severity_id"] == sev
+            and f["pillar"] == pillar
+            and f["resource_type"] == rtype
+            and f["status"] == status
+        )
+        checks_result.append((f"{raw['id']} → {ctrl}/{rid} (golden 일치)", ok))
+    checks_result.append(("Access Analyzer finding 2건 생성", len(aa_findings) == 2))
+    checks_result.append((
+        "accessanalyzer:* 와일드카드가 INTERNAL-IAM-OVERPRIV-001로 정확히 매핑",
+        all(f["control_id"] == "INTERNAL-IAM-OVERPRIV-001" for f in aa_findings),
+    ))
 
     all_ok = True
     for label, ok in checks_result:

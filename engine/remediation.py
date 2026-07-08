@@ -25,7 +25,10 @@ import json
 import os
 from datetime import datetime, timezone
 
-_ACTIONS = {"s3_block_public", "sg_remove_open_ingress", "iam_least_privilege"}
+_ACTIONS = {
+    "s3_block_public", "sg_remove_open_ingress", "iam_least_privilege",
+    "s3_enable_encryption", "ecr_enable_scan_on_push",  # 2026-07-08 추가
+}
 
 
 def handler(event: dict, context=None) -> dict:
@@ -64,6 +67,10 @@ def _dispatch(action: str, target: dict, dry_run: bool, region: str) -> dict:
     if action == "iam_least_privilege":
         return _iam_least_privilege(target["role_name"], target["policy_name"],
                                     target.get("policy_document"), dry_run, region)
+    if action == "s3_enable_encryption":
+        return _s3_enable_encryption(target["bucket"], dry_run, region)
+    if action == "ecr_enable_scan_on_push":
+        return _ecr_enable_scan_on_push(target["repository_name"], dry_run, region)
     raise ValueError(action)  # _ACTIONS 게이트를 통과했으므로 도달 불가
 
 
@@ -127,6 +134,41 @@ def _iam_least_privilege(role_name: str, policy_name: str,
         return {"applied": False, "plan": plan}  # 제안 문서 없으면 diff만(적용 안 함)
     iam.put_role_policy(RoleName=role_name, PolicyName=policy_name,
                         PolicyDocument=json.dumps(policy_document))
+    return {"applied": True, "plan": plan}
+
+
+def _s3_enable_encryption(bucket: str, dry_run: bool, region: str) -> dict:
+    """S3 버킷 서버측 암호화(SSE-S3/AES256) 활성화(INTERNAL-S3-NOENCRYPT-001 되돌림, 2026-07-08).
+
+    KMS(SSE-KMS)가 아니라 AES256을 쓰는 이유: 추가 키 관리·비용 없이 즉시 적용 가능한
+    최소조치(무료 티어 규율, cost-strategy.md와 정합) — 더 강한 암호화가 필요하면 후속으로 격상.
+    """
+    plan = {"api": "s3:PutBucketEncryption", "bucket": bucket,
+            "change": "ServerSideEncryptionConfiguration = SSE-S3(AES256)"}
+    if dry_run:
+        return {"applied": False, "plan": plan}
+    import boto3
+    boto3.client("s3", region_name=region).put_bucket_encryption(
+        Bucket=bucket,
+        ServerSideEncryptionConfiguration={
+            "Rules": [{"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}]
+        },
+    )
+    return {"applied": True, "plan": plan}
+
+
+def _ecr_enable_scan_on_push(repository_name: str, dry_run: bool, region: str) -> dict:
+    """ECR 리포지토리 scan-on-push(이미지 취약점 자동 스캔) 활성화
+    (INTERNAL-ECR-SCAN-DISABLED-001 되돌림, 2026-07-08)."""
+    plan = {"api": "ecr:PutImageScanningConfiguration", "repository": repository_name,
+            "change": "imageScanningConfiguration.scanOnPush = true"}
+    if dry_run:
+        return {"applied": False, "plan": plan}
+    import boto3
+    boto3.client("ecr", region_name=region).put_image_scanning_configuration(
+        repositoryName=repository_name,
+        imageScanningConfiguration={"scanOnPush": True},
+    )
     return {"applied": True, "plan": plan}
 
 

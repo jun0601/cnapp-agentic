@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 _SOURCES = {"securityhub", "config", "inspector", "prowler-aws", "prowler-azure",
-            "trivy", "kube-bench", "macie", "synthetic"}
+            "trivy", "kube-bench", "macie", "access-analyzer", "synthetic"}
 _FORMATS = {"asff", "ocsf", "prowler-json", "trivy-json", "custom"}
 
 
