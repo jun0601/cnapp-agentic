@@ -110,10 +110,10 @@ cnapp-agentic/
 │   ├── core/                 (공유) contracts · tools · case
 │   ├── evidence/             (준형) triage · evidence — 능동조사
 │   └── reasoning/            (진우) hypothesis · reasoning · orchestrator
-├── scanners/                 🔨 스캐너 연동 (목업 동작)
-│   ├── cspm/                 ✅ SecurityHub·Macie·Prowler → 계약⑤ 봉투(mock+실 boto3/CLI) (준형)
-│   ├── workload/             ✅ Trivy·kube-bench ✅ · Inspector(scan_securityhub 경유 커버)·Defender ⬜(infra apply 후) (진우)
-│   └── ciem/                 ✅ Prowler entra_id_* → 계약⑤ 봉투(mock+실 CLI 위임) (진우)
+├── scanners/                 ✅ 스캐너 연동 (Prowler AWS/Azure 라이브 관통)
+│   ├── cspm/                 ✅ SecurityHub·Macie·Prowler → 계약⑤ 봉투 · **Prowler AWS GitHub Actions 자동스캔→S3→ingest 라이브 관통**(2026-07-08) (준형)
+│   ├── workload/             ✅ Trivy·kube-bench · Inspector(scan_securityhub 경유) · Defender ⬜ 범위제외(Azure 실 리소스 0개, D11) (진우)
+│   └── ciem/                 ✅ Prowler entra_* → 계약⑤ 봉투 · **Azure 라이브 관통**(구독 Reader 부여로 해결, 2026-07-08) (진우)
 ├── pipeline/                 ✅ 수집·정규화 (목업 동작)
 │   ├── ingest/               ✅ EventBridge/S3 이벤트 → 계약⑤ 봉투 → SQS (준형)
 │   └── normalize/            ✅ Lambda→OCSF (ASFF·prowler·trivy→OCSF-lite, dedup·역인덱스) (진우)
