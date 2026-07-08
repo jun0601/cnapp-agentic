@@ -64,11 +64,17 @@ jobs:
       - name: Sign-in 로그 조회 → 신규 로그인만 Teams로 전송
         if: steps.check.outputs.active == 'true'
         run: |
+          set -ex
+          # ⚠️ 2026-07-08 임시 디버그: 원인 미상 조용한 실패(exit 3, 출력 0줄) 진단을 위해
+          # set -x로 실행 트레이스를 켜고, TOKEN 조회 실패 시 진단 메시지를 명시적으로 출력한다.
+          set +e
+          az account get-access-token --tenant "${AZURE_TENANT_ID}" --resource https://graph.microsoft.com -o json > /tmp/token_resp.json 2>/tmp/token_err.txt
+          RC=$?
           set -e
-          # ⚠️ 2026-07-08: allow-no-subscriptions 로그인이라 "현재 활성 구독"이 없어 --tenant 없이
-          # 호출하면 az account get-access-token이 즉시 조용히 실패(exit 3, 출력 0줄) — 실측 확인.
-          # --tenant로 테넌트를 직접 지정해 구독 컨텍스트 의존을 없앤다.
-          TOKEN=$(az account get-access-token --tenant "${AZURE_TENANT_ID}" --resource https://graph.microsoft.com --query accessToken -o tsv)
+          echo "az exit code: $RC"
+          echo "--- stdout bytes ---"; wc -c /tmp/token_resp.json || true
+          echo "--- stderr ---"; cat /tmp/token_err.txt || true
+          TOKEN=$(python3 -c "import json;print(json.load(open('/tmp/token_resp.json'))['accessToken'])")
           SINCE=$(date -u -d '45 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
           export WEBHOOK_URL=$(cat /tmp/webhook_url)
           rm -f /tmp/webhook_url
