@@ -76,9 +76,13 @@ jobs:
           export WEBHOOK_URL=$(cat /tmp/webhook_url)
           rm -f /tmp/webhook_url
 
-          curl -sf -H "Authorization: Bearer ${TOKEN}" \
-            "https://graph.microsoft.com/v1.0/auditLogs/signIns?\$filter=createdDateTime%20ge%20${SINCE}&\$top=50&\$orderby=createdDateTime" \
-            -o signins.json
+          HTTP_CODE=$(curl -s -o signins.json -w "%{http_code}" -H "Authorization: Bearer ${TOKEN}" \
+            "https://graph.microsoft.com/v1.0/auditLogs/signIns?\$filter=createdDateTime%20ge%20${SINCE}&\$top=50&\$orderby=createdDateTime")
+          echo "graph http status: ${HTTP_CODE}"
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "--- error body ---"; cat signins.json
+            exit 1
+          fi
 
           python3 - <<'PYEOF'
           import json, os, datetime, urllib.request
