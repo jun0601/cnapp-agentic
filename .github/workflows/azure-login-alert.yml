@@ -65,7 +65,10 @@ jobs:
         if: steps.check.outputs.active == 'true'
         run: |
           set -e
-          TOKEN=$(az account get-access-token --resource https://graph.microsoft.com --query accessToken -o tsv)
+          # ⚠️ 2026-07-08: allow-no-subscriptions 로그인이라 "현재 활성 구독"이 없어 --tenant 없이
+          # 호출하면 az account get-access-token이 즉시 조용히 실패(exit 3, 출력 0줄) — 실측 확인.
+          # --tenant로 테넌트를 직접 지정해 구독 컨텍스트 의존을 없앤다.
+          TOKEN=$(az account get-access-token --tenant "${AZURE_TENANT_ID}" --resource https://graph.microsoft.com --query accessToken -o tsv)
           SINCE=$(date -u -d '45 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
           export WEBHOOK_URL=$(cat /tmp/webhook_url)
           rm -f /tmp/webhook_url
