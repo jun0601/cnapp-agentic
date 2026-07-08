@@ -84,7 +84,7 @@ variable "rds_connections_alarm_threshold" {
 variable "grafana_alb_dns_name" {
   description = "Grafana Ingress ALB의 DNS 이름(kubectl get ingress grafana -n monitoring의 ADDRESS 컬럼)"
   type        = string
-  default     = "k8s-monitori-grafana-9f9e2719d7-203785423.ap-northeast-2.elb.amazonaws.com"
+  default     = "k8s-monitori-grafana-9f9e2719d7-1583524382.ap-northeast-2.elb.amazonaws.com"
 }
 
 variable "grafana_alb_zone_id" {
