@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cnapp-tracing-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  tracing.json: |
+    {
+      "id": null,
+      "uid": "cnapp-tracing",
+      "title": "CNAPP - 분산 트레이싱(X-Ray)",
+      "tags": [
+        "cnapp-agentic",
+        "tracing",
+        "x-ray"
+      ],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "1m",
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "type": "table",
+          "title": "최근 트레이스 (ingest→normalize→correlation→orchestrator)",
+          "description": "X-Ray getTraceSummaries — 파이프라인 전 구간 실행 이력. HasError/Response로 실패한 호출을 바로 찾을 수 있다. Id를 X-Ray 콘솔에서 검색하면 세그먼트 상세로 이동 가능.",
+          "gridPos": { "x": 0, "y": 0, "w": 24, "h": 12 },
+          "datasource": { "type": "grafana-x-ray-datasource", "uid": "xray-monitoring" },
+          "targets": [
+            {
+              "datasource": { "type": "grafana-x-ray-datasource", "uid": "xray-monitoring" },
+              "refId": "A",
+              "queryType": "getTraceSummaries",
+              "queryMode": "X-Ray",
+              "query": "",
+              "region": "ap-northeast-2"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "short" },
+            "overrides": []
+          },
+          "id": 1
+        },
+        {
+          "type": "nodeGraph",
+          "title": "서비스 맵 — 파이프라인 호출 그래프",
+          "description": "X-Ray getServiceMap — SQS(ingest→normalize)는 links[] 참조라 별도 트레이스로 뜨고, EventBridge(normalize→correlation→orchestrator)는 완전 병합돼 하나의 그래프로 이어짐(2026-07-08 실측, troubleshooting.md 참고). ⚠️ 노드그래프 렌더링은 플러그인 프론트엔드 변환에 의존 — 데이터 자체는 실측 확인됨(getServiceMap 200 응답, Events/IAM 등 서비스 노드 포함).",
+          "gridPos": { "x": 0, "y": 12, "w": 24, "h": 14 },
+          "datasource": { "type": "grafana-x-ray-datasource", "uid": "xray-monitoring" },
+          "targets": [
+            {
+              "datasource": { "type": "grafana-x-ray-datasource", "uid": "xray-monitoring" },
+              "refId": "A",
+              "queryType": "getServiceMap",
+              "queryMode": "X-Ray",
+              "query": "",
+              "region": "ap-northeast-2",
+              "group": { "GroupName": "Default", "GroupARN": "", "FilterExpression": "" }
+            }
+          ],
+          "id": 2
+        }
+      ]
+    }
