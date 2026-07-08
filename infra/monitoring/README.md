@@ -35,7 +35,7 @@
 
 | 구분 | 내용 |
 |---|---|
-| Grafana IRSA | `aws_iam_role.grafana` — CloudWatch/Logs read-only, OIDC federated |
+| Grafana IRSA | `aws_iam_role.grafana` — CloudWatch/Logs read-only(`grafana_cloudwatch`) + **X-Ray read-only**(`grafana_xray`, `AWSXrayReadOnlyAccess` — §3.6), OIDC federated. Postgres 데이터소스는 IAM 아닌 RDS 계정(`grafana_readonly`, §3.4) |
 | CloudWatch Dashboard | `aws_cloudwatch_dashboard.platform` — **24위젯**(Lambda 6·인프라 8·Bedrock 2·비용 1·엔진 EMF 6·CloudFront 1), 모델 추가 시 아래 위젯이 자동으로 밀리는 상대좌표(`local.bedrock_rows_end_y`) |
 | CloudTrail 연동 | 로그그룹(`/aws/cloudtrail/${project}`) + IAM 역할 — §3 참고 |
 | Teams 알림 | SNS·Lambda 3종·시크릿 3개·알람 7종 — §5 참고 |
