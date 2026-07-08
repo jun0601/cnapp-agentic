@@ -118,9 +118,13 @@ def _emit_batch_completed(count: int) -> None:
     """
     batch_id = str(uuid.uuid4())
     if _XRAY:
-        seg = xray_recorder.current_segment()
-        if seg is not None:
-            seg.put_annotation("batch_id", batch_id)
+        # Lambda의 최상위 세그먼트는 읽기전용 FacadeSegment라 put_annotation을 직접 호출하면
+        # FacadeSegmentMutationException이 던져진다(2026-07-08 실측 — 매 호출 batch.completed
+        # 이벤트 발행 전에 죽어 2-pass 트리거가 끊기고 있었음). 서브세그먼트를 열어 그 위에 붙인다.
+        subsegment = xray_recorder.begin_subsegment("batch_annotation")
+        if subsegment is not None:
+            subsegment.put_annotation("batch_id", batch_id)
+        xray_recorder.end_subsegment()
 
     import boto3
     events = boto3.client("events", region_name=os.environ.get("AWS_REGION", "ap-northeast-2"))
