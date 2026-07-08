@@ -6,8 +6,10 @@ import { EmptyState } from '@/components/EmptyState'
 import { SeverityBadge } from '@/components/SeverityBadge'
 import type { Finding } from '@/api/types'
 
-// 자동 조치 카탈로그 MVP 3종(§14) — control_id로 open finding에 매칭.
+// 자동 조치 카탈로그(§14) — control_id로 open finding에 매칭. 승인 시 실 Step Functions 실행.
 const ACTIONS: Record<string, { title: string; mode: 'auto' | 'proposal' }> = {
+  'INTERNAL-S3-NOENCRYPT-001': { title: 'S3 서버측 암호화(SSE-S3) 활성화', mode: 'auto' },
+  'INTERNAL-ECR-SCAN-DISABLED-001': { title: 'ECR 이미지 스캔(scan-on-push) 활성화', mode: 'auto' },
   'INTERNAL-S3-PUBLIC-001': { title: 'S3 Public Access Block 설정', mode: 'auto' },
   'INTERNAL-SG-OPEN-INGRESS-001': { title: 'SG 0.0.0.0/0 인바운드 제거', mode: 'auto' },
   'INTERNAL-IAM-OVERPRIV-001': { title: 'IAM 최소권한 diff 제안', mode: 'proposal' },

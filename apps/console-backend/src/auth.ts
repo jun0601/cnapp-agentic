@@ -81,3 +81,20 @@ export async function roleFromHeaders(headers: Record<string, string | undefined
 
   return 'viewer' // 미인증/로컬 mock → 최소 권한 기본값
 }
+
+// 감사 로그 표기용 actor(email) 추출 — ⚠️ 보안 게이트가 아님(권한 판정은 검증된 roleFromHeaders가
+// 담당). 여기선 이미 approver로 확인된 요청의 신원 라벨만 뽑으므로 서명 재검증 없이 payload 디코드.
+export function actorFromHeaders(headers: Record<string, string | undefined> = {}): string {
+  const lower: Record<string, string> = {}
+  for (const [k, v] of Object.entries(headers)) if (v != null) lower[k.toLowerCase()] = v
+  const raw = lower['authorization']?.replace(/^Bearer\s+/i, '') ?? lower['x-amzn-oidc-data']
+  if (!raw) return 'approver'
+  try {
+    const parts = raw.split('.')
+    if (parts.length < 2) return 'approver'
+    const payload = JSON.parse(b64urlDecode(parts[1])) as Record<string, unknown>
+    return (payload['email'] ?? payload['cognito:username'] ?? payload['sub'] ?? 'approver') as string
+  } catch {
+    return 'approver'
+  }
+}

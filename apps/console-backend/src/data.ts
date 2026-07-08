@@ -293,6 +293,76 @@ export async function triggerReanalyze(findingId: string): Promise<{ accepted: b
   return { accepted: true, mode: 'live' }
 }
 
+// ── 조치 승인/거부(HITL) — approve는 실제 Step Functions 실행(engine/remediation.py). ──
+// 콘솔은 StartExecution 트리거만(§10·§17 — 실 변경은 격상 역할 Lambda가). approve 흐름:
+//   ① finding 조회 → control_id로 조치 액션·타깃 매핑 ② remediation_requests(approved) 기록
+//   ③ SFn StartExecution(입력=remediation Lambda event) ④ Lambda가 완료 시 finding=remediated로 UPDATE(점수↑)
+// 데모는 '드리프트 없는' 조치만(S3 SSE·ECR scan-on-push) — terraform이 관리 안 하는 속성이라
+// 재apply해도 안 꼬임. resource_id의 native_id가 실 리소스명이어야 조치가 실제로 성공한다.
+const REMEDIATION_ACTIONS: Record<string, { action: string; targetKey: string }> = {
+  'INTERNAL-S3-NOENCRYPT-001': { action: 's3_enable_encryption', targetKey: 'bucket' }, // 드리프트 X
+  'INTERNAL-ECR-SCAN-DISABLED-001': { action: 'ecr_enable_scan_on_push', targetKey: 'repository_name' }, // 드리프트 X
+  'INTERNAL-S3-PUBLIC-001': { action: 's3_block_public', targetKey: 'bucket' }, // ⚠️ 드리프트 O(target 토글 되돌림)
+  'INTERNAL-SG-OPEN-INGRESS-001': { action: 'sg_remove_open_ingress', targetKey: 'security_group_id' }, // ⚠️ 드리프트 O
+}
+// resource_id = {cloud}:{type}:{native_id} — native_id 추출(ecr repo의 '/'는 유지, 콜론만 구분자).
+function nativeId(resourceId: string): string {
+  return resourceId.split(':').slice(2).join(':')
+}
+
+export interface DecisionResult {
+  ok: boolean
+  id?: string
+  action?: string
+  execution_arn?: string
+  error?: string
+}
+
+export async function decideRemediation(
+  findingId: string,
+  decision: 'approve' | 'reject',
+  approver: string,
+): Promise<DecisionResult> {
+  if (USE_MOCK) return { ok: true, id: findingId, action: decision }
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { randomUUID } = require('node:crypto') as typeof import('node:crypto')
+  const p = await pool()
+  const fr = await p.query('SELECT finding_id, control_id, resource_id FROM findings WHERE finding_id = $1', [findingId])
+  if (fr.rows.length === 0) return { ok: false, error: 'finding not found' }
+  const f = fr.rows[0] as { finding_id: string; control_id: string; resource_id: string }
+  const remediationId = randomUUID()
+
+  if (decision === 'reject') {
+    await p.query(`INSERT INTO remediation_requests (id, finding_id, status, approver) VALUES ($1, $2, 'rejected', $3)`, [
+      remediationId,
+      findingId,
+      approver,
+    ])
+    return { ok: true, id: remediationId, action: 'reject' }
+  }
+
+  const map = REMEDIATION_ACTIONS[f.control_id]
+  if (!map) return { ok: false, error: `자동 조치 미지원 control: ${f.control_id}` }
+  const target: Record<string, string> = { [map.targetKey]: nativeId(f.resource_id) }
+
+  // 승인 요청 기록(HITL 감사) → remediation Lambda가 완료 시 status='applied'로 UPDATE.
+  await p.query(`INSERT INTO remediation_requests (id, finding_id, status, approver) VALUES ($1, $2, 'approved', $3)`, [
+    remediationId,
+    findingId,
+    approver,
+  ])
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { SFNClient, StartExecutionCommand } = require('@aws-sdk/client-sfn') as typeof import('@aws-sdk/client-sfn')
+  const sfn = new SFNClient({})
+  const input = { remediation_id: remediationId, finding_id: findingId, approver, action: map.action, target, dry_run: false }
+  const exec = await sfn.send(new StartExecutionCommand({ stateMachineArn: process.env.SFN_ARN, input: JSON.stringify(input) }))
+  await p.query(`UPDATE remediation_requests SET step_function_arn = $1, updated_at = now() WHERE id = $2`, [
+    exec.executionArn,
+    remediationId,
+  ])
+  return { ok: true, id: remediationId, action: map.action, execution_arn: exec.executionArn }
+}
+
 // scores·audit·compliance — real 모드에선 RDS 실조회(findings/remediation_requests/cases), mock은 정적 픽스처.
 // (2026-07-07: 하드코딩 상수 → 실데이터화. ⚠️ AWS Security Hub는 이 계정 구독제약(SubscriptionRequired)으로
 //  실점수 불가, Azure Defender secure score는 집계 대기 → 둘 다 '실 open findings 기반 posture'로 산출·라벨 명시.)

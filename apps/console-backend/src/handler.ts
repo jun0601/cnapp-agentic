@@ -3,7 +3,7 @@
 // 실 전환: 프론트 VITE_USE_MOCK=false + VITE_API_BASE=ALB URL → 이 Lambda가 응답(프론트 무변).
 // 전부 read-only(쓰기는 Step Functions로만, §10) — POST 조치는 승인(approver)만 트리거.
 import * as data from './data'
-import { roleFromHeaders } from './auth'
+import { roleFromHeaders, actorFromHeaders } from './auth'
 
 // ── ALB Lambda 이벤트/응답(최소 타입, @types/aws-lambda 의존 회피) ──
 interface AlbEvent {
@@ -85,8 +85,10 @@ export async function handler(event: AlbEvent): Promise<AlbResult> {
         if ((await roleFromHeaders(event.headers)) !== 'approver') {
           return json(403, { error: 'approver 권한 필요(조치 승인은 보안관리자만)' })
         }
-        // 실 전환: Step Functions StartExecution(승인 시). 지금은 트리거 확인만.
-        return json(200, { ok: true, id: rem[1], action: rem[2] })
+        // approve → 실 Step Functions 실행(engine/remediation.py) → finding remediated → 점수↑.
+        const approver = actorFromHeaders(event.headers)
+        const result = await data.decideRemediation(decodeURIComponent(rem[1]), rem[2] as 'approve' | 'reject', approver)
+        return json(result.ok ? 200 : 400, result)
       }
       const rean = path.match(/^\/findings\/([^/]+)\/reanalyze$/)
       if (rean) {
