@@ -57,15 +57,44 @@ async function recordLogin(actor: string, role: string): Promise<void> {
   }
 }
 
+// Teams 알림 — 2026-07-08: Azure signIns API 기반 실시간 로그인 알림을 시도했으나 테넌트가
+// Azure AD Premium P1 라이선스가 없어 HTTP 403(Authentication_RequestFromNonPremiumTenantOrB2CTenant)
+// 으로 구조적으로 막힘(troubleshooting.md 참고) — 대안으로 여기서 직접 Teams에 알림을 보낸다.
+// Entra Graph API를 전혀 안 거치므로 라이선스 제약 자체가 적용되지 않고, Cognito가 SAML
+// 인증을 이미 완료한 시점에 정확히 트리거되는 이벤트 기반이라 폴링보다 지연·누락이 없다.
+async function notifyTeams(actor: string, role: string): Promise<void> {
+  const secretId = process.env.TEAMS_WEBHOOK_SECRET_ID
+  if (!secretId) return
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager')
+  const sm = new SecretsManagerClient({})
+  const webhook = (await sm.send(new GetSecretValueCommand({ SecretId: secretId }))).SecretString
+  if (!webhook) return
+  const when = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+  const text =
+    `<b>\u{1F510} 관제 콘솔 로그인 감지</b><br><br>` +
+    `사용자: <b>${actor}</b><br>역할: ${role}<br>시각(KST): ${when}`
+  await fetch(webhook, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+}
+
 export async function handler(event: CognitoPostAuthEvent): Promise<CognitoPostAuthEvent> {
+  const attrs = event?.request?.userAttributes ?? {}
+  const actor = attrs['email'] ?? event?.userName ?? 'unknown'
+  const role = roleFromAttributes(attrs)
   try {
-    const attrs = event?.request?.userAttributes ?? {}
-    const actor = attrs['email'] ?? event?.userName ?? 'unknown'
-    const role = roleFromAttributes(attrs)
     await recordLogin(actor, role)
   } catch (e) {
     // 감사 기록 실패 — 로그로만 남기고 로그인은 절대 막지 않는다(fail-open).
     console.error('login-trigger: audit write failed (login proceeds regardless):', e)
+  }
+  try {
+    await notifyTeams(actor, role)
+  } catch (e) {
+    console.error('login-trigger: teams notify failed (login proceeds regardless):', e)
   }
   return event
 }

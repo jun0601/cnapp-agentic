@@ -594,6 +594,18 @@ data "aws_iam_policy_document" "login_trigger" {
     actions   = ["secretsmanager:GetSecretValue"]
     resources = [local.rds_secret_arn]
   }
+  statement {
+    # 2026-07-08: Azure signIns API 기반 로그인 알림이 테넌트 라이선스(Azure AD Premium P1)
+    # 제약으로 구조적으로 막혀서(HTTP 403 Authentication_RequestFromNonPremiumTenantOrB2CTenant,
+    # troubleshooting.md 참고) 대신 이 Cognito 트리거에서 직접 Teams로 알림 — Entra API 전혀
+    # 안 거침(콘솔 SSO 로그인은 Cognito가 실제 인증 완료 신호를 주는 시점에 이미 확정된 사실이라
+    # 라이선스 제약 자체가 적용 안 됨). 시크릿은 infra/monitoring 소유라 역방향 참조 불가 →
+    # 예측 가능한 이름+와일드카드 접미사로 스코프(infra/shared의 github_ci_read_login_webhook과
+    # 동일 패턴).
+    sid       = "ReadTeamsWebhookSecret"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = ["arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project}/teams/webhook-login-*"]
+  }
 }
 resource "aws_iam_role_policy" "login_trigger" {
   name   = "login-trigger"
@@ -621,8 +633,9 @@ resource "aws_lambda_function" "login_trigger" {
   }
   environment {
     variables = {
-      DB_HOST       = local.rds_endpoint
-      DB_SECRET_ARN = local.rds_secret_arn
+      DB_HOST                 = local.rds_endpoint
+      DB_SECRET_ARN           = local.rds_secret_arn
+      TEAMS_WEBHOOK_SECRET_ID = "${var.project}/teams/webhook-login"
     }
   }
   depends_on = [aws_cloudwatch_log_group.login_trigger, aws_iam_role_policy_attachment.login_trigger_vpc]

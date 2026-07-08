@@ -15,10 +15,22 @@ name: azure-login-alert
 # ⚠️ 창을 주기(15분)보다 넉넉히 크게 잡은 이유: GitHub Actions의 schedule 트리거는 저장소
 # 활동이 적으면 지연되거나 스킵될 수 있다고 공식 문서화돼 있음 — 창이 주기와 같으면 스킵된
 # 회차의 로그인을 완전히 놓칠 수 있어서(중복보다 훨씬 나쁨), 안전마진을 넉넉히 둠.
+#
+# 🔴 2026-07-08 실측: 이 워크플로는 영구히 실패한다 — Microsoft Graph의 auditLogs/signIns
+# 엔드포인트는 **Azure AD Premium P1/P2 라이선스가 없으면 호출 자체가 거부**된다(HTTP 403,
+# error.code=Authentication_RequestFromNonPremiumTenantOrB2CTenant). 이 테넌트는 M365
+# Business 체험판(Premium 미포함)이라 코드로 우회 불가능한 라이선스 벽 — Defender for
+# Cloud(2026-07-07)·Prowler Azure 구독 문제(2026-07-08)와 같은 패턴. 대안 directoryAudits
+# 엔드포인트도 검토했으나 관리작업 로그만 있고 실제 로그인 IP·앱·결과 정보가 없어 대체 불가.
+# → **콘솔 SSO 로그인 알림은 대신 `apps/console-backend/src/login-trigger.ts`(Cognito
+# Post-Authentication 트리거)에서 직접 처리**(Entra API를 전혀 안 거쳐 라이선스 제약 자체가
+# 적용 안 됨, 이벤트 기반이라 폴링보다 정확). schedule을 꺼서 매 15분 빨간 실패를 막고,
+# workflow_dispatch만 남겨둔다(나중에 Premium 라이선스를 구매하면 schedule 한 줄만 복원하면
+# 됨 — 코드 자체는 그대로 유효). 상세는 troubleshooting.md.
 
 on:
-  schedule:
-    - cron: "*/15 * * * *" # 15분마다(GitHub Actions 스케줄은 부하 시 지연될 수 있음 — 알림 특성상 허용)
+  # schedule: 라이선스 벽으로 영구 실패라 비활성화(위 설명). Premium 구매 시 아래 주석 해제.
+  #   - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
