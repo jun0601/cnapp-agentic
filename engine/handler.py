@@ -32,6 +32,20 @@ try:
 except ImportError:
     _XRAY = False
 
+
+def _xray_annotate(key: str, value: str) -> None:
+    """안전한 annotation — 2026-07-08 실측 버그(FacadeSegmentMutationException, pipeline/normalize/
+    handler.py 주석 참고) 이후 서브세그먼트 방식 + 광범위 try/except로 통일."""
+    if not _XRAY:
+        return
+    try:
+        sub = xray_recorder.begin_subsegment("annotate")
+        if sub is not None:
+            sub.put_annotation(key, value)
+        xray_recorder.end_subsegment()
+    except Exception:  # noqa: BLE001
+        pass
+
 _SELECT_FINDINGS = """
 SELECT finding_id, cloud, resource_id, resource_type, pillar, control_id,
        title, severity_id, status, sources, dedup_key, priority_score,
@@ -74,10 +88,8 @@ ON CONFLICT (finding_id) DO UPDATE SET
 
 def handler(event: dict, context=None) -> dict:
     batch_id = (event or {}).get("detail", {}).get("batch_id")
-    if _XRAY and batch_id:
-        seg = xray_recorder.current_segment()
-        if seg is not None:
-            seg.put_annotation("batch_id", batch_id)
+    if batch_id:
+        _xray_annotate("batch_id", batch_id)
 
     findings = _load(_SELECT_FINDINGS)
     paths = _load(_SELECT_PATHS)  # nodes/edges는 psycopg2가 jsonb→list로 디코드

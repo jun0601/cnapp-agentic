@@ -1,15 +1,26 @@
 """Azure Entra ID CIEM 스캐너 (진우 담당).
 
 역할:
-  Prowler Azure의 entra_id_* 체크 결과(과도권한 App Registration·SP 자격증명
-  무만료·위험한 admin consent·App 설정 미스컨피그)를 계약⑤ ingest-envelope으로
+  Prowler Azure의 entra_* 체크 결과(과도권한 App Registration·SP 자격증명
+  과다유효기간·위험한 admin consent·App 설정 미스컨피그)를 계약⑤ ingest-envelope으로
   감싸 반환한다. 이후 Normalizer(pipeline/normalize)가 envelope → 계약① finding 변환.
 
 대상 control(계약 control-catalog.json):
   INTERNAL-ENTRA-OVERPRIV-APP-001    과도권한 App Registration (Directory.ReadWrite.All 등)
-  INTERNAL-ENTRA-SP-CRED-001         SP 자격증명 무만료/유출 위험
+  INTERNAL-ENTRA-SP-CRED-001         SP 자격증명 과다유효기간/유출 위험
   INTERNAL-ENTRA-RISKY-CONSENT-001   미검증 앱에 위험한 admin consent
   INTERNAL-ENTRA-INSECURE-CFG-001    App Registration 설정 미스컨피그(Defender secure-score 축)
+
+⚠️ 실측 정정(2026-07-08): 체크 패턴이 원래 가정한 `entra_id_*`가 아니라 **`entra_*`**다
+(Prowler v5 기준, 언더스코어 `id` 없음 — GitHub `prowler-cloud/prowler` 소스로 실측 확인).
+control-catalog.json의 sources를 실제 체크명으로 정정함. 단 OVERPRIV-APP과 동등한 체크는
+azure provider의 entra 서비스엔 없고 **m365 provider에만** 존재(entra_app_registration_
+no_unused_privileged_permissions) — 이 클래스는 여전히 provider="azure"만 호출하므로
+OVERPRIV-APP은 현재 코드 경로로 실 데이터에 도달 못함(golden mock 전용 유지).
+INSECURE-CFG(redirect URI 미스컨피그)는 azure·m365 어느 쪽에도 대응 체크가 없어 실 소스 없음.
+provider=m365로 확장은 별도 과제(CI 키리스 인증 문제 — m365 --az-cli-auth는 Prowler 자체
+코드 주석에 미작동 명시, --sp-env-auth는 기본적으로 client secret을 요구해 D4 키리스 원칙과
+충돌 소지, 워크로드ID 페더레이션 env var 조합으로 우회 가능할 수 있으나 미검증).
 
 실배포 스왑:
   Prowler SP(manual-infra §3.6.3, GitHub OIDC 키리스) → scan_prowler() →
@@ -52,8 +63,8 @@ class EntraCIEMScanner:
 
     # ── 실 경로 (CSPMScanner에 위임 — subprocess 로직 중복 방지) ─────────
 
-    def scan_prowler(self, checks: str = "entra_id_*", timeout: int = 600) -> List[dict]:
-        """prowler CLI(Azure)로 entra_id_* 체크만 실행 → prowler-json 봉투[] 반환.
+    def scan_prowler(self, checks: str = "entra_*", timeout: int = 600) -> List[dict]:
+        """prowler CLI(Azure)로 entra_* 체크만 실행 → prowler-json 봉투[] 반환.
 
         전제: Prowler SP(manual-infra §3.6.3, GitHub Federated Credential 키리스)로
         인증된 환경. AWS CSPM과 동일한 CLI 실행 경로를 재사용한다

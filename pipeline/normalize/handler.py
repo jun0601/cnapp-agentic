@@ -19,13 +19,19 @@ import uuid
 
 from pipeline.normalize.normalizer import Normalizer
 
-# X-Ray(2026-07-07): SQS→Lambda 구간은 AWSTraceHeader로 자동 이어지지만(ingest Lambda가 patch_all로
-# 부착), 다음 구간(EventBridge→correlation)은 AWS가 트레이스를 자동 전파 안 해준다. 그래서 이 Lambda가
+# X-Ray(2026-07-08 실측 정정): 애초 설계는 "SQS는 자동 연결, EventBridge는 수동"이었으나 실측 결과가
+# 정반대로 나옴 —
+#   · SQS→Lambda(ingest→normalize): ingest.py가 AWSTraceHeader를 MessageSystemAttributes에
+#     명시적으로 실어도(patch_all만으론 안 됨) **트레이스 ID는 병합되지 않고 links[]로만 연결**된다
+#     (SQS 배치가 여러 트레이스의 메시지를 섞을 수 있어 X-Ray가 단일 병합 대신 참조 링크를 씀 —
+#     pipeline/ingest/ingest.py의 _xray_trace_header_attr() 주석 참고). 실패 아님, AWS 설계.
+#   · EventBridge→Lambda(normalize→correlation→orchestrator): patch_all()만으로 **완전히 하나의
+#     트레이스 ID로 병합**됨(bedrock-runtime·STS·IAM·secretsmanager 등 하위 서비스까지 한 트리에
+#     실측 확인) — "EventBridge는 자동 전파 안 함"이라던 기존 가정이 틀렸음.
+# 그래도 batch_id annotation은 유지: SQS 구간의 링크만으론 콘솔에서 바로 검색이 안 되니, 이 Lambda가
 # 새로 생성하는 batch_id를 ① 이 세그먼트의 annotation으로 남기고 ② 다음 이벤트 detail에 실어보내
 # correlation·orchestrator가 같은 값으로 자기 세그먼트에 annotation을 달게 한다 — X-Ray 콘솔에서
-# annotation.batch_id로 검색하면 EventBridge로 끊긴 구간도 하나의 요청 흐름으로 찾을 수 있다
-# (진짜 트레이스 트리 병합은 아님 — Lambda가 EventBridge event의 custom detail 필드를 트레이스
-# 컨텍스트로 인식하지 못해서 못함. AWS 공식 문서가 권장하는 EventBridge 상관관계 우회법).
+# annotation.batch_id로 검색하면 ingest부터 orchestrator까지 전 구간을 하나의 검색 키로 찾을 수 있다.
 try:
     from aws_xray_sdk.core import patch_all, xray_recorder
 
@@ -33,6 +39,28 @@ try:
     _XRAY = True
 except ImportError:
     _XRAY = False
+
+
+def _xray_annotate(key: str, value: str) -> None:
+    """X-Ray annotation을 안전하게 남긴다 — 관측 코드가 절대 실제 파이프라인을 깨면 안 된다.
+
+    ⚠️ 2026-07-08 실측 버그: Lambda가 자동 생성하는 top-level 세그먼트는 aws_xray_sdk가
+    'FacadeSegment'로 감싸 직접 mutation을 막는다(FacadeSegmentMutationException) — Active
+    tracing Lambda에서 `xray_recorder.current_segment().put_annotation(...)`을 그대로 호출하면
+    이 예외가 핸들러까지 전파돼 실제 로직(2-pass 이벤트 발행)까지 통째로 크래시시켰다(라이브
+    normalize 호출 2건 모두 재현, cnapp.findings.batch.completed 미발행 확인). 서브세그먼트를
+    열어 거기에 annotation을 남기는 것으로 수정(X-Ray는 서브세그먼트 annotation도 검색 가능) +
+    무슨 일이 있어도 절대 예외를 밖으로 흘리지 않도록 광범위 try/except로 감쌈.
+    """
+    if not _XRAY:
+        return
+    try:
+        sub = xray_recorder.begin_subsegment("annotate")
+        if sub is not None:
+            sub.put_annotation(key, value)
+        xray_recorder.end_subsegment()
+    except Exception:  # noqa: BLE001 — 관측 실패가 절대 비즈니스 로직을 막으면 안 됨
+        pass
 
 _UPSERT = """
 INSERT INTO findings (finding_id, cloud, resource_id, resource_type, pillar, control_id,
@@ -117,14 +145,7 @@ def _emit_batch_completed(count: int) -> None:
     findings 테이블·비즈니스 로직과는 무관, 순수 관측용으로만 이벤트 detail에 실어 보낸다.
     """
     batch_id = str(uuid.uuid4())
-    if _XRAY:
-        # Lambda의 최상위 세그먼트는 읽기전용 FacadeSegment라 put_annotation을 직접 호출하면
-        # FacadeSegmentMutationException이 던져진다(2026-07-08 실측 — 매 호출 batch.completed
-        # 이벤트 발행 전에 죽어 2-pass 트리거가 끊기고 있었음). 서브세그먼트를 열어 그 위에 붙인다.
-        subsegment = xray_recorder.begin_subsegment("batch_annotation")
-        if subsegment is not None:
-            subsegment.put_annotation("batch_id", batch_id)
-        xray_recorder.end_subsegment()
+    _xray_annotate("batch_id", batch_id)
 
     import boto3
     events = boto3.client("events", region_name=os.environ.get("AWS_REGION", "ap-northeast-2"))

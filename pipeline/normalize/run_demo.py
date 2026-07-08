@@ -139,7 +139,7 @@ MOCK_ENVELOPES = [
         "scan_batch_id": "batch-2026-07-02-prowler-azure",
         "ingested_at": "2026-07-02T01:20:00Z",
         "raw_inline": {
-            "checkID": "entra_id_app_registration_overprivileged",
+            "checkID": "entra_app_registration_no_unused_privileged_permissions",
             "checkTitle": "Entra App Registration granted Directory.ReadWrite.All",
             "status": "FAIL",
             "severity": "critical",
@@ -158,7 +158,7 @@ MOCK_ENVELOPES = [
         "scan_batch_id": "batch-2026-07-02-prowler-azure",
         "ingested_at": "2026-07-02T01:20:00Z",
         "raw_inline": {
-            "checkID": "entra_id_sp_credential_no_expiry",
+            "checkID": "entra_app_registration_credential_not_expired",
             "checkTitle": "Service Principal credential with excessive validity (24 months)",
             "status": "FAIL",
             "severity": "high",
@@ -218,7 +218,7 @@ MOCK_ENVELOPES = [
         "scan_batch_id": "batch-2026-07-02-prowler-ocsf-azure",
         "ingested_at": "2026-07-02T01:25:00Z",
         "raw_inline": {
-            "metadata": {"event_code": "entra_id_app_registration_overprivileged",
+            "metadata": {"event_code": "entra_app_registration_no_unused_privileged_permissions",
                          "product": {"name": "Prowler"}},
             "severity": "Critical",
             "status_code": "FAIL",

@@ -97,37 +97,41 @@
       "pillar": "ciem",
       "title": "Over-privileged Entra App Registration (e.g. Directory.ReadWrite.All)",
       "severity_default": 1,
-      "sources": ["prowler:entra_id_app_*_overprivileged", "prowler:entra_id_application_*"],
+      "sources": ["prowler:entra_app_registration_no_unused_privileged_permissions"],
       "isms_p": null,
       "remediable": true,
-      "lifecycle": "runtime"
+      "lifecycle": "runtime",
+      "_note_2026-07-08": "실측(진우): 원래 가정한 'entra_id_*' 체크는 Prowler v5(azure·m365 둘 다)에 존재하지 않음(실제는 'entra_*', 언더스코어 id 없음). 이 control과 정확히 매칭되는 체크는 azure provider의 entra 서비스엔 없고 **m365 provider에만 존재**(entra_app_registration_no_unused_privileged_permissions) — scanners/ciem/entra.py가 provider=azure로 호출하므로 이 소스는 현재 코드 경로로는 미도달(라이브 전환 시 provider=m365로 바꿔야 함, m365의 키리스 CI 인증은 별도 과제 — az-cli-auth가 Prowler 자체 코드상 미작동 명시, sp-env-auth는 client secret 필요해 D4 위반 소지)."
     },
     "INTERNAL-ENTRA-SP-CRED-001": {
       "pillar": "ciem",
       "title": "Entra Service Principal credential with excessive validity (>6 months) / leak risk",
       "severity_default": 2,
-      "sources": ["prowler:entra_id_sp_credential_no_expiry", "prowler:entra_id_sp_*_credential_*"],
+      "sources": ["prowler:entra_app_registration_credential_not_expired"],
       "isms_p": null,
       "remediable": true,
-      "lifecycle": "runtime"
+      "lifecycle": "runtime",
+      "_note_2026-07-08": "실측(진우): azure provider entra 서비스에 실존하는 체크로 정정(기존 'entra_id_sp_credential_no_expiry'는 존재하지 않던 이름). provider=azure로 바로 도달 가능."
     },
     "INTERNAL-ENTRA-RISKY-CONSENT-001": {
       "pillar": "ciem",
       "title": "Risky admin consent grant to unverified app",
       "severity_default": 2,
-      "sources": ["prowler:entra_id_admin_consent_*", "prowler:entra_id_*_consent_*"],
+      "sources": ["prowler:entra_policy_restricts_user_consent_for_apps", "prowler:entra_policy_user_consent_for_verified_apps"],
       "isms_p": null,
       "remediable": true,
-      "lifecycle": "runtime"
+      "lifecycle": "runtime",
+      "_note_2026-07-08": "실측(진우): azure·m365 provider 둘 다 존재하는 실제 체크명으로 정정. provider=azure로 바로 도달 가능."
     },
     "INTERNAL-ENTRA-INSECURE-CFG-001": {
       "pillar": "cspm",
       "title": "Entra App Registration insecure configuration (redirect URI etc., Defender secure-score)",
       "severity_default": 4,
-      "sources": ["prowler:entra_id_app_redirect_uri_insecure", "prowler:entra_id_app_*_insecure"],
+      "sources": ["prowler:entra_id_app_redirect_uri_insecure"],
       "isms_p": null,
       "remediable": true,
-      "lifecycle": "runtime"
+      "lifecycle": "runtime",
+      "_note_2026-07-08": "실측(진우): 'redirect URI insecure' 의미에 대응하는 실제 Prowler v5 체크를 azure·m365 어느 provider에서도 찾지 못함 — 이 sources 값은 실존하는 Prowler checkID가 아니라 golden mock 데모 전용 합성 식별자(실 스캔에서 절대 발생 안 함, 무해한 죽은 매핑). Defender for Cloud secure-score 축 자체가 2026-07-07 범위 제외 결정과 맞물려 이 control은 구조적으로 mock-only로 남을 가능성이 높음."
     },
     "INTERNAL-ECR-SCAN-DISABLED-001": {
       "pillar": "cspm",

@@ -1,4 +1,10 @@
-"""Azure Entra CIEM 스캐너 데모 — Prowler entra_id_* 체크 → ingest-envelope → OCSF-lite finding.
+"""Azure Entra CIEM 스캐너 데모 — Prowler entra_* 체크 → ingest-envelope → OCSF-lite finding.
+
+⚠️ 2026-07-08 정정: checkID를 실제 Prowler v5 체크명으로 교체(기존 'entra_id_*' 접두는 실존하지
+않던 가정 이름, 실제는 'entra_*'). f8(OVERPRIV-APP)에 쓴 체크는 azure provider엔 없고 m365
+provider에만 실존 — 이 스캐너 클래스는 provider=azure만 호출하므로 f8은 계속 mock 전용이다
+(scanners/ciem/entra.py 상단 주석 참고). f17(INSECURE-CFG)은 어느 provider에도 대응 체크가
+없어 합성 식별자를 그대로 유지(control-catalog.json의 _note 참고, 무해한 mock 전용 매핑).
 
 실행: 레포 루트에서  python -m scanners.ciem.run_demo
 
@@ -36,7 +42,7 @@ from scanners.ciem.entra import EntraCIEMScanner
 MOCK_PROWLER_AZURE_CHECKS = [
     # ── f8 골든 finding: 과도권한 App Registration ─────────────────────
     {
-        "checkID": "entra_id_app_registration_overprivileged",
+        "checkID": "entra_app_registration_no_unused_privileged_permissions",
         "checkTitle": "Entra App Registration granted Directory.ReadWrite.All (over-privileged)",
         "status": "FAIL",
         "severity": "critical",
@@ -47,7 +53,7 @@ MOCK_PROWLER_AZURE_CHECKS = [
     },
     # ── f9 골든 finding: 미검증 앱에 위험한 admin consent (같은 앱 등록) ──
     {
-        "checkID": "entra_id_admin_consent_unverified_app",
+        "checkID": "entra_policy_restricts_user_consent_for_apps",
         "checkTitle": "Risky admin consent (User.ReadWrite.All) granted to unverified app",
         "status": "FAIL",
         "severity": "high",
@@ -60,7 +66,7 @@ MOCK_PROWLER_AZURE_CHECKS = [
     #    Entra는 포털에서 "무만료" 옵션 자체를 지원 안 함(최대 24개월) → 기준을
     #    "무만료"가 아닌 "장기 유효(>6개월)"로 완화(2026-07-02 확정, manual-infra §3.6.4).
     {
-        "checkID": "entra_id_sp_credential_no_expiry",
+        "checkID": "entra_app_registration_credential_not_expired",
         "checkTitle": "Service Principal credential with excessive validity (24 months, leak risk)",
         "status": "FAIL",
         "severity": "high",
@@ -84,17 +90,17 @@ MOCK_PROWLER_AZURE_CHECKS = [
 
 # checkID → 기대 골든 값 (control_id, resource_id, severity_id, pillar, resource_type)
 _EXPECTED = {
-    "entra_id_app_registration_overprivileged": (
+    "entra_app_registration_no_unused_privileged_permissions": (
         "INTERNAL-ENTRA-OVERPRIV-APP-001",
         "azure:app_registration:a1b2c3d4-1111-2222-3333-444455556666",
         1, "ciem", "app_registration",
     ),
-    "entra_id_admin_consent_unverified_app": (
+    "entra_policy_restricts_user_consent_for_apps": (
         "INTERNAL-ENTRA-RISKY-CONSENT-001",
         "azure:app_registration:a1b2c3d4-1111-2222-3333-444455556666",
         2, "ciem", "app_registration",
     ),
-    "entra_id_sp_credential_no_expiry": (
+    "entra_app_registration_credential_not_expired": (
         "INTERNAL-ENTRA-SP-CRED-001",
         "azure:service_principal:b2c3d4e5-7777-8888-9999-aaaabbbbcccc",
         2, "ciem", "service_principal",

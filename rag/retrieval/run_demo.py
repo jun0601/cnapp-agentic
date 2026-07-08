@@ -73,7 +73,7 @@ MOCK_FINDINGS = [
         "title": "Over-privileged Entra App Registration (Directory.ReadWrite.All)",
         "severity_id": 1,
         "status": "open",
-        "sources": ["prowler:entra_id_app_overprivileged"],
+        "sources": ["prowler:entra_app_registration_no_unused_privileged_permissions"],
         "dedup_key": "azure:app_registration:cnapp-agentic-overpriv-app|INTERNAL-ENTRA-OVERPRIV-APP-001",
         "ai_status": "pending",
         "first_seen": "2026-07-01T00:00:00Z",

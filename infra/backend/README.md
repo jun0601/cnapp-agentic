@@ -82,8 +82,9 @@ terraform apply backend.tfplan
 
 5개 Lambda 전부 `tracing_config { mode = "Active" }` + 전용 `xray-sdk` 레이어(순수 파이썬, `aws-xray-sdk`+`wrapt`만 — `--no-deps`로 설치해 botocore를 재번들하지 않음, 안 하면 Lambda 런타임이 이미 제공하는 botocore와 섀도잉 충돌 위험 + 레이어 크기 30MB→1.6MB).
 
-**구간별로 이어지는 방식이 다르다(중요):**
-- **ingest → normalize(SQS)**: **완전 자동.** ingest가 `patch_all()`로 boto3를 패치해 `sqs.send_message()`가 `AWSTraceHeader` 메시지 속성을 자동으로 실어 보내고, normalize(Active tracing)는 Lambda 서비스가 이 값을 읽어 **같은 트레이스로 자동 연결**한다. 코드 추가 불필요 — AWS Lambda+SQS+X-Ray의 공식 내장 기능.
-- **normalize → correlation → orchestrator(EventBridge)**: **자동 연결 안 됨.** EventBridge는 X-Ray 트레이스 컨텍스트를 자동 전파하지 않는다(AWS 공식 제약, Lambda가 커스텀 `detail` 필드를 트레이스 컨텍스트로 인식 못함). 대신 normalize가 생성한 `batch_id`를 이벤트 `detail`에 실어 보내고, 각 단계가 **자기 세그먼트에 같은 값을 annotation으로** 남긴다 — X-Ray 콘솔에서 `annotation.batch_id = "<값>"`으로 검색하면 EventBridge로 끊긴 구간도 하나의 요청 흐름으로 찾을 수 있다. **단, 이건 진짜 트레이스 트리 병합이 아니라 검색 키 기반 상관관계**다(ingest+normalize는 진짜 한 트레이스, correlation·orchestrator는 각각 별도 트레이스 — 셋 다 같은 annotation으로 찾을 수 있을 뿐). 이 한계는 AWS 자체 문서가 EventBridge 트레이싱에 권장하는 표준 우회법이다.
+**구간별로 이어지는 방식이 다르다(중요, 2026-07-08 실측 후 정정 — 최초 설계 가정과 반대):**
+- **ingest → normalize(SQS)**: **자동 연결 안 됨(최초 설계와 반대).** `patch_all()`만으로는 `sqs.send_message()`가 `AWSTraceHeader`를 자동으로 싣지 않는다 — ingest가 `pipeline/ingest/ingest.py`의 `_xray_trace_header_attr()`로 직접 조립해 `MessageSystemAttributes`에 명시적으로 부착해야 한다. 그렇게 해도 **트레이스 ID가 병합되지는 않고 `links[]`(reference_type=child)로만 연결**된다 — SQS 배치 호출은 여러 트레이스의 메시지를 한 배치에 담을 수 있어 X-Ray가 단일 병합 대신 참조 링크를 쓰는 설계(실패 아님, `aws xray batch-get-traces`로 ingest 세그먼트의 `links[0].trace_id`가 normalize 트레이스 ID와 정확히 일치함을 확인). X-Ray 콘솔에서 ingest 트레이스를 열면 링크를 타고 normalize 트레이스로 넘어갈 수 있다.
+- **normalize → correlation → orchestrator(EventBridge)**: **완전 자동 병합(최초 설계와 반대).** `patch_all()`만으로 세 Lambda가 **하나의 트레이스 ID**로 완전히 합쳐진다(bedrock-runtime·STS·IAM·secretsmanager·member-pii-prod 등 하위 서비스 호출까지 한 트리에 실측 확인) — "EventBridge는 트레이스 전파 안 함"이라던 최초 가정이 틀렸음.
+- **batch_id annotation은 계속 유지**: SQS 구간이 링크로만 연결돼 콘솔 검색이 바로 안 되므로, normalize가 생성하는 `batch_id`를 이벤트 `detail`에 실어 보내고 각 단계가 자기 세그먼트에 같은 값을 annotation으로 남긴다 — `annotation.batch_id = "<값>"` 검색으로 ingest부터 orchestrator까지 전 구간을 한 검색 키로 찾을 수 있다.
 
-**확인 방법**: AWS 콘솔 → X-Ray → Traces → `annotation.batch_id = "..."`로 검색(정확한 값은 normalize Lambda의 CloudWatch Logs 또는 `cnapp.findings.batch.completed` 이벤트에서 확인).
+**확인 방법**: AWS 콘솔 → X-Ray → Traces → `annotation.batch_id = "..."`로 검색(정확한 값은 normalize Lambda의 CloudWatch Logs 또는 `cnapp.findings.batch.completed` 이벤트에서 확인). 또는 ingest 트레이스를 직접 열어 "Linked traces"로 normalize까지 이동.

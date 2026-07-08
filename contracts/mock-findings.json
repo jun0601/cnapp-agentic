@@ -85,7 +85,7 @@
       "pillar": "ciem", "control_id": "INTERNAL-ENTRA-OVERPRIV-APP-001",
       "title": "Entra App Registration granted Directory.ReadWrite.All (over-privileged)",
       "severity_id": 1, "status": "open",
-      "sources": ["prowler:entra_id_app_directory_readwrite_all"],
+      "sources": ["prowler:entra_app_registration_no_unused_privileged_permissions"],
       "dedup_key": "azure:app_registration:a1b2c3d4-1111-2222-3333-444455556666|INTERNAL-ENTRA-OVERPRIV-APP-001",
       "priority_score": 0.94, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
       "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
@@ -96,7 +96,7 @@
       "pillar": "ciem", "control_id": "INTERNAL-ENTRA-RISKY-CONSENT-001",
       "title": "Risky admin consent (User.ReadWrite.All) granted to unverified app",
       "severity_id": 2, "status": "open",
-      "sources": ["prowler:entra_id_admin_consent_unverified_app"],
+      "sources": ["prowler:entra_policy_restricts_user_consent_for_apps"],
       "dedup_key": "azure:app_registration:a1b2c3d4-1111-2222-3333-444455556666|INTERNAL-ENTRA-RISKY-CONSENT-001",
       "priority_score": null, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
       "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
@@ -174,7 +174,7 @@
       "pillar": "ciem", "control_id": "INTERNAL-ENTRA-SP-CRED-001",
       "title": "Service Principal credential with excessive validity (24 months, leak risk)",
       "severity_id": 2, "status": "open",
-      "sources": ["prowler:entra_id_sp_credential_no_expiry"],
+      "sources": ["prowler:entra_app_registration_credential_not_expired"],
       "dedup_key": "azure:service_principal:b2c3d4e5-7777-8888-9999-aaaabbbbcccc|INTERNAL-ENTRA-SP-CRED-001",
       "priority_score": null, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
       "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
