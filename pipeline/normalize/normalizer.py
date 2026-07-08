@@ -190,6 +190,11 @@ def _parse_prowler(raw: dict, cloud_hint: str) -> List[dict]:
     rid = _canon_resource_id(cloud, rtype, raw_id)
 
     status_raw = raw.get("status", raw.get("Status", "FAIL")).upper()
+    # 노이즈 억제(2026-07-08 실측: 계정 전체 Prowler 스캔이 처음 관통하며 매핑 안 된 PASS
+    # 체크 1023건이 전부 INTERNAL-UNKNOWN-001로 쌓임) — kube-bench 파서(_parse_kube_bench)와
+    # 동일 규칙: 카탈로그에 매핑 안 되는 체크는 FAIL일 때만 finding을 만든다.
+    if control_id is None and status_raw != "FAIL":
+        return []
     status = "open" if status_raw == "FAIL" else "remediated"
 
     sev = raw.get("severity", raw.get("Severity", "medium"))
@@ -235,6 +240,10 @@ def _parse_ocsf(raw: dict, cloud_hint: str) -> List[dict]:
     # status: OCSF status_code(PASS/FAIL) 우선 → FAIL=open. status("New"/"Suppressed") 보조.
     status_code = str(raw.get("status_code") or raw.get("status") or "FAIL").upper()
     status = "open" if status_code in ("FAIL", "FAILED", "NEW") else "remediated"
+    # 노이즈 억제(2026-07-08, _parse_prowler·kube-bench 파서와 동일 규칙): 카탈로그에
+    # 매핑 안 되는 체크는 open(FAIL)일 때만 finding을 만든다.
+    if control_id is None and status != "open":
+        return []
 
     # severity: Prowler가 문자열("High" 등) 주면 그걸 우선(ASFF/prowler와 동일 매핑),
     # 없으면 OCSF 숫자 severity_id를 내부 컨벤션으로 뒤집어 매핑.
