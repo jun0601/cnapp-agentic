@@ -676,7 +676,7 @@ data "aws_iam_policy_document" "remediation" {
   # 조치 3종을 '타깃(shop) 리소스'로 스코프 — 특히 iam:PutRolePolicy를 임의 역할(admin 포함) 재작성 못 하게 제한(권한상승 차단).
   statement {
     sid       = "RemediateS3"
-    actions   = ["s3:PutBucketPublicAccessBlock", "s3:PutBucketPolicy", "s3:PutBucketEncryption"] # PutBucketEncryption(2026-07-08 추가)
+    actions   = ["s3:PutBucketPublicAccessBlock", "s3:PutBucketPolicy", "s3:PutEncryptionConfiguration"] # 2026-07-08: put_bucket_encryption API의 실제 IAM 액션은 s3:PutEncryptionConfiguration(API명≠IAM액션명) — 처음 s3:PutBucketEncryption로 잘못 넣어 존재않는 액션이라 무시돼 AccessDenied났던 것 수정
     resources = ["arn:aws:s3:::${var.project}-*", "arn:aws:s3:::member-pii-*"]                    # 타깃 버킷만
   }
   statement {
