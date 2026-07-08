@@ -4,24 +4,73 @@ import { StatCard } from '@/components/StatCard'
 import { FindingCard } from '@/components/FindingCard'
 import { EmptyState } from '@/components/EmptyState'
 import { Card, SectionTitle, Skeleton, SkeletonRows, ErrorNote } from '@/components/ui'
-import { PILLAR_LABEL } from '@/lib/severity'
-import type { Finding, Pillar } from '@/api/types'
+import { PILLAR_LABEL, SEVERITY_LABEL } from '@/lib/severity'
+import type { Finding, Pillar, SeverityId } from '@/api/types'
 
-function ScoreBar({ cloud, score, label }: { cloud: 'aws' | 'azure'; score: number; label: string }) {
+// 점수 산출 가중치 — console-backend getScores()와 반드시 동일하게 유지(백엔드 공식의 프론트 재현).
+const SCORE_WEIGHT: Record<SeverityId, number> = { 1: 8, 2: 4, 3: 2, 4: 1, 5: 0 }
+
+// 점수 산출 근거 툴팁 — "100 - Σ(open finding 등급별 개수 × 가중치)"를 그 클라우드의 실제
+// findings로 계산해 보여준다(백엔드와 동일 데이터·동일 공식 재현, 별도 API 불필요).
+function ScoreExplainTooltip({ cloud, score, findings }: { cloud: 'aws' | 'azure'; score: number; findings: Finding[] }) {
+  const open = findings.filter((f) => f.cloud === cloud && f.status === 'open')
+  const rows = ([1, 2, 3, 4] as SeverityId[]).map((sev) => {
+    const n = open.filter((f) => f.severity_id === sev).length
+    return { sev, n, weight: SCORE_WEIGHT[sev], sub: n * SCORE_WEIGHT[sev] }
+  })
+  const penalty = rows.reduce((a, r) => a + r.sub, 0)
+  return (
+    <div
+      role="tooltip"
+      className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3.5 text-left shadow-xl opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100"
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">점수 산출 근거</p>
+      <p className="mt-1 font-mono text-[11px] text-slate-500">100 − Σ(open finding 개수 × 등급 가중치)</p>
+      <div className="mt-2.5 space-y-1">
+        {rows.map((r) => (
+          <div key={r.sev} className="flex items-center justify-between text-xs">
+            <span className="text-slate-500">
+              {SEVERITY_LABEL[r.sev]} <span className="text-slate-300">(×{r.weight})</span>
+            </span>
+            <span className="font-mono tabular-nums text-slate-700">
+              {r.n}건 → {r.sub > 0 ? `-${r.sub}` : '0'}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-xs font-semibold">
+        <span className="text-slate-600">
+          100 − {penalty} (10~100 범위)
+        </span>
+        <span className="text-slate-900">= {score}</span>
+      </div>
+      <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
+        실 RDS의 이 클라우드 open findings를 등급별로 집계한 값 — Security Hub/Defender 자체
+        점수가 아니라 우리 findings 데이터로 직접 산출(계정 구독제약으로 대체).
+      </p>
+    </div>
+  )
+}
+
+function ScoreBar({ cloud, score, label, findings }: { cloud: 'aws' | 'azure'; score: number; label: string; findings: Finding[] }) {
   const grad = cloud === 'aws' ? 'from-amber-400 to-orange-500' : 'from-sky-400 to-blue-600'
   const textColor = cloud === 'aws' ? 'text-aws' : 'text-azure'
   return (
-    <div>
+    <div className="group relative">
       <div className="flex items-baseline justify-between">
-        <span className={`text-sm font-bold uppercase tracking-wide ${textColor}`}>{cloud}</span>
+        <span className={`flex items-center gap-1 text-sm font-bold uppercase tracking-wide ${textColor}`}>
+          {cloud}
+          <span className="cursor-help text-[10px] font-normal normal-case text-slate-300 group-hover:text-slate-400">ⓘ</span>
+        </span>
         <span className="text-xs text-slate-400">{label}</span>
       </div>
-      <div className="mt-1.5 flex items-center gap-3">
+      <div className="mt-1.5 flex cursor-help items-center gap-3">
         <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
           <div className={`h-full rounded-full bg-gradient-to-r ${grad} transition-all duration-700`} style={{ width: `${score}%` }} />
         </div>
         <span className="w-10 text-right text-xl font-bold tabular-nums text-slate-800">{score}</span>
       </div>
+      <ScoreExplainTooltip cloud={cloud} score={score} findings={findings} />
     </div>
   )
 }
@@ -100,8 +149,8 @@ export default function Dashboard() {
             <ErrorNote />
           ) : scores.data ? (
             <div className="space-y-4">
-              <ScoreBar cloud="aws" score={scores.data.aws.secure_score} label={scores.data.aws.label} />
-              <ScoreBar cloud="azure" score={scores.data.azure.secure_score} label={scores.data.azure.label} />
+              <ScoreBar cloud="aws" score={scores.data.aws.secure_score} label={scores.data.aws.label} findings={findings} />
+              <ScoreBar cloud="azure" score={scores.data.azure.secure_score} label={scores.data.azure.label} findings={findings} />
             </div>
           ) : (
             <Skeleton className="h-16 w-full" />
