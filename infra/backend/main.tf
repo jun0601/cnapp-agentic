@@ -211,6 +211,15 @@ data "aws_iam_policy_document" "normalize" {
     actions   = ["events:PutEvents"]
     resources = ["arn:aws:events:${var.region}:${local.account_id}:event-bus/default"]
   }
+  statement {
+    # 2026-07-08 실측 버그 수정: normalize/handler.py의 _hydrate()가 실 Prowler 경로(S3 포인터,
+    # raw_location)를 GetObject로 읽는데 이 권한이 원래부터 없었음 — 이 경로가 mock/로컬 테스트로는
+    # 절대 안 걸리고 실 S3 이벤트가 처음 발화했을 때(access-analyzer-scan.yml·prowler-scan.yml)만
+    # 드러나는 종류의 갭. 실측: AccessDenied로 5회 재시도 전부 실패, findings 0건 적재(troubleshooting.md).
+    sid       = "ReadProwlerResults"
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.prowler_results.arn}/*"]
+  }
 }
 
 resource "aws_iam_role_policy" "normalize" {
