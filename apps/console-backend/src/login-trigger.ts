@@ -62,6 +62,17 @@ async function recordLogin(actor: string, role: string): Promise<void> {
 // 으로 구조적으로 막힘(troubleshooting.md 참고) — 대안으로 여기서 직접 Teams에 알림을 보낸다.
 // Entra Graph API를 전혀 안 거치므로 라이선스 제약 자체가 적용되지 않고, Cognito가 SAML
 // 인증을 이미 완료한 시점에 정확히 트리거되는 이벤트 기반이라 폴링보다 지연·누락이 없다.
+// AWS login_notifier.py의 _to_kst()와 동일한 포맷("YYYY-MM-DD HH:MM:SS KST") — 채널이 같으니
+// 메시지 포맷도 통일.
+function toKstString(date: Date): string {
+  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return (
+    `${kst.getUTCFullYear()}-${pad(kst.getUTCMonth() + 1)}-${pad(kst.getUTCDate())} ` +
+    `${pad(kst.getUTCHours())}:${pad(kst.getUTCMinutes())}:${pad(kst.getUTCSeconds())} KST`
+  )
+}
+
 async function notifyTeams(actor: string, role: string): Promise<void> {
   const secretId = process.env.TEAMS_WEBHOOK_SECRET_ID
   if (!secretId) return
@@ -70,9 +81,9 @@ async function notifyTeams(actor: string, role: string): Promise<void> {
   const sm = new SecretsManagerClient({})
   const webhook = (await sm.send(new GetSecretValueCommand({ SecretId: secretId }))).SecretString
   if (!webhook) return
-  const when = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+  const when = toKstString(new Date())
   const text =
-    `<b>\u{1F510} 관제 콘솔 로그인 감지</b><br><br>` +
+    `<b>\u{1F510} 관제 콘솔</b> 로그인 감지<br><br>` +
     `사용자: <b>${actor}</b><br>역할: ${role}<br>시각(KST): ${when}`
   await fetch(webhook, {
     method: 'POST',
