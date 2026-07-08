@@ -170,8 +170,18 @@
 | **API 권한** | `Directory.Read.All` + `Policy.Read.All` + `AuditLog.Read.All` (Application, 관리자 동의 완료) |
 | **인증 방식** | 클라이언트 시크릿 없음 — **GitHub Federated Identity Credential (키리스)** |
 | **Federated Credential** | 조직 `jun0601` / 리포 `cnapp-agentic` / 브랜치 `main` / 이름 `prowler-github-oidc` |
+| **구독 Reader 역할 (2026-07-08 추가)** | 구독 `c7fd722a-…` 범위에 **Reader** 역할 부여 완료(SP objectId `ce887263-…`) — 이게 있어야 `prowler azure`가 구독을 열거·스캔할 수 있음. |
 
 > GitHub Actions에서 `azure/login` 액션으로 이 SP에 OIDC 인증 → 시크릿 없이 Prowler 스캔 가능.
+>
+> **⚠️ 구독 Reader 역할 부여 방법 (2026-07-08 실측 — 재구축 시 필수):** `az role assignment create`/`list`가 이 구독에서 `MissingSubscription`으로 깨진다(az CLI 래퍼 버그 — 구독 자체는 정상). **`az rest`(raw ARM REST API)로 우회**해야 함:
+> ```bash
+> AID=$(python -c "import uuid;print(uuid.uuid4())")
+> az rest --method PUT \
+>   --uri "https://management.azure.com/subscriptions/c7fd722a-c106-4eff-a64d-88b36dcee28a/providers/Microsoft.Authorization/roleAssignments/${AID}?api-version=2022-04-01" \
+>   --body '{"properties":{"roleDefinitionId":"/subscriptions/c7fd722a-c106-4eff-a64d-88b36dcee28a/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7","principalId":"ce887263-ff39-45a9-a6da-fc10850a5b56","principalType":"ServicePrincipal"}}'
+> ```
+> (`acdd72a7-…`=Reader 내장 역할 ID, `ce887263-…`=prowler-sp의 SP objectId. 조회도 `az rest --method GET`으로.) 이걸 부여하기 전엔 Prowler azure가 "It was not possible to retrieve any subscriptions"로 죽는다. 부여 후 prowler-scan 워크플로가 AWS와 동일하게 S3→ingest→normalize→RDS 완주함(실측 확인).
 
 #### 3.6.5 ⚠️ 실전환 시 맞출 것 (mock ↔ real 정합 — 지금은 정상, 나중 리마인드)
 
