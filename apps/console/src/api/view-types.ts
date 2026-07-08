@@ -1,7 +1,9 @@
 // 콘솔-로컬 뷰 타입 — audit(UC4)·compliance(UC5)는 아직 contracts로 졸업 안 함.
 // 실데이터 붙일 때 contracts/*.schema.json으로 승격 예정(현재는 목업 전용).
 
-export type AuditAction = 'approve' | 'reject' | 'verdict' | 'scan' | 'view' | 'login'
+// apply/request는 real 모드(console-backend getAudit())가 remediation_requests.status
+// applied/pending을 매핑해 내보내는 값(2026-07-07 실데이터화) — mock에는 없어 놓치기 쉬움.
+export type AuditAction = 'approve' | 'reject' | 'apply' | 'request' | 'verdict' | 'scan' | 'view' | 'login'
 
 export interface AuditEvent {
   id: string

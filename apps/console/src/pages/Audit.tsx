@@ -7,11 +7,16 @@ import type { AuditAction } from '@/api/view-types'
 const ACTION_META: Record<AuditAction, { label: string; cls: string }> = {
   approve: { label: '승인', cls: 'bg-emerald-100 text-emerald-700' },
   reject: { label: '거부', cls: 'bg-rose-100 text-rose-700' },
+  apply: { label: '적용', cls: 'bg-teal-100 text-teal-700' },
+  request: { label: '요청', cls: 'bg-amber-100 text-amber-700' },
   verdict: { label: '판정', cls: 'bg-indigo-100 text-indigo-700' },
   scan: { label: '스캔', cls: 'bg-slate-100 text-slate-600' },
   view: { label: '조회', cls: 'bg-slate-100 text-slate-500' },
   login: { label: '로그인', cls: 'bg-sky-100 text-sky-700' },
 }
+// 백엔드가 새 action 값을 내보내도(mock↔real 계약 차이 재발 대비) 페이지가 안 죽게 방어적 fallback.
+const DEFAULT_ACTION_META = { label: '기타', cls: 'bg-slate-100 text-slate-500' }
+const actionMeta = (a: string) => ACTION_META[a as AuditAction] ?? DEFAULT_ACTION_META
 
 const ROLE_CLS: Record<string, string> = {
   approver: 'text-emerald-600',
@@ -41,7 +46,7 @@ export default function Audit() {
 
       {/* 액션 필터 */}
       <div className="flex flex-wrap gap-1.5 text-xs">
-        {(['all', 'approve', 'reject', 'verdict', 'scan', 'login', 'view'] as const).map((a) => (
+        {(['all', 'approve', 'reject', 'apply', 'request', 'verdict', 'scan', 'login', 'view'] as const).map((a) => (
           <button
             key={a}
             onClick={() => setAction(a)}
@@ -49,7 +54,7 @@ export default function Audit() {
               action === a ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
             }`}
           >
-            {a === 'all' ? '전체' : ACTION_META[a].label}
+            {a === 'all' ? '전체' : actionMeta(a).label}
           </button>
         ))}
       </div>
@@ -80,8 +85,8 @@ export default function Audit() {
                     <span className="ml-1 text-xs text-slate-400">({e.role})</span>
                   </td>
                   <td className="px-4 py-2.5">
-                    <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${ACTION_META[e.action].cls}`}>
-                      {ACTION_META[e.action].label}
+                    <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${actionMeta(e.action).cls}`}>
+                      {actionMeta(e.action).label}
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
