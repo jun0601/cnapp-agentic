@@ -64,23 +64,20 @@ jobs:
       - name: Sign-in 로그 조회 → 신규 로그인만 Teams로 전송
         if: steps.check.outputs.active == 'true'
         run: |
-          set -ex
-          # ⚠️ 2026-07-08 임시 디버그: 원인 미상 조용한 실패(exit 3, 출력 0줄) 진단을 위해
-          # set -x로 실행 트레이스를 켜고, TOKEN 조회 실패 시 진단 메시지를 명시적으로 출력한다.
-          set +e
-          az account get-access-token --tenant "${AZURE_TENANT_ID}" --resource https://graph.microsoft.com -o json > /tmp/token_resp.json 2>/tmp/token_err.txt
-          RC=$?
           set -e
-          echo "az exit code: $RC"
-          echo "--- stdout bytes ---"; wc -c /tmp/token_resp.json || true
-          echo "--- stderr ---"; cat /tmp/token_err.txt || true
-          TOKEN=$(python3 -c "import json;print(json.load(open('/tmp/token_resp.json'))['accessToken'])")
+          # ⚠️ 2026-07-08 실측 버그 수정(진짜 원인): "exit 3, 출력 0줄"의 정체는 az/python이 아니라
+          # curl 자체였다 — curl의 exit 3 = "URL malformed"(공식 exit code 표), $filter 쿼리스트링에
+          # 있던 리터럴 공백("createdDateTime ge ${SINCE}")이 원인. curl -f가 네트워크 호출 전에
+          # URL 파싱 단계에서 즉시 거부해 밀리초 만에 죽고 아무 출력도 안 남긴 것(체감상 "조용한
+          # 실패"로 보였을 뿐). 공백을 %20으로 URL-인코딩해 해결. --tenant 추가(구독 컨텍스트
+          # 의존 제거)는 부수적으로 유효한 개선이라 유지.
+          TOKEN=$(az account get-access-token --tenant "${AZURE_TENANT_ID}" --resource https://graph.microsoft.com --query accessToken -o tsv)
           SINCE=$(date -u -d '45 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
           export WEBHOOK_URL=$(cat /tmp/webhook_url)
           rm -f /tmp/webhook_url
 
           curl -sf -H "Authorization: Bearer ${TOKEN}" \
-            "https://graph.microsoft.com/v1.0/auditLogs/signIns?\$filter=createdDateTime ge ${SINCE}&\$top=50&\$orderby=createdDateTime" \
+            "https://graph.microsoft.com/v1.0/auditLogs/signIns?\$filter=createdDateTime%20ge%20${SINCE}&\$top=50&\$orderby=createdDateTime" \
             -o signins.json
 
           python3 - <<'PYEOF'
