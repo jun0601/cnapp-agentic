@@ -67,11 +67,13 @@ gitops/
 │   ├── kube-prometheus-stack-values.yaml   Grafana IRSA(CloudWatch 추가 데이터소스, uid 고정)+kube-state-metrics 노드 라벨 허용+리소스 축소 오버라이드
 │   ├── presync/
 │   │   └── prometheus-crds-job.yaml        PreSync 훅 — CRD를 Helm 본 배포보다 먼저 설치(아래 함정 참고)
-│   └── dashboards/                         Grafana 대시보드 4종 — 분야별(아래 §"분야별 대시보드" 참고)
+│   └── dashboards/                         Grafana 대시보드 6종 — 분야별(아래 §"분야별 대시보드" 참고)
 │       ├── cnapp-eks-dashboard.yaml         EKS 개요(노드·파드·CPU·메모리·재시작)
 │       ├── cnapp-application-dashboard.yaml 애플리케이션(Lambda 6종·ALB·Cognito·CloudFront)
 │       ├── cnapp-infra-dashboard.yaml       인프라(RDS·SQS·Step Functions·S3 감사버킷)
-│       └── cnapp-ai-dashboard.yaml          AI/엔진(Bedrock·엔진 EMF 전종)
+│       ├── cnapp-ai-dashboard.yaml          AI/엔진(Bedrock·엔진 EMF 전종)
+│       ├── cnapp-pipeline-dashboard.yaml    데이터 파이프라인 운영 건강(Postgres/RDS 직접 조회)
+│       └── cnapp-tracing-dashboard.yaml     분산 트레이싱(X-Ray — 트레이스 목록·서비스 맵, 2026-07-08)
 └── autoscaling/
     ├── hpa.yaml                  member·product·order HPA (파드층, CPU 70%, minReplicas 2)
     └── pdb.yaml                  member·product·order PodDisruptionBudget (스팟 회수 복원력, minAvailable 1)
