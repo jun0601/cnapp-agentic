@@ -191,7 +191,9 @@
         </mxCell>
 
         <!-- Private subnet: data -->
-        <mxCell id="Z_DATA" value="🔒 Private (data) 10.20.10.0/24 · 10.20.11.0/24 · 데이터는 AWS 전용" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;dashed=1;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;fontSize=10.5;fontColor=#4338CA;" vertex="1" parent="1">
+        <!-- 데이터 계층 — RDS만 진짜 private subnet 소속(ENI 보유). S3·Secrets Manager는 ENI 없는 글로벌 서비스라
+             어느 서브넷에도 속하지 않음 → 점선 래퍼로 구분(ACM 인증서 연결선과 동일한 "물리적 소속 아님" 표기법) -->
+        <mxCell id="Z_DATA" value="🔒 데이터 계층 · RDS만 private subnet 소속(10.20.10.0/24 · 10.20.11.0/24)" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;dashed=1;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;fontSize=10.5;fontColor=#4338CA;" vertex="1" parent="1">
           <mxGeometry x="372" y="530" width="1188" height="96" as="geometry" />
         </mxCell>
         <mxCell id="RDS" value="RDS" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#C925D1;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.rds;" vertex="1" parent="1">
@@ -200,11 +202,17 @@
         <mxCell id="RDS_TXT" value="RDS PostgreSQL t3.micro + pgvector&#10;findings·cases·attack_paths·finding_explanations&#10;rag_chunks·login_events" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=9;fontColor=#0F172A;fontStyle=1;" vertex="1" parent="1">
           <mxGeometry x="450" y="554" width="266" height="56" as="geometry" />
         </mxCell>
+        <mxCell id="SM_WRAP" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#CBD5E1;dashed=1;dashPattern=4 3;" vertex="1" parent="1">
+          <mxGeometry x="730" y="556" width="174" height="48" as="geometry" />
+        </mxCell>
         <mxCell id="SM" value="Secrets" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.secrets_manager;" vertex="1" parent="1">
           <mxGeometry x="736" y="562" width="40" height="40" as="geometry" />
         </mxCell>
         <mxCell id="SM_TXT" value="Secrets Mgr&#10;RDS·Azure cred·Teams webhook" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=8.5;fontColor=#64748B;" vertex="1" parent="1">
           <mxGeometry x="782" y="566" width="120" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="S3PII_WRAP" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#CBD5E1;dashed=1;dashPattern=4 3;" vertex="1" parent="1">
+          <mxGeometry x="910" y="556" width="234" height="48" as="geometry" />
         </mxCell>
         <mxCell id="S3PII" value="S3" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#7AA116;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.simple_storage_service;" vertex="1" parent="1">
           <mxGeometry x="916" y="562" width="40" height="40" as="geometry" />
@@ -212,11 +220,17 @@
         <mxCell id="S3PII_TXT" value="S3 member-pii&#10;f6 공개 · f7 회원 PII(Macie 미끼)" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=8.5;fontColor=#B91C1C;" vertex="1" parent="1">
           <mxGeometry x="962" y="566" width="180" height="32" as="geometry" />
         </mxCell>
+        <mxCell id="S3AUDIT_WRAP" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#CBD5E1;dashed=1;dashPattern=4 3;" vertex="1" parent="1">
+          <mxGeometry x="1146" y="556" width="212" height="48" as="geometry" />
+        </mxCell>
         <mxCell id="S3AUDIT" value="S3" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#7AA116;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.simple_storage_service;" vertex="1" parent="1">
           <mxGeometry x="1150" y="562" width="40" height="40" as="geometry" />
         </mxCell>
         <mxCell id="S3AUDIT_TXT" value="S3 감사(Object Lock)&#10;조치 불변 감사로그" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=8.5;fontColor=#64748B;" vertex="1" parent="1">
           <mxGeometry x="1196" y="566" width="160" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="DATA_NOTE" value="점선 = ENI 없는 글로벌 서비스(S3·Secrets Mgr) — 서브넷 소속 아님, API로만 접근" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=7.5;fontColor=#94A3B8;" vertex="1" parent="1">
+          <mxGeometry x="730" y="606" width="480" height="16" as="geometry" />
         </mxCell>
 
         <!-- Pipeline band — EventBridge/SQS/ingest는 실제로 VPC 밖(ingest는 vpc_config 없음),

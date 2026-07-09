@@ -96,13 +96,15 @@
   <g><rect x="1142" y="474" width="205" height="38" rx="6" fill="#fff" stroke="#fed7aa"/><rect x="1142" y="474" width="5" height="38" rx="2" fill="#fa7e14"/><text x="1155" y="491" font-size="10" font-weight="700" fill="#0f172a">λ console-backend</text><text x="1155" y="505" font-size="8.5" fill="#64748b">읽기 API(TS) · read-only</text></g>
   <g><rect x="1355" y="474" width="205" height="38" rx="6" fill="#fff" stroke="#fecaca"/><rect x="1355" y="474" width="5" height="38" rx="2" fill="#dd344c"/><text x="1368" y="491" font-size="10" font-weight="700" fill="#0f172a">λ remediation ⚡</text><text x="1368" y="505" font-size="8.5" fill="#64748b">격상 역할 · 승인클릭→StartExecution</text></g>
 
-  <!-- Private subnet: data -->
-  <rect x="372" y="530" width="1188" height="96" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2" stroke-dasharray="5 4"/>
-  <text x="386" y="547" font-size="10.5" font-weight="700" fill="#4338ca">🔒 Private (data)  10.20.10.0/24 · 10.20.11.0/24  ·  데이터는 AWS 전용</text>
+  <!-- 데이터 계층 — RDS만 진짜 private subnet 소속(ENI 보유). S3·Secrets Manager는 ENI 없는 글로벌 서비스라
+       어느 서브넷에도 속하지 않음 → 점선 테두리로 구분(ACM 인증서 연결선과 동일한 "물리적 소속 아님" 표기법) -->
+  <rect x="372" y="530" width="1188" height="100" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="386" y="547" font-size="10.5" font-weight="700" fill="#4338ca">🔒 데이터 계층  ·  RDS만 private subnet 소속(10.20.10.0/24 · 10.20.11.0/24)</text>
   <g><rect x="386" y="556" width="330" height="60" rx="6" fill="#fff" stroke="#c7d2fe"/><rect x="386" y="556" width="5" height="60" rx="2" fill="#3334b9"/><text x="399" y="575" font-size="11" font-weight="700" fill="#0f172a">🗄️ RDS PostgreSQL t3.micro + pgvector</text><text x="399" y="592" font-size="9" fill="#64748b">findings · cases · attack_paths</text><text x="399" y="606" font-size="9" fill="#64748b">finding_explanations · rag_chunks · login_events</text></g>
-  <g><rect x="726" y="556" width="160" height="60" rx="6" fill="#fff" stroke="#fecaca"/><rect x="726" y="556" width="5" height="60" rx="2" fill="#dd344c"/><text x="739" y="580" font-size="10.5" font-weight="700" fill="#0f172a">🔑 Secrets Mgr</text><text x="739" y="597" font-size="9" fill="#64748b">RDS·Azure cred·Teams webhook</text></g>
-  <g><rect x="896" y="556" width="200" height="60" rx="6" fill="#fff" stroke="#bbf7d0"/><rect x="896" y="556" width="5" height="60" rx="2" fill="#569a31"/><text x="909" y="580" font-size="10.5" font-weight="700" fill="#0f172a">🪣 S3 member-pii</text><text x="909" y="597" font-size="9" fill="#b91c1c">f6 공개 · f7 회원 PII (Macie 미끼)</text></g>
-  <g><rect x="1106" y="556" width="200" height="60" rx="6" fill="#fff" stroke="#bbf7d0"/><rect x="1106" y="556" width="5" height="60" rx="2" fill="#569a31"/><text x="1119" y="580" font-size="10.5" font-weight="700" fill="#0f172a">🔒 S3 감사(Object Lock)</text><text x="1119" y="597" font-size="9" fill="#64748b">조치 불변 감사로그</text></g>
+  <g><rect x="726" y="556" width="160" height="60" rx="6" fill="#fff" stroke="#fecaca" stroke-dasharray="4 3"/><rect x="726" y="556" width="5" height="60" rx="2" fill="#dd344c"/><text x="739" y="580" font-size="10.5" font-weight="700" fill="#0f172a">🔑 Secrets Mgr</text><text x="739" y="597" font-size="9" fill="#64748b">RDS·Azure cred·Teams webhook</text></g>
+  <g><rect x="896" y="556" width="200" height="60" rx="6" fill="#fff" stroke="#bbf7d0" stroke-dasharray="4 3"/><rect x="896" y="556" width="5" height="60" rx="2" fill="#569a31"/><text x="909" y="580" font-size="10.5" font-weight="700" fill="#0f172a">🪣 S3 member-pii</text><text x="909" y="597" font-size="9" fill="#b91c1c">f6 공개 · f7 회원 PII (Macie 미끼)</text></g>
+  <g><rect x="1106" y="556" width="200" height="60" rx="6" fill="#fff" stroke="#bbf7d0" stroke-dasharray="4 3"/><rect x="1106" y="556" width="5" height="60" rx="2" fill="#569a31"/><text x="1119" y="580" font-size="10.5" font-weight="700" fill="#0f172a">🔒 S3 감사(Object Lock)</text><text x="1119" y="597" font-size="9" fill="#64748b">조치 불변 감사로그</text></g>
+  <text x="726" y="624" font-size="7.5" fill="#94a3b8">점선 = ENI 없는 글로벌 서비스(S3·Secrets Mgr) — 서브넷 소속 아님, API로만 접근</text>
 
   <!-- Pipeline band (regional, inside region below VPC) — 이벤트버스/SQS/ingest는 VPC 밖(진짜 그렇게 배포됨, ingest는 vpc_config 없음),
        normalize·correlation·orchestrator·remediation은 VPC 안(private subnet, infra/backend/main.tf vpc_config 확인) —
