@@ -131,6 +131,10 @@
   <path d="M890,701 L902,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
   <path d="M1002,701 L1014,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
   <path d="M1144,701 L1156,701" stroke="#0e9f6e" stroke-width="1.5" marker-end="url(#ag)"/><text x="1132" y="663" font-size="8.5" font-weight="700" fill="#0e9f6e">2-pass</text>
+  <!-- AI 박스(좌측 Bedrock) ↔ orchestrator: 데이터가 지나가는 파이프라인 홉이 아니라 "orchestrator 코드 안에서
+       Bedrock API를 호출한다"는 논리적 관계라 점선(ACM 인증서 연결선과 같은 표기법) -->
+  <path d="M320,650 C520,636 950,636 1231,678" stroke="#0e9f6e" stroke-width="1.3" fill="none" stroke-dasharray="5 4" opacity="0.75" marker-end="url(#ag)"/>
+  <text x="640" y="630" font-size="9" font-weight="700" fill="#0e9f6e" text-anchor="middle">🧠 orchestrator가 Bedrock을 실제로 호출(tool-use)</text>
   <path d="M1306,701 L1318,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
   <!-- row 2: HITL — remediation λ도 VPC 안(private subnet) -->
   <text x="372" y="756" font-size="10.5" font-weight="700" fill="#be185d">조치(HITL):</text>

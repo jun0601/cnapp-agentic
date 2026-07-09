@@ -283,6 +283,11 @@
         <mxCell id="e_p6" edge="1" parent="1" source="P_ORCH" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#475569;" target="P_CASES">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
+        <!-- Bedrock↔orchestrator: 데이터가 지나가는 파이프라인 홉이 아니라 "orchestrator 코드 안에서 Bedrock API를
+             호출한다"는 논리적 관계라 점선(ACM 인증서 연결선과 동일 표기법) -->
+        <mxCell id="e_ai_orch" edge="1" parent="1" source="BR" target="P_ORCH" value="🧠 tool-use 실호출" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;dashPattern=5 4;strokeColor=#0E9F6E;strokeWidth=1.3;fontSize=8.5;fontColor=#0E9F6E;fontStyle=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
         <mxCell id="HITL_LABEL" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=10.5;fontColor=#BE185D;fontStyle=1;" value="조치(HITL):" vertex="1">
           <mxGeometry height="20" width="120" x="372" y="740" as="geometry" />
         </mxCell>
