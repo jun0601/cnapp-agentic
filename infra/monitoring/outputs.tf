@@ -42,3 +42,8 @@ output "alb_controller_role_arn" {
   description = "AWS Load Balancer Controller ServiceAccount(kube-system)의 IRSA annotation에 넣을 값 — Helm values eks.amazonaws.com/role-arn"
   value       = aws_iam_role.alb_controller.arn
 }
+
+output "external_dns_role_arn" {
+  description = "external-dns ServiceAccount(kube-system/external-dns) IRSA annotation 값 — gitops/argocd/app-external-dns.yaml serviceAccount.annotations"
+  value       = aws_iam_role.external_dns.arn
+}

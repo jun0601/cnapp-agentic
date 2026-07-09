@@ -12,8 +12,9 @@ metadata:
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP":80}]'
     alb.ingress.kubernetes.io/ssl-redirect: "443"
-    # ⚠️ monitoring 재apply 시 ACM 인증서가 새로 발급돼 ARN이 바뀜 — aws acm list-certificates로 확인 후 갱신
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:066107819776:certificate/3a028d6d-bd19-4342-9feb-7f230d22e86e
+    # certificate-arn은 일부러 안 박음 — 컨트롤러가 host(grafana.cnapp-agentic.cloud)와
+    # 도메인이 일치하는 ISSUED ACM 인증서를 자동 발견해 붙임(monitoring 재apply로 인증서가
+    # 새로 발급돼 ARN이 바뀌어도 stale 문제 없음). 예전엔 옛 ARN이 박혀 CertificateNotFound로 깨졌었음.
     alb.ingress.kubernetes.io/healthcheck-path: /api/health
 spec:
   rules:

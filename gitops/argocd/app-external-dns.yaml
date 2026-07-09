@@ -1,0 +1,59 @@
+# ArgoCD Application — external-dns.
+# grafana Ingress(host: grafana.cnapp-agentic.cloud)를 감시해 Route53 A(ALIAS) 레코드를
+# ALB로 자동 생성·갱신한다. 예전엔 infra/monitoring이 var.grafana_alb_dns_name(ALB DNS를
+# 손으로 박은 값)으로 A 레코드를 만들었는데, ALB DNS가 EKS/Ingress 재생성마다 바뀌어서
+# 매번 stale로 깨졌음 — external-dns가 그 값을 실시간으로 읽어 관리하므로 하드코딩 제거.
+#
+# 안전장치: policy=upsert-only(레코드 삭제 절대 안 함) + registry=txt(자기가 만든 레코드만
+# 소유) + domainFilters=cnapp-agentic.cloud → 같은 존의 다른 레코드(console apex·api·ACM
+# 검증 CNAME 등)를 건드릴 위험 없음. IAM(route53)은 infra/monitoring의 external_dns IRSA.
+#
+# 적용(EKS 살아있을 때):
+#   kubectl apply -f gitops/argocd/app-external-dns.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes-sigs.github.io/external-dns/
+    chart: external-dns
+    targetRevision: "1.15.0"
+    helm:
+      releaseName: external-dns
+      values: |
+        provider:
+          name: aws
+        policy: upsert-only        # 삭제 안 함 — 같은 존 다른 레코드 안전
+        registry: txt
+        txtOwnerId: cnapp-monitoring
+        domainFilters:
+          - cnapp-agentic.cloud
+        sources:
+          - ingress
+        interval: 1m
+        env:
+          - name: AWS_REGION
+            value: ap-northeast-2
+        serviceAccount:
+          create: true
+          name: external-dns
+          annotations:
+            eks.amazonaws.com/role-arn: arn:aws:iam::066107819776:role/cnapp-agentic-external-dns-irsa
+        resources:
+          requests: { cpu: 25m, memory: 64Mi }
+          limits: { cpu: 100m, memory: 128Mi }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

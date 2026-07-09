@@ -252,13 +252,12 @@ resource "aws_iam_role_policy_attachment" "alb_controller" {
 }
 
 # =============================================================================
-# [GRAFANA DOMAIN] grafana.cnapp-agentic.cloud — ACM+Route53 (2026-07-07 추가)
-#   Ingress·ALB 자체는 GitOps(gitops/monitoring/grafana-ingress.yaml)가 관리 — 여긴 그
-#   앞단(인증서+DNS)만. 기존 Route53 호스팅영역(CLI로 만든 영구 존)은 infra/console의
-#   domain-sso.tf와 동일 패턴으로 참조만 하고 소유 안 함(destroy 대상 아님).
-#   ⚠️ ALB DNS 이름은 Kubernetes(ALB Controller)가 발급해서 Terraform이 모른다 — EKS나
-#   Ingress가 재생성되면 이름이 바뀌므로 var.grafana_alb_dns_name을 새 값으로 갱신 후
-#   재apply 필요(infra/console의 ALB ARN suffix 등 비고정 값과 동일한 처지, gitops/README.md 참고).
+# [GRAFANA DOMAIN] grafana.cnapp-agentic.cloud — ACM(TF) + Route53(external-dns)
+#   인증서(ACM)만 TF가 소유하고, A 레코드는 더 이상 TF가 안 만든다 —
+#   external-dns 컨트롤러가 grafana Ingress를 감시해 ALB로 향하는 A(ALIAS) 레코드를
+#   자동 생성·갱신한다(아래 external_dns IRSA). 예전엔 ALB DNS를 var로 손으로 박아서
+#   EKS/Ingress 재생성 때마다 stale로 깨졌었음(그 문제 자체를 없앰).
+#   호스팅영역은 CLI로 만든 영구 존을 참조만 하고 소유 안 함(destroy 대상 아님).
 # =============================================================================
 data "aws_route53_zone" "grafana" {
   name = "cnapp-agentic.cloud."
@@ -288,15 +287,55 @@ resource "aws_acm_certificate_validation" "grafana" {
   validation_record_fqdns = [for r in aws_route53_record.grafana_cert_validation : r.fqdn]
 }
 
-resource "aws_route53_record" "grafana" {
-  zone_id = data.aws_route53_zone.grafana.zone_id
-  name    = "grafana.cnapp-agentic.cloud"
-  type    = "A"
-  alias {
-    name                   = var.grafana_alb_dns_name
-    zone_id                = var.grafana_alb_zone_id
-    evaluate_target_health = true
+# [external-dns] grafana Ingress → Route53 A(ALIAS) 자동 관리 IRSA.
+#   SA: kube-system/external-dns. 정책은 upsert-only 운영(삭제 안 함)이라 같은 존의
+#   다른 레코드(console apex·api·ACM 검증 CNAME 등)를 건드릴 위험 없음 + txt 레지스트리로
+#   자기가 만든 레코드만 소유. ChangeResourceRecordSets는 이 존으로만 스코프.
+data "aws_iam_policy_document" "external_dns_irsa_trust" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    effect  = "Allow"
+    principals {
+      type        = "Federated"
+      identifiers = [local.oidc_provider_arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_provider}:sub"
+      values   = ["system:serviceaccount:kube-system:external-dns"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_provider}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
   }
+}
+
+resource "aws_iam_role" "external_dns" {
+  name               = "${var.project}-external-dns-irsa"
+  assume_role_policy = data.aws_iam_policy_document.external_dns_irsa_trust.json
+}
+
+data "aws_iam_policy_document" "external_dns" {
+  statement {
+    sid       = "ChangeRecordsInZone"
+    effect    = "Allow"
+    actions   = ["route53:ChangeResourceRecordSets"]
+    resources = ["arn:aws:route53:::hostedzone/${data.aws_route53_zone.grafana.zone_id}"]
+  }
+  statement {
+    sid       = "ListZonesAndRecords"
+    effect    = "Allow"
+    actions   = ["route53:ListHostedZones", "route53:ListResourceRecordSets", "route53:ListTagsForResources"]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "external_dns" {
+  name   = "route53-grafana"
+  role   = aws_iam_role.external_dns.id
+  policy = data.aws_iam_policy_document.external_dns.json
 }
 
 # =============================================================================

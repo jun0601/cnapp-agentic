@@ -78,17 +78,6 @@ variable "rds_connections_alarm_threshold" {
   default     = 80
 }
 
-# --- Grafana Ingress가 만드는 ALB — Kubernetes(ALB Controller)가 발급하므로 Terraform이
-#     모름. EKS/Ingress 재생성 시 `kubectl get ingress grafana -n monitoring`으로 새
-#     DNS 이름 확인 후 -var로 갱신(또는 이 default 값 갱신) 필요. ---
-variable "grafana_alb_dns_name" {
-  description = "Grafana Ingress ALB의 DNS 이름(kubectl get ingress grafana -n monitoring의 ADDRESS 컬럼)"
-  type        = string
-  default     = "k8s-monitori-grafana-9f9e2719d7-293394550.ap-northeast-2.elb.amazonaws.com"
-}
-
-variable "grafana_alb_zone_id" {
-  description = "위 ALB의 canonical hosted zone id(aws elbv2 describe-load-balancers) — 리전별 ALB 고정값이라 서울 리전이면 거의 안 바뀜"
-  type        = string
-  default     = "ZWKZPGTI48KDX"
-}
+# (2026-07-09 제거) grafana_alb_dns_name·grafana_alb_zone_id — 예전엔 Grafana ALB DNS를
+#   손으로 박아 Route53 A 레코드를 만들었으나, 이제 external-dns가 Ingress를 보고 자동
+#   생성·갱신하므로 이 비결정값 변수가 필요 없어짐(main.tf의 external_dns IRSA 참조).

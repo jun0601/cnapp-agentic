@@ -16,7 +16,9 @@ spec:
       values: |
         clusterName: cnapp-agentic-shared
         region: ap-northeast-2
-        vpcId: vpc-0fffbd05dd989613a # ⚠️ shared 재apply 시 VPC ID 바뀜 — kubectl 없으면 aws ec2 describe-vpcs로 확인 후 갱신
+        replicaCount: 1 # 프리티어 파드밀도 절약(데모라 HA 불필요) — external-dns 등 슬롯 확보
+        # vpcId는 일부러 안 박음 — 컨트롤러가 노드 IMDS에서 자동 발견(shared 재apply로 VPC가
+        # 새로 생겨도 하드코딩 stale 문제가 없음). 예전엔 옛 VPC ID가 박혀 "0 subnets"로 깨졌었음.
         serviceAccount:
           create: true
           name: aws-load-balancer-controller
