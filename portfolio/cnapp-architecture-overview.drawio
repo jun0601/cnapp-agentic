@@ -125,34 +125,33 @@
           <mxGeometry x="356" y="242" width="1220" height="392" as="geometry" />
         </mxCell>
 
+        <!-- IGW·Gateway Endpoint: 둘 다 VPC에 attach(서브넷 종속 아님, ENI 없음) — IGW는 퍼블릭 라우트테이블, GW Endpoint는 프라이빗 라우트테이블(실측: infra/shared/main.tf route_table_ids=private_route_table_ids)에 연결. 경계선(y=242) 위에 걸치도록 배치 -->
+        <mxCell id="VPCE" value="VPCE" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.endpoints;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="224" width="36" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="IGW" value="IGW" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.internet_gateway;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="224" width="36" height="36" as="geometry" />
+        </mxCell>
+
         <!-- Public subnet -->
         <mxCell id="Z_PUB" value="🟢 Public subnets  10.20.0.0/24 · 10.20.1.0/24" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#84CC16;dashed=1;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;fontSize=10.5;fontColor=#4D7C0F;" vertex="1" parent="1">
           <mxGeometry x="372" y="274" width="1188" height="76" as="geometry" />
         </mxCell>
-        <mxCell id="IGW" value="IGW" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.internet_gateway;" vertex="1" parent="1">
+        <mxCell id="NAT" value="NAT" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ec2;" vertex="1" parent="1">
           <mxGeometry x="392" y="298" width="36" height="36" as="geometry" />
         </mxCell>
-        <mxCell id="NAT" value="NAT" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ec2;" vertex="1" parent="1">
-          <mxGeometry x="536" y="298" width="36" height="36" as="geometry" />
-        </mxCell>
-        <mxCell id="NAT_TXT" value="NAT Instance t4g.nano · IMDSv2" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=8.5;fontColor=#64748B;" vertex="1" parent="1">
-          <mxGeometry x="576" y="304" width="120" height="24" as="geometry" />
+        <mxCell id="NAT_TXT" value="NAT Instance t4g.micro · IMDSv2" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=8.5;fontColor=#64748B;" vertex="1" parent="1">
+          <mxGeometry x="432" y="304" width="120" height="24" as="geometry" />
         </mxCell>
         <mxCell id="ALB" value="ALB" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.elastic_load_balancing;" vertex="1" parent="1">
-          <mxGeometry x="712" y="298" width="36" height="36" as="geometry" />
+          <mxGeometry x="568" y="298" width="36" height="36" as="geometry" />
         </mxCell>
         <mxCell id="ALB_TXT" value="ALB · Bearer JWT 검증 → console-backend λ (aws-jwt-verify)" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=8.5;fontColor=#64748B;" vertex="1" parent="1">
-          <mxGeometry x="752" y="298" width="240" height="36" as="geometry" />
-        </mxCell>
-        <mxCell id="VPCE" value="VPCE" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.endpoints;" vertex="1" parent="1">
-          <mxGeometry x="1020" y="298" width="36" height="36" as="geometry" />
-        </mxCell>
-        <mxCell id="VPCE_TXT" value="Gateway Endpoint&#10;S3 · DynamoDB" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=8.5;fontColor=#64748B;" vertex="1" parent="1">
-          <mxGeometry x="1060" y="296" width="180" height="38" as="geometry" />
+          <mxGeometry x="608" y="298" width="240" height="36" as="geometry" />
         </mxCell>
 
         <!-- Private subnet: workload (EKS) -->
-        <mxCell id="Z_WORK" value="🔒 Private (workload) 10.20.10/11.0/24 · 취약 타깃 앱(격리·휘발성)" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#38BDF8;dashed=1;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;fontSize=10.5;fontColor=#0369A1;" vertex="1" parent="1">
+        <mxCell id="Z_WORK" value="🔒 Private (workload) 10.20.10.0/24 · 10.20.11.0/24 · 취약 타깃 앱(격리·휘발성)" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#38BDF8;dashed=1;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;fontSize=10.5;fontColor=#0369A1;" vertex="1" parent="1">
           <mxGeometry x="372" y="360" width="742" height="160" as="geometry" />
         </mxCell>
         <mxCell id="Z_EKS2" value="EKS · spot t3.small · IRSA · Karpenter" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#FB923C;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontStyle=1;fontSize=10.5;fontColor=#C2410C;" vertex="1" parent="1">
@@ -192,7 +191,7 @@
         </mxCell>
 
         <!-- Private subnet: data -->
-        <mxCell id="Z_DATA" value="🔒 Private (data) 10.20.20/21.0/24 · 데이터는 AWS 전용" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;dashed=1;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;fontSize=10.5;fontColor=#4338CA;" vertex="1" parent="1">
+        <mxCell id="Z_DATA" value="🔒 Private (data) 10.20.10.0/24 · 10.20.11.0/24 · 데이터는 AWS 전용" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;dashed=1;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;fontSize=10.5;fontColor=#4338CA;" vertex="1" parent="1">
           <mxGeometry x="372" y="530" width="1188" height="96" as="geometry" />
         </mxCell>
         <mxCell id="RDS" value="RDS" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#C925D1;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.rds;" vertex="1" parent="1">

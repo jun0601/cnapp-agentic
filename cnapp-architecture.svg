@@ -67,17 +67,19 @@
   <rect x="356" y="242" width="1220" height="392" rx="10" fill="#faf5ff" stroke="#a855f7" stroke-width="1.4"/>
   <text x="372" y="262" font-size="12" font-weight="700" fill="#9333ea">Seoul VPC 10.20.0.0/16  ·  2 AZ  ·  NAT Instance  ·  S3/DynamoDB Gateway Endpoint</text>
 
+  <!-- IGW·Gateway Endpoint: 둘 다 VPC에 attach(서브넷 종속 아님, ENI 없음) — IGW는 퍼블릭 라우트테이블, GW Endpoint는 프라이빗 라우트테이블(실측: infra/shared/main.tf route_table_ids=private_route_table_ids)에 연결 -->
+  <g><rect x="1270" y="222" width="140" height="40" rx="6" fill="#fff" stroke="#ddd6fe"/><rect x="1270" y="222" width="5" height="40" rx="2" fill="#8c4fff"/><text x="1283" y="240" font-size="10.5" font-weight="700" fill="#0f172a">🔌 Gateway Endpoint</text><text x="1283" y="255" font-size="9" fill="#64748b">S3·DynamoDB, private 라우트만</text></g>
+  <g><rect x="1420" y="222" width="120" height="40" rx="6" fill="#fff" stroke="#ddd6fe"/><rect x="1420" y="222" width="5" height="40" rx="2" fill="#8c4fff"/><text x="1433" y="240" font-size="10.5" font-weight="700" fill="#0f172a">🌐 IGW</text><text x="1433" y="255" font-size="9" fill="#64748b">인터넷 게이트웨이(VPC attach)</text></g>
+
   <!-- Public subnet -->
   <rect x="372" y="274" width="1188" height="76" rx="8" fill="#f0fdf4" stroke="#84cc16" stroke-width="1.2" stroke-dasharray="5 4"/>
   <text x="386" y="291" font-size="10.5" font-weight="700" fill="#4d7c0f">🟢 Public subnets  10.20.0.0/24 · 10.20.1.0/24</text>
-  <g><rect x="386" y="300" width="120" height="42" rx="6" fill="#fff" stroke="#ddd6fe"/><rect x="386" y="300" width="5" height="42" rx="2" fill="#8c4fff"/><text x="399" y="318" font-size="10.5" font-weight="700" fill="#0f172a">🌐 IGW</text><text x="399" y="333" font-size="9" fill="#64748b">인터넷 게이트웨이</text></g>
-  <g><rect x="516" y="300" width="150" height="42" rx="6" fill="#fff" stroke="#fed7aa"/><rect x="516" y="300" width="5" height="42" rx="2" fill="#ed7100"/><text x="529" y="318" font-size="10.5" font-weight="700" fill="#0f172a">↔ NAT Instance</text><text x="529" y="333" font-size="9" fill="#64748b">t4g.nano · IMDSv2</text></g>
-  <g><rect x="676" y="300" width="230" height="42" rx="6" fill="#fff" stroke="#ddd6fe"/><rect x="676" y="300" width="5" height="42" rx="2" fill="#8c4fff"/><text x="689" y="318" font-size="10.5" font-weight="700" fill="#0f172a">⚖️ ALB · Bearer JWT 검증</text><text x="689" y="333" font-size="9" fill="#64748b">HTTPS → console-backend λ (aws-jwt-verify)</text></g>
-  <g><rect x="916" y="300" width="180" height="42" rx="6" fill="#fff" stroke="#ddd6fe"/><rect x="916" y="300" width="5" height="42" rx="2" fill="#8c4fff"/><text x="929" y="318" font-size="10.5" font-weight="700" fill="#0f172a">🔌 Gateway Endpoint</text><text x="929" y="333" font-size="9" fill="#64748b">S3 · DynamoDB</text></g>
+  <g><rect x="386" y="300" width="150" height="42" rx="6" fill="#fff" stroke="#fed7aa"/><rect x="386" y="300" width="5" height="42" rx="2" fill="#ed7100"/><text x="399" y="318" font-size="10.5" font-weight="700" fill="#0f172a">↔ NAT Instance</text><text x="399" y="333" font-size="9" fill="#64748b">t4g.micro · IMDSv2</text></g>
+  <g><rect x="546" y="300" width="230" height="42" rx="6" fill="#fff" stroke="#ddd6fe"/><rect x="546" y="300" width="5" height="42" rx="2" fill="#8c4fff"/><text x="559" y="318" font-size="10.5" font-weight="700" fill="#0f172a">⚖️ ALB · Bearer JWT 검증</text><text x="559" y="333" font-size="9" fill="#64748b">HTTPS → console-backend λ (aws-jwt-verify)</text></g>
 
   <!-- Private subnet: workload (EKS) -->
   <rect x="372" y="360" width="742" height="160" rx="8" fill="#eff6ff" stroke="#38bdf8" stroke-width="1.2" stroke-dasharray="5 4"/>
-  <text x="386" y="377" font-size="10.5" font-weight="700" fill="#0369a1">🔒 Private (workload)  10.20.10/11.0/24  ·  취약 타깃 앱(격리·휘발성)</text>
+  <text x="386" y="377" font-size="10.5" font-weight="700" fill="#0369a1">🔒 Private (workload)  10.20.10.0/24 · 10.20.11.0/24  ·  취약 타깃 앱(격리·휘발성)</text>
   <rect x="386" y="384" width="714" height="128" rx="7" fill="#fff7ed" stroke="#fb923c" stroke-width="1.2"/>
   <text x="398" y="401" font-size="10.5" font-weight="700" fill="#c2410c">☸️ EKS  ·  spot t3.small · IRSA · Karpenter</text>
   <g><rect x="398" y="410" width="222" height="94" rx="6" fill="#fff" stroke="#fdba74"/><rect x="398" y="410" width="5" height="94" rx="2" fill="#ed7100"/><text x="411" y="428" font-size="11" font-weight="700" fill="#0f172a">🛒 product pod</text><text x="411" y="446" font-size="9" fill="#b91c1c">f1 KEV 취약 이미지</text><text x="411" y="461" font-size="9" fill="#b91c1c">f2 privileged 컨테이너</text><text x="411" y="479" font-size="8.5" fill="#94a3b8">catalog 서비스</text></g>
@@ -96,7 +98,7 @@
 
   <!-- Private subnet: data -->
   <rect x="372" y="530" width="1188" height="96" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2" stroke-dasharray="5 4"/>
-  <text x="386" y="547" font-size="10.5" font-weight="700" fill="#4338ca">🔒 Private (data)  10.20.20/21.0/24  ·  데이터는 AWS 전용</text>
+  <text x="386" y="547" font-size="10.5" font-weight="700" fill="#4338ca">🔒 Private (data)  10.20.10.0/24 · 10.20.11.0/24  ·  데이터는 AWS 전용</text>
   <g><rect x="386" y="556" width="330" height="60" rx="6" fill="#fff" stroke="#c7d2fe"/><rect x="386" y="556" width="5" height="60" rx="2" fill="#3334b9"/><text x="399" y="575" font-size="11" font-weight="700" fill="#0f172a">🗄️ RDS PostgreSQL t3.micro + pgvector</text><text x="399" y="592" font-size="9" fill="#64748b">findings · cases · attack_paths</text><text x="399" y="606" font-size="9" fill="#64748b">finding_explanations · rag_chunks · login_events</text></g>
   <g><rect x="726" y="556" width="160" height="60" rx="6" fill="#fff" stroke="#fecaca"/><rect x="726" y="556" width="5" height="60" rx="2" fill="#dd344c"/><text x="739" y="580" font-size="10.5" font-weight="700" fill="#0f172a">🔑 Secrets Mgr</text><text x="739" y="597" font-size="9" fill="#64748b">RDS·Azure cred·Teams webhook</text></g>
   <g><rect x="896" y="556" width="200" height="60" rx="6" fill="#fff" stroke="#bbf7d0"/><rect x="896" y="556" width="5" height="60" rx="2" fill="#569a31"/><text x="909" y="580" font-size="10.5" font-weight="700" fill="#0f172a">🪣 S3 member-pii</text><text x="909" y="597" font-size="9" fill="#b91c1c">f6 공개 · f7 회원 PII (Macie 미끼)</text></g>
