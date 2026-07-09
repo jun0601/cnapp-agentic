@@ -32,7 +32,7 @@
         <mxCell id="EKS" value="EKS" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.elastic_kubernetes_service;" vertex="1" parent="1">
           <mxGeometry x="38" y="306" width="42" height="42" as="geometry" />
         </mxCell>
-        <mxCell id="EKS_TXT" value="Karpenter(spot·consolidation) + HPA" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=9.5;fontColor=#64748B;" vertex="1" parent="1">
+        <mxCell id="EKS_TXT" value="Karpenter(spot 우선+on-demand 폴백) + HPA" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=9.5;fontColor=#64748B;" vertex="1" parent="1">
           <mxGeometry x="90" y="316" width="216" height="24" as="geometry" />
         </mxCell>
         <mxCell id="CICD_NOTE" value="키리스: GitHub OIDC→IAM Role · 파드 IRSA" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=9.5;fontColor=#94A3B8;" vertex="1" parent="1">
@@ -171,7 +171,7 @@
         <mxCell id="Z_SVLESS" value="🔒 Private (serverless) · λ (VPC→RDS)" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#38BDF8;dashed=1;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;fontSize=10.5;fontColor=#0369A1;" vertex="1" parent="1">
           <mxGeometry x="1128" y="360" width="440" height="160" as="geometry" />
         </mxCell>
-        <mxCell id="L_INGEST" value="λ ingest&#10;이벤트→표준 봉투→SQS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FED7AA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+        <mxCell id="L_INGEST" value="λ login_trigger&#10;Cognito 로그인 감사(fail-open)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FED7AA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
           <mxGeometry x="1142" y="384" width="205" height="38" as="geometry" />
         </mxCell>
         <mxCell id="L_NORM" value="λ normalize&#10;ASFF/OCSF→OCSF-lite→RDS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FED7AA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
@@ -219,9 +219,14 @@
           <mxGeometry x="1196" y="566" width="160" height="32" as="geometry" />
         </mxCell>
 
-        <!-- Pipeline band -->
+        <!-- Pipeline band — EventBridge/SQS/ingest는 실제로 VPC 밖(ingest는 vpc_config 없음),
+             normalize·correlation·orchestrator·remediation은 VPC 안(private subnet, infra/backend/main.tf 확인).
+             보라 점선 서브박스로 VPC 내부 경계 표시(메인 VPC 박스와 동일 시각언어) -->
         <mxCell id="Z_PIPE" value="🔁 이벤트 수집·정규화 파이프라인 &amp; 2-pass 에이전틱 루프 (agentless · EventBridge 기본 버스)" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.3;verticalAlign=top;align=left;spacingLeft=14;spacingTop=6;fontStyle=1;fontSize=12;fontColor=#BE185D;" vertex="1" parent="1">
           <mxGeometry x="356" y="646" width="1220" height="212" as="geometry" />
+        </mxCell>
+        <mxCell id="PIPE_VPC_BOX" value="VPC 내부(private subnet)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#A855F7;strokeWidth=1.4;dashed=1;dashPattern=7 5;verticalAlign=top;align=center;fontSize=7.5;fontStyle=1;fontColor=#9333EA;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="750" y="664" width="678" height="72" as="geometry" />
         </mxCell>
         <mxCell id="EB2" value="EventBridge" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#E7157B;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=8.5;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.eventbridge;" vertex="1" parent="1">
           <mxGeometry x="372" y="676" width="40" height="40" as="geometry" />
@@ -229,24 +234,28 @@
         <mxCell id="SQS2" value="SQS+DLQ" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#E7157B;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=8.5;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.simple_queue_service;" vertex="1" parent="1">
           <mxGeometry x="460" y="676" width="40" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="P_INGNORM" value="λ ingest→normalize&#10;표준 봉투→OCSF-lite" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#FED7AA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
-          <mxGeometry x="548" y="680" width="140" height="42" as="geometry" />
+        <mxCell id="P_ING" value="λ ingest&#10;표준 봉투→SQS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#FED7AA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="548" y="680" width="100" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="P_NORM" value="λ normalize&#10;OCSF-lite→RDS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#FED7AA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="760" y="680" width="120" height="42" as="geometry" />
         </mxCell>
         <mxCell id="P_RDS" value="RDS 적재&#10;findings upsert" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#C7D2FE;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
-          <mxGeometry x="716" y="680" width="110" height="42" as="geometry" />
+          <mxGeometry x="892" y="680" width="100" height="42" as="geometry" />
         </mxCell>
-        <mxCell id="P_CORR" value="λ correlation&#10;batch.completed→R1~R5" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#FED7AA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
-          <mxGeometry x="854" y="680" width="150" height="42" as="geometry" />
+        <mxCell id="P_CORR" value="λ correlation&#10;R1~R5→attack-path" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#FED7AA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1004" y="680" width="130" height="42" as="geometry" />
         </mxCell>
-        <mxCell id="P_ORCH" value="🧠 λ orchestrator&#10;correlation.completed→tool-use" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#A7F3D0;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
-          <mxGeometry x="1032" y="680" width="170" height="42" as="geometry" />
+        <mxCell id="P_ORCH" value="🧠 λ orchestrator&#10;tool-use(Bedrock)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#A7F3D0;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1146" y="680" width="150" height="42" as="geometry" />
         </mxCell>
-        <mxCell id="P_CASES" value="📁 cases&#10;판정·증거·내러티브" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#C7D2FE;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
-          <mxGeometry x="1230" y="680" width="130" height="42" as="geometry" />
+        <mxCell id="P_CASES" value="📁 cases&#10;판정·증거" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#C7D2FE;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1308" y="680" width="100" height="42" as="geometry" />
         </mxCell>
         <mxCell id="e_p1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="EB2" target="SQS2"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_p2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="SQS2" target="P_INGNORM"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_p3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="P_INGNORM" target="P_RDS"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_p2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="SQS2" target="P_ING"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_p2b" value="VPC 경계" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#9333EA;strokeWidth=1.6;fontSize=8;fontColor=#9333EA;" edge="1" parent="1" source="P_ING" target="P_NORM"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_p3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="P_NORM" target="P_RDS"><mxGeometry relative="1" as="geometry" /></mxCell>
         <mxCell id="e_p4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="P_RDS" target="P_CORR"><mxGeometry relative="1" as="geometry" /></mxCell>
         <mxCell id="e_p5" value="2-pass" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#0E9F6E;strokeWidth=1.5;fontSize=9;" edge="1" parent="1" source="P_CORR" target="P_ORCH"><mxGeometry relative="1" as="geometry" /></mxCell>
         <mxCell id="e_p6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#475569;" edge="1" parent="1" source="P_ORCH" target="P_CASES"><mxGeometry relative="1" as="geometry" /></mxCell>
@@ -254,8 +263,11 @@
         <mxCell id="HITL_LABEL" value="조치(HITL):" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=10.5;fontColor=#BE185D;fontStyle=1;" vertex="1" parent="1">
           <mxGeometry x="372" y="740" width="120" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="SFN2" value="🔀 Step Functions&#10;approver 승인 → StartExecution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FBCFE8;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
+        <mxCell id="SFN2" value="🔀 Step Functions&#10;console-backend가 승인 시 StartExecution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FBCFE8;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
           <mxGeometry x="500" y="758" width="168" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="HITL_VPC_BOX" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#A855F7;strokeWidth=1.4;dashed=1;dashPattern=7 5;" vertex="1" parent="1">
+          <mxGeometry x="678" y="750" width="220" height="56" as="geometry" />
         </mxCell>
         <mxCell id="REMED2" value="⚡ remediation λ&#10;S3 SSE·ECR scan(드리프트0)·S3 block·SG·IAM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FECACA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
           <mxGeometry x="688" y="758" width="200" height="40" as="geometry" />
@@ -327,7 +339,7 @@
 
         <!-- ===================== RIGHT: Governance ===================== -->
         <mxCell id="Z_GOV" value="🔒 거버넌스 · 키리스 원칙" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#475569;strokeWidth=1.4;verticalAlign=top;align=left;spacingLeft=14;spacingTop=6;fontStyle=1;fontSize=13;fontColor=#334155;" vertex="1" parent="1">
-          <mxGeometry x="1612" y="682" width="604" height="176" as="geometry" />
+          <mxGeometry x="1612" y="682" width="604" height="150" as="geometry" />
         </mxCell>
         <mxCell id="G1" value="✅ read-only first — Evidence allowlist 2중 강제" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=8;verticalAlign=middle;" vertex="1" parent="1">
           <mxGeometry x="1628" y="720" width="284" height="30" as="geometry" />

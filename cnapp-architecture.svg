@@ -20,7 +20,7 @@
   <g><rect x="38" y="126" width="268" height="42" rx="7" fill="#fff" stroke="#cbd5e1"/><rect x="38" y="126" width="5" height="42" rx="2" fill="#24292e"/><text x="52" y="145" font-size="12" font-weight="700" fill="#0f172a">🐙 GitHub Actions</text><text x="52" y="160" font-size="9.5" fill="#64748b">CI: 회귀 10 + Shift-Left(Trivy·Checkov) · $0</text></g>
   <g><rect x="38" y="186" width="268" height="42" rx="7" fill="#fff" stroke="#cbd5e1"/><rect x="38" y="186" width="5" height="42" rx="2" fill="#ed7100"/><text x="52" y="205" font-size="12" font-weight="700" fill="#0f172a">📦 ECR ×4</text><text x="52" y="220" font-size="9.5" fill="#64748b">product·order·member·console-backend</text></g>
   <g><rect x="38" y="246" width="268" height="42" rx="7" fill="#fff" stroke="#cbd5e1"/><rect x="38" y="246" width="5" height="42" rx="2" fill="#ef7b4d"/><text x="52" y="265" font-size="12" font-weight="700" fill="#0f172a">🚢 ArgoCD (CD)</text><text x="52" y="280" font-size="9.5" fill="#64748b">GitOps pull-sync · self-heal · prune</text></g>
-  <g><rect x="38" y="306" width="268" height="42" rx="7" fill="#fff" stroke="#cbd5e1"/><rect x="38" y="306" width="5" height="42" rx="2" fill="#ed7100"/><text x="52" y="325" font-size="12" font-weight="700" fill="#0f172a">☸️ EKS</text><text x="52" y="340" font-size="9.5" fill="#64748b">Karpenter(spot·consolidation) + HPA</text></g>
+  <g><rect x="38" y="306" width="268" height="42" rx="7" fill="#fff" stroke="#cbd5e1"/><rect x="38" y="306" width="5" height="42" rx="2" fill="#ed7100"/><text x="52" y="325" font-size="12" font-weight="700" fill="#0f172a">☸️ EKS</text><text x="52" y="340" font-size="9.5" fill="#64748b">Karpenter(spot 우선+on-demand 폴백) + HPA</text></g>
   <path d="M172,168 L172,186" stroke="#475569" stroke-width="1.4" marker-end="url(#a)"/>
   <path d="M172,228 L172,246" stroke="#475569" stroke-width="1.4" marker-end="url(#a)"/>
   <path d="M172,288 L172,306" stroke="#475569" stroke-width="1.4" marker-end="url(#a)"/>
@@ -89,7 +89,7 @@
   <!-- Private subnet: serverless (Lambda) -->
   <rect x="1128" y="360" width="440" height="160" rx="8" fill="#eff6ff" stroke="#38bdf8" stroke-width="1.2" stroke-dasharray="5 4"/>
   <text x="1142" y="377" font-size="10.5" font-weight="700" fill="#0369a1">🔒 Private (serverless) · λ (VPC→RDS)</text>
-  <g><rect x="1142" y="386" width="205" height="38" rx="6" fill="#fff" stroke="#fed7aa"/><rect x="1142" y="386" width="5" height="38" rx="2" fill="#fa7e14"/><text x="1155" y="403" font-size="10" font-weight="700" fill="#0f172a">λ ingest</text><text x="1155" y="417" font-size="8.5" fill="#64748b">이벤트→표준 봉투→SQS</text></g>
+  <g><rect x="1142" y="386" width="205" height="38" rx="6" fill="#fff" stroke="#fed7aa"/><rect x="1142" y="386" width="5" height="38" rx="2" fill="#fa7e14"/><text x="1155" y="403" font-size="10" font-weight="700" fill="#0f172a">λ login_trigger</text><text x="1155" y="417" font-size="8.5" fill="#64748b">Cognito 로그인 감사(fail-open)</text></g>
   <g><rect x="1355" y="386" width="205" height="38" rx="6" fill="#fff" stroke="#fed7aa"/><rect x="1355" y="386" width="5" height="38" rx="2" fill="#fa7e14"/><text x="1368" y="403" font-size="10" font-weight="700" fill="#0f172a">λ normalize</text><text x="1368" y="417" font-size="8.5" fill="#64748b">ASFF/OCSF→OCSF-lite→RDS</text></g>
   <g><rect x="1142" y="430" width="205" height="38" rx="6" fill="#fff" stroke="#fed7aa"/><rect x="1142" y="430" width="5" height="38" rx="2" fill="#fa7e14"/><text x="1155" y="447" font-size="10" font-weight="700" fill="#0f172a">λ correlation</text><text x="1155" y="461" font-size="8.5" fill="#64748b">R1~R5 → attack-path</text></g>
   <g><rect x="1355" y="430" width="205" height="38" rx="6" fill="#ecfdf5" stroke="#a7f3d0"/><rect x="1355" y="430" width="5" height="38" rx="2" fill="#01a88d"/><text x="1368" y="447" font-size="10" font-weight="700" fill="#0f172a">λ orchestrator 🧠</text><text x="1368" y="461" font-size="8.5" fill="#64748b">Triage→Evidence→Reasoning</text></g>
@@ -104,26 +104,33 @@
   <g><rect x="896" y="556" width="200" height="60" rx="6" fill="#fff" stroke="#bbf7d0"/><rect x="896" y="556" width="5" height="60" rx="2" fill="#569a31"/><text x="909" y="580" font-size="10.5" font-weight="700" fill="#0f172a">🪣 S3 member-pii</text><text x="909" y="597" font-size="9" fill="#b91c1c">f6 공개 · f7 회원 PII (Macie 미끼)</text></g>
   <g><rect x="1106" y="556" width="200" height="60" rx="6" fill="#fff" stroke="#bbf7d0"/><rect x="1106" y="556" width="5" height="60" rx="2" fill="#569a31"/><text x="1119" y="580" font-size="10.5" font-weight="700" fill="#0f172a">🔒 S3 감사(Object Lock)</text><text x="1119" y="597" font-size="9" fill="#64748b">조치 불변 감사로그</text></g>
 
-  <!-- Pipeline band (regional, inside region below VPC) -->
+  <!-- Pipeline band (regional, inside region below VPC) — 이벤트버스/SQS/ingest는 VPC 밖(진짜 그렇게 배포됨, ingest는 vpc_config 없음),
+       normalize·correlation·orchestrator·remediation은 VPC 안(private subnet, infra/backend/main.tf vpc_config 확인) —
+       보라 점선 서브박스로 "VPC 내부" 경계를 표시(메인 VPC 박스와 동일한 시각언어, #a855f7 dasharray 7 5) -->
   <rect x="356" y="646" width="1220" height="212" rx="10" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.3"/>
   <text x="372" y="666" font-size="12" font-weight="700" fill="#be185d">🔁 이벤트 수집·정규화 파이프라인  &amp;  2-pass 에이전틱 루프  (agentless · EventBridge 기본 버스)</text>
-  <!-- row 1 -->
+  <!-- row 1: 실행 흐름(순서) — 보라 점선 밖=VPC 밖 실행, 안=VPC 안 실행 -->
+  <rect x="750" y="664" width="678" height="72" rx="8" fill="none" stroke="#a855f7" stroke-width="1.4" stroke-dasharray="7 5"/>
+  <text x="1089" y="673" text-anchor="middle" font-size="7.5" font-weight="700" fill="#9333ea">VPC 내부(private subnet)</text>
   <g><rect x="372" y="678" width="118" height="46" rx="6" fill="#fff" stroke="#fbcfe8"/><rect x="372" y="678" width="5" height="46" rx="2" fill="#e7157b"/><text x="385" y="697" font-size="10" font-weight="700" fill="#0f172a">🔔 EventBridge</text><text x="385" y="713" font-size="8.5" fill="#64748b">findings 이벤트</text></g>
   <g><rect x="510" y="678" width="118" height="46" rx="6" fill="#fff" stroke="#fbcfe8"/><rect x="510" y="678" width="5" height="46" rx="2" fill="#e7157b"/><text x="523" y="697" font-size="10" font-weight="700" fill="#0f172a">📨 SQS + DLQ</text><text x="523" y="713" font-size="8.5" fill="#64748b">버퍼·재시도</text></g>
-  <g><rect x="648" y="678" width="150" height="46" rx="6" fill="#fff7ed" stroke="#fed7aa"/><rect x="648" y="678" width="5" height="46" rx="2" fill="#fa7e14"/><text x="661" y="697" font-size="10" font-weight="700" fill="#0f172a">λ ingest → normalize</text><text x="661" y="713" font-size="8.5" fill="#64748b">표준 봉투 → OCSF-lite</text></g>
-  <g><rect x="818" y="678" width="118" height="46" rx="6" fill="#eef2ff" stroke="#c7d2fe"/><rect x="818" y="678" width="5" height="46" rx="2" fill="#3334b9"/><text x="831" y="697" font-size="10" font-weight="700" fill="#0f172a">🗄️ RDS 적재</text><text x="831" y="713" font-size="8.5" fill="#64748b">findings upsert</text></g>
-  <g><rect x="956" y="678" width="150" height="46" rx="6" fill="#fff" stroke="#fbcfe8"/><rect x="956" y="678" width="5" height="46" rx="2" fill="#fa7e14"/><text x="969" y="697" font-size="10" font-weight="700" fill="#0f172a">λ correlation</text><text x="969" y="713" font-size="8.5" fill="#64748b">batch.completed → R1~R5</text></g>
-  <g><rect x="1126" y="678" width="180" height="46" rx="6" fill="#ecfdf5" stroke="#a7f3d0"/><rect x="1126" y="678" width="5" height="46" rx="2" fill="#01a88d"/><text x="1139" y="697" font-size="10" font-weight="700" fill="#0f172a">🧠 λ orchestrator</text><text x="1139" y="713" font-size="8.5" fill="#64748b">correlation.completed → tool-use</text></g>
-  <g><rect x="1326" y="678" width="118" height="46" rx="6" fill="#eef2ff" stroke="#c7d2fe"/><rect x="1326" y="678" width="5" height="46" rx="2" fill="#3334b9"/><text x="1339" y="697" font-size="10" font-weight="700" fill="#0f172a">📁 cases</text><text x="1339" y="713" font-size="8.5" fill="#64748b">판정·증거·내러티브</text></g>
+  <g><rect x="648" y="678" width="100" height="46" rx="6" fill="#fff7ed" stroke="#fed7aa"/><rect x="648" y="678" width="5" height="46" rx="2" fill="#fa7e14"/><text x="659" y="697" font-size="10" font-weight="700" fill="#0f172a">λ ingest</text><text x="659" y="713" font-size="8.5" fill="#64748b">표준 봉투→SQS</text></g>
+  <g><rect x="760" y="678" width="130" height="46" rx="6" fill="#fff7ed" stroke="#fed7aa"/><rect x="760" y="678" width="5" height="46" rx="2" fill="#fa7e14"/><text x="771" y="697" font-size="10" font-weight="700" fill="#0f172a">λ normalize</text><text x="771" y="713" font-size="8.5" fill="#64748b">OCSF-lite→RDS</text></g>
+  <g><rect x="902" y="678" width="100" height="46" rx="6" fill="#eef2ff" stroke="#c7d2fe"/><rect x="902" y="678" width="5" height="46" rx="2" fill="#3334b9"/><text x="913" y="697" font-size="10" font-weight="700" fill="#0f172a">🗄️ RDS 적재</text><text x="913" y="713" font-size="8.5" fill="#64748b">findings upsert</text></g>
+  <g><rect x="1014" y="678" width="130" height="46" rx="6" fill="#fff7ed" stroke="#fed7aa"/><rect x="1014" y="678" width="5" height="46" rx="2" fill="#fa7e14"/><text x="1025" y="697" font-size="10" font-weight="700" fill="#0f172a">λ correlation</text><text x="1025" y="713" font-size="8.5" fill="#64748b">R1~R5→attack-path</text></g>
+  <g><rect x="1156" y="678" width="150" height="46" rx="6" fill="#ecfdf5" stroke="#a7f3d0"/><rect x="1156" y="678" width="5" height="46" rx="2" fill="#01a88d"/><text x="1167" y="697" font-size="10" font-weight="700" fill="#0f172a">🧠 λ orchestrator</text><text x="1167" y="713" font-size="8.5" fill="#64748b">tool-use(Bedrock)</text></g>
+  <g><rect x="1318" y="678" width="100" height="46" rx="6" fill="#eef2ff" stroke="#c7d2fe"/><rect x="1318" y="678" width="5" height="46" rx="2" fill="#3334b9"/><text x="1329" y="697" font-size="10" font-weight="700" fill="#0f172a">📁 cases</text><text x="1329" y="713" font-size="8.5" fill="#64748b">판정·증거</text></g>
   <path d="M490,701 L510,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
   <path d="M628,701 L648,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
-  <path d="M798,701 L818,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
-  <path d="M936,701 L956,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
-  <path d="M1106,701 L1126,701" stroke="#0e9f6e" stroke-width="1.5" marker-end="url(#ag)"/>
-  <path d="M1306,701 L1326,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
-  <!-- row 2: HITL -->
+  <path d="M748,701 L760,701" stroke="#9333ea" stroke-width="1.6" marker-end="url(#a)"/>
+  <path d="M890,701 L902,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
+  <path d="M1002,701 L1014,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
+  <path d="M1144,701 L1156,701" stroke="#0e9f6e" stroke-width="1.5" marker-end="url(#ag)"/><text x="1132" y="663" font-size="8.5" font-weight="700" fill="#0e9f6e">2-pass</text>
+  <path d="M1306,701 L1318,701" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
+  <!-- row 2: HITL — remediation λ도 VPC 안(private subnet) -->
   <text x="372" y="756" font-size="10.5" font-weight="700" fill="#be185d">조치(HITL):</text>
-  <g><rect x="470" y="738" width="168" height="40" rx="6" fill="#fff" stroke="#fbcfe8"/><rect x="470" y="738" width="5" height="40" rx="2" fill="#e7157b"/><text x="483" y="755" font-size="10" font-weight="700" fill="#0f172a">🔀 Step Functions</text><text x="483" y="770" font-size="8.5" fill="#64748b">approver 승인 → StartExecution</text></g>
+  <g><rect x="470" y="738" width="168" height="40" rx="6" fill="#fff" stroke="#fbcfe8"/><rect x="470" y="738" width="5" height="40" rx="2" fill="#e7157b"/><text x="483" y="755" font-size="10" font-weight="700" fill="#0f172a">🔀 Step Functions</text><text x="483" y="770" font-size="8.5" fill="#64748b">console-backend가 승인 시 StartExecution</text></g>
+  <rect x="648" y="730" width="188" height="56" rx="8" fill="none" stroke="#a855f7" stroke-width="1.4" stroke-dasharray="7 5"/>
   <g><rect x="658" y="738" width="168" height="40" rx="6" fill="#fff" stroke="#fecaca"/><rect x="658" y="738" width="5" height="40" rx="2" fill="#dd344c"/><text x="671" y="755" font-size="10" font-weight="700" fill="#0f172a">⚡ remediation λ</text><text x="671" y="770" font-size="8.5" fill="#64748b">S3 SSE·ECR scan(드리프트 0)·S3 block·SG·IAM</text></g>
   <g><rect x="846" y="738" width="168" height="40" rx="6" fill="#fff" stroke="#bbf7d0"/><rect x="846" y="738" width="5" height="40" rx="2" fill="#569a31"/><text x="859" y="755" font-size="10" font-weight="700" fill="#0f172a">🔒 감사(Object Lock)</text><text x="859" y="770" font-size="8.5" fill="#64748b">불변 기록 + 수정→소멸</text></g>
   <path d="M638,758 L658,758" stroke="#475569" stroke-width="1.3" marker-end="url(#a)"/>
@@ -161,7 +168,7 @@
   <path d="M1760,540 C1500,480 800,280 590,158" stroke="#2563eb" stroke-width="1.3" fill="none" stroke-dasharray="5 4" opacity="0.6" marker-end="url(#ab)"/>
 
   <!-- ============================================================ RIGHT: Governance ============================================================ -->
-  <rect x="1612" y="682" width="604" height="176" rx="10" fill="#f8fafc" stroke="#475569" stroke-width="1.4"/>
+  <rect x="1612" y="682" width="604" height="150" rx="10" fill="#f8fafc" stroke="#475569" stroke-width="1.4"/>
   <rect x="1612" y="682" width="604" height="26" rx="10" fill="#e2e8f0"/>
   <text x="1628" y="700" font-size="13" font-weight="700" fill="#334155">🔒 거버넌스 · 키리스 원칙</text>
   <g><rect x="1628" y="718" width="284" height="30" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1640" y="737" font-size="9.5" fill="#0f172a">✅ read-only first — Evidence allowlist 2중 강제</text></g>
@@ -170,7 +177,6 @@
   <g><rect x="1920" y="754" width="284" height="30" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1932" y="773" font-size="9.5" fill="#0f172a">✅ WAF — CloudFront 앞단 L7 방어</text></g>
   <g><rect x="1628" y="790" width="284" height="30" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1640" y="809" font-size="9.5" fill="#0f172a">✅ 최소권한 — IRSA · 격상 역할 분리</text></g>
   <g><rect x="1920" y="790" width="284" height="30" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1932" y="809" font-size="9.5" fill="#0f172a">🚫 Organizations/IdentityCenter 미사용</text></g>
-
 
   <!-- ============================================================ Golden cross-cloud attack-path ============================================================ -->
   <rect x="24" y="884" width="2192" height="150" rx="12" fill="#fff1f2" stroke="#e11d48" stroke-width="2"/>
