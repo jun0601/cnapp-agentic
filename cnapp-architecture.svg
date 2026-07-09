@@ -36,7 +36,7 @@
   <g><rect x="38" y="560" width="268" height="42" rx="7" fill="#fff" stroke="#c7d2fe"/><rect x="38" y="560" width="5" height="42" rx="2" fill="#3334b9"/><text x="52" y="579" font-size="12" font-weight="700" fill="#0f172a">🔎 RAG 검색 (pgvector)</text><text x="52" y="594" font-size="9.5" fill="#64748b">control↔코퍼스 cosine · 설명 근거</text></g>
   <text x="38" y="624" font-size="9.5" fill="#059669">❝챗봇 아님❞ — LLM이 규칙 아닌 스스로 툴 선택</text>
   <text x="38" y="640" font-size="9.5" fill="#94a3b8">실 S3 조사 → CONFIRMED(100%) 실검증 완료</text>
-  <text x="38" y="656" font-size="9.5" fill="#94a3b8">비용통제: Triage 게이트(severity≤2 OR attack_path)</text>
+  <text x="38" y="656" font-size="9.5" fill="#94a3b8">Triage 게이트(severity≤2 OR attack_path)</text>
 
   <!-- ============================================================ TOP: 관제 앱 진입(SSO, 옵션B: SPA 직접 OIDC) ============================================================ -->
   <text x="336" y="76" font-size="20">👤</text>
@@ -65,7 +65,7 @@
 
   <!-- VPC -->
   <rect x="356" y="242" width="1220" height="392" rx="10" fill="#faf5ff" stroke="#a855f7" stroke-width="1.4"/>
-  <text x="372" y="262" font-size="12" font-weight="700" fill="#9333ea">Seoul VPC 10.20.0.0/16  ·  2 AZ  ·  NAT Instance(NAT GW 대신, 비용)  ·  S3/DynamoDB Gateway Endpoint(무료)</text>
+  <text x="372" y="262" font-size="12" font-weight="700" fill="#9333ea">Seoul VPC 10.20.0.0/16  ·  2 AZ  ·  NAT Instance  ·  S3/DynamoDB Gateway Endpoint</text>
 
   <!-- Public subnet -->
   <rect x="372" y="274" width="1188" height="76" rx="8" fill="#f0fdf4" stroke="#84cc16" stroke-width="1.2" stroke-dasharray="5 4"/>
@@ -73,7 +73,7 @@
   <g><rect x="386" y="300" width="120" height="42" rx="6" fill="#fff" stroke="#ddd6fe"/><rect x="386" y="300" width="5" height="42" rx="2" fill="#8c4fff"/><text x="399" y="318" font-size="10.5" font-weight="700" fill="#0f172a">🌐 IGW</text><text x="399" y="333" font-size="9" fill="#64748b">인터넷 게이트웨이</text></g>
   <g><rect x="516" y="300" width="150" height="42" rx="6" fill="#fff" stroke="#fed7aa"/><rect x="516" y="300" width="5" height="42" rx="2" fill="#ed7100"/><text x="529" y="318" font-size="10.5" font-weight="700" fill="#0f172a">↔ NAT Instance</text><text x="529" y="333" font-size="9" fill="#64748b">t4g.nano · IMDSv2</text></g>
   <g><rect x="676" y="300" width="230" height="42" rx="6" fill="#fff" stroke="#ddd6fe"/><rect x="676" y="300" width="5" height="42" rx="2" fill="#8c4fff"/><text x="689" y="318" font-size="10.5" font-weight="700" fill="#0f172a">⚖️ ALB · Bearer JWT 검증</text><text x="689" y="333" font-size="9" fill="#64748b">HTTPS → console-backend λ (aws-jwt-verify)</text></g>
-  <g><rect x="916" y="300" width="180" height="42" rx="6" fill="#fff" stroke="#ddd6fe"/><rect x="916" y="300" width="5" height="42" rx="2" fill="#8c4fff"/><text x="929" y="318" font-size="10.5" font-weight="700" fill="#0f172a">🔌 Gateway Endpoint</text><text x="929" y="333" font-size="9" fill="#64748b">S3 · DynamoDB (무료 egress)</text></g>
+  <g><rect x="916" y="300" width="180" height="42" rx="6" fill="#fff" stroke="#ddd6fe"/><rect x="916" y="300" width="5" height="42" rx="2" fill="#8c4fff"/><text x="929" y="318" font-size="10.5" font-weight="700" fill="#0f172a">🔌 Gateway Endpoint</text><text x="929" y="333" font-size="9" fill="#64748b">S3 · DynamoDB</text></g>
 
   <!-- Private subnet: workload (EKS) -->
   <rect x="372" y="360" width="742" height="160" rx="8" fill="#eff6ff" stroke="#38bdf8" stroke-width="1.2" stroke-dasharray="5 4"/>
@@ -165,11 +165,10 @@
   <g><rect x="1628" y="718" width="284" height="30" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1640" y="737" font-size="9.5" fill="#0f172a">✅ read-only first — Evidence allowlist 2중 강제</text></g>
   <g><rect x="1920" y="718" width="284" height="30" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1932" y="737" font-size="9.5" fill="#0f172a">✅ HITL — 변경은 Step Functions 승인 경로만</text></g>
   <g><rect x="1628" y="754" width="284" height="30" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1640" y="773" font-size="9.5" fill="#0f172a">✅ 불변 감사 — S3 Object Lock</text></g>
-  <g><rect x="1920" y="754" width="284" height="30" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1932" y="773" font-size="9.5" fill="#0f172a">✅ WAF — CloudFront 앞단 L7 방어(도그푸딩)</text></g>
+  <g><rect x="1920" y="754" width="284" height="30" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1932" y="773" font-size="9.5" fill="#0f172a">✅ WAF — CloudFront 앞단 L7 방어</text></g>
   <g><rect x="1628" y="790" width="284" height="30" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1640" y="809" font-size="9.5" fill="#0f172a">✅ 최소권한 — IRSA · 격상 역할 분리</text></g>
   <g><rect x="1920" y="790" width="284" height="30" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1932" y="809" font-size="9.5" fill="#0f172a">🚫 Organizations/IdentityCenter 미사용</text></g>
-  <text x="1628" y="838" font-size="9.5" fill="#94a3b8">종량제(Config·Prowler)는 상시, SecHub 등은 데모 직전만 켜고 destroy · Budgets 유지</text>
-  <text x="1628" y="854" font-size="9.5" fill="#94a3b8">비용: mock-first(빌드 $0) · apply→검증→destroy · NAT Instance · RDS t3.micro · Bedrock 티어링</text>
+
 
   <!-- ============================================================ Golden cross-cloud attack-path ============================================================ -->
   <rect x="24" y="884" width="2192" height="150" rx="12" fill="#fff1f2" stroke="#e11d48" stroke-width="2"/>
