@@ -16,7 +16,7 @@ spec:
       values: |
         clusterName: cnapp-agentic-shared
         region: ap-northeast-2
-        vpcId: vpc-0087d2c592b8fe01f
+        vpcId: vpc-0fffbd05dd989613a # ⚠️ shared 재apply 시 VPC ID 바뀜 — kubectl 없으면 aws ec2 describe-vpcs로 확인 후 갱신
         serviceAccount:
           create: true
           name: aws-load-balancer-controller
