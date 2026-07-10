@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="claude-code">
   <diagram id="cnapp-overview-v2" name="CNAPP 전체 개요">
-    <mxGraphModel dx="1178" dy="701" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2240" pageHeight="1260" math="0" shadow="0">
+    <mxGraphModel dx="544" dy="323" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2240" pageHeight="1260" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -44,12 +44,12 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="Z_AI" parent="1" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#0E9F6E;strokeWidth=1.5;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;fontSize=13;fontColor=#047857;" value="🧠 에이전틱 AI  (Amazon Bedrock + RAG)" vertex="1">
-          <mxGeometry height="300" width="296" x="24" y="404" as="geometry" />
+          <mxGeometry height="384" width="296" x="24" y="404" as="geometry" />
         </mxCell>
         <mxCell id="BR" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#01A88D;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;" value="Bedrock" vertex="1">
           <mxGeometry height="42" width="42" x="38" y="442" as="geometry" />
         </mxCell>
-        <mxCell id="BR_TXT" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=9.5;fontColor=#0F172A;fontStyle=1;" value="Claude Haiku 4.5&#xa;Evidence(tool-use)·Triage·Reasoning 전 구간 단일모델" vertex="1">
+        <mxCell id="BR_TXT" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=9.5;fontColor=#0F172A;fontStyle=1;" value="Claude Haiku 4.5&#xa;Evidence(tool-use) + RAG 답변생성에 실사용" vertex="1">
           <mxGeometry height="46" width="216" x="90" y="440" as="geometry" />
         </mxCell>
         <mxCell id="TITAN" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#01A88D;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;" value="Titan" vertex="1">
@@ -58,17 +58,54 @@
         <mxCell id="TITAN_TXT" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=9.5;fontColor=#0F172A;fontStyle=1;" value="Titan Embed v2&#xa;RAG 임베딩(1024) → pgvector" vertex="1">
           <mxGeometry height="38" width="216" x="90" y="500" as="geometry" />
         </mxCell>
-        <mxCell id="RAGBOX" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C7D2FE;fontColor=#0F172A;fontSize=10;align=left;spacingLeft=8;" value="🔎 RAG 검색 (pgvector)&#xa;control↔코퍼스 cosine · 설명 근거" vertex="1">
+        <mxCell id="RAGBOX" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1FAE5;strokeColor=#059669;strokeWidth=1.6;fontColor=#065F46;fontStyle=1;fontSize=9.5;align=left;spacingLeft=8;" value="🔎 RAG 검색 ⚡실제 (pgvector)&#xa;control↔코퍼스 cosine → Bedrock 답변생성" vertex="1">
           <mxGeometry height="42" width="268" x="38" y="554" as="geometry" />
         </mxCell>
-        <mxCell id="AI_N1" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=9.5;fontColor=#059669;" value="&quot;챗봇 아님&quot; — LLM이 규칙 아닌 스스로 툴 선택" vertex="1">
-          <mxGeometry height="18" width="268" x="38" y="602" as="geometry" />
+        <mxCell id="AI_LOOP_TITLE" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=8.5;fontStyle=1;fontColor=#047857;" value="🔁 오케스트레이터 조사 루프 (4단계, 이 중 Evidence만 실제 LLM 자율수행)" vertex="1">
+          <mxGeometry height="16" width="268" x="38" y="602" as="geometry" />
         </mxCell>
-        <mxCell id="AI_N2" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=9.5;fontColor=#94A3B8;" value="실 S3 조사 → CONFIRMED(100%) 실검증 완료" vertex="1">
-          <mxGeometry height="18" width="268" x="38" y="620" as="geometry" />
+        <mxCell id="AI_TRIAGE" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#A7F3D0;fontColor=#047857;fontSize=8.5;align=center;verticalAlign=middle;" value="Triage&#xa;비용 게이트(규칙)" vertex="1">
+          <mxGeometry height="28" width="120" x="38" y="622" as="geometry" />
         </mxCell>
-        <mxCell id="AI_N4" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=9.5;fontColor=#94A3B8;" value="Triage 게이트(severity≤2 OR attack_path)" vertex="1">
-          <mxGeometry height="18" width="268" x="38" y="638" as="geometry" />
+        <mxCell id="AI_HYPO" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;dashed=1;fontColor=#64748B;fontSize=8.5;align=center;verticalAlign=middle;" value="Hypothesis&#xa;가설 생성(템플릿)" vertex="1">
+          <mxGeometry height="32" width="120" x="166" y="622" as="geometry" />
+        </mxCell>
+        <mxCell id="AI_EVID" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1FAE5;strokeColor=#059669;strokeWidth=2;fontStyle=1;fontColor=#065F46;fontSize=8.5;align=center;verticalAlign=middle;" value="🔧 Evidence ⚡실제&#xa;tool-use 루프" vertex="1">
+          <mxGeometry height="36" width="120" x="38" y="658" as="geometry" />
+        </mxCell>
+        <mxCell id="AI_REASON" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;dashed=1;fontColor=#64748B;fontSize=8.5;align=center;verticalAlign=middle;" value="Reasoning&#xa;판정·내러티브(템플릿)" vertex="1">
+          <mxGeometry height="36" width="120" x="166" y="658" as="geometry" />
+        </mxCell>
+        <mxCell id="e_loop1" edge="1" parent="1" source="AI_TRIAGE" style="edgeStyle=none;rounded=0;html=1;endArrow=block;strokeColor=#34D399;strokeWidth=1;" target="AI_HYPO">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_loop2" edge="1" parent="1" source="AI_HYPO" style="edgeStyle=none;rounded=0;html=1;endArrow=block;strokeColor=#34D399;strokeWidth=1;" target="AI_EVID">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_loop3" edge="1" parent="1" source="AI_EVID" style="edgeStyle=none;rounded=0;html=1;endArrow=block;strokeColor=#34D399;strokeWidth=1;" target="AI_REASON">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="AI_TOOLTARGET" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#059669;dashed=1;dashPattern=4 3;fontStyle=1;fontColor=#065F46;fontSize=8.5;align=center;verticalAlign=middle;" value="🌐 AWS read-only API (S3 · IAM · EC2 ...)" vertex="1">
+          <mxGeometry height="26" width="248" x="38" y="698" as="geometry" />
+        </mxCell>
+        <mxCell id="e_toolcall" edge="1" parent="1" source="AI_EVID" style="edgeStyle=none;curved=1;rounded=0;html=1;endArrow=block;dashed=1;strokeColor=#059669;strokeWidth=1.3;fontSize=7.5;fontColor=#059669;exitX=0.3;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;" target="AI_TOOLTARGET" value="① 직접 호출">
+          <mxGeometry relative="1" x="0.1938" y="15" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_toolback" edge="1" parent="1" source="AI_TOOLTARGET" style="edgeStyle=none;curved=1;rounded=0;html=1;endArrow=block;strokeColor=#0E9F6E;strokeWidth=1.3;fontSize=7.5;fontColor=#0E9F6E;exitX=0.7;exitY=0;exitDx=0;exitDy=0;entryX=0.7;entryY=1;entryDx=0;entryDy=0;" target="AI_EVID" value="② 증거→판정">
+          <mxGeometry relative="1" x="-0.0827" y="6" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="AI_VALID" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=8.5;fontStyle=1;fontColor=#059669;" value="✅ 실 S3 조사 → CONFIRMED(100%) 실검증 완료" vertex="1">
+          <mxGeometry height="18" width="268" x="38" y="730" as="geometry" />
+        </mxCell>
+        <mxCell id="AI_LEGEND" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=7.5;fontColor=#94A3B8;" value="⚡실제=지금 Bedrock 호출 · 점선=템플릿(향후 Bedrock 스왑 예정)" vertex="1">
+          <mxGeometry height="16" width="268" x="38" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="e_br_rag" edge="1" parent="1" source="BR" target="RAGBOX" value="⚡ 답변생성 호출" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;dashPattern=5 4;strokeColor=#059669;strokeWidth=1.3;fontSize=7.5;fontColor=#059669;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="USER" parent="1" style="shape=umlActor;html=1;outlineConnect=0;fillColor=#5B8DEF;strokeColor=#2B5FB3;" value="" vertex="1">
           <mxGeometry height="32" width="22" x="336" y="58" as="geometry" />
@@ -151,9 +188,6 @@
         <mxCell id="ALB_TXT" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=8.5;fontColor=#64748B;" value="ALB · Bearer JWT 검증 → console-backend λ (aws-jwt-verify)" vertex="1">
           <mxGeometry height="36" width="240" x="608" y="298" as="geometry" />
         </mxCell>
-        <!-- 클러스터엔 네임스페이스 4개(shop·argocd·monitoring·kube-system) 존재. shop=취약 타깃 앱 격리 경계라
-             여기서 상세 표시, 나머지 3개는 이미 각자 자리(CI/CD·Monitoring)가 있어 중복 표시 안 함
-             (파이프라인 밴드와 동일 원칙: 지금 그리는 경계의 주인공만 상세 표시) -->
         <mxCell id="Z_WORK" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#38BDF8;dashed=1;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;fontSize=10.5;fontColor=#0369A1;" value="🔒 Private (workload) 10.20.10.0/24 · 10.20.11.0/24" vertex="1">
           <mxGeometry height="168" width="742" x="372" y="360" as="geometry" />
         </mxCell>
@@ -283,9 +317,7 @@
         <mxCell id="e_p6" edge="1" parent="1" source="P_ORCH" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#475569;" target="P_CASES">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <!-- Bedrock↔orchestrator: 데이터가 지나가는 파이프라인 홉이 아니라 "orchestrator 코드 안에서 Bedrock API를
-             호출한다"는 논리적 관계라 점선(ACM 인증서 연결선과 동일 표기법) -->
-        <mxCell id="e_ai_orch" edge="1" parent="1" source="BR" target="P_ORCH" value="🧠 tool-use 실호출" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;dashPattern=5 4;strokeColor=#0E9F6E;strokeWidth=1.3;fontSize=8.5;fontColor=#0E9F6E;fontStyle=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+        <mxCell id="e_ai_orch" edge="1" parent="1" source="BR" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;dashPattern=5 4;strokeColor=#0E9F6E;strokeWidth=1.3;fontSize=8.5;fontColor=#0E9F6E;fontStyle=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="P_ORCH" value="🧠 tool-use 실호출">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="HITL_LABEL" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=10.5;fontColor=#BE185D;fontStyle=1;" value="조치(HITL):" vertex="1">
@@ -351,8 +383,11 @@
         <mxCell id="APPREG2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BAE6FD;fontColor=#0F172A;fontSize=9.5;align=left;spacingLeft=8;" value="🧩 App Reg: overpriv-app&#xa;f8 과도권한 · f16 장기 cred" vertex="1">
           <mxGeometry height="40" width="268" x="1626" y="448" as="geometry" />
         </mxCell>
-        <mxCell id="ORDERSP" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BAE6FD;fontColor=#0F172A;fontSize=9.5;align=left;spacingLeft=8;" value="🔑 order-sp (SP)&#xa;f5: 평문으로 AWS에 유출될 cred" vertex="1">
+        <mxCell id="ORDERSP" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#DC2626;strokeWidth=1.6;fontColor=#991B1B;fontStyle=1;fontSize=9.5;align=left;spacingLeft=8;" value="🔑 order-sp (SP) ⚠️&#xa;f5: 평문으로 AWS에 유출될 cred" vertex="1">
           <mxGeometry height="40" width="268" x="1626" y="494" as="geometry" />
+        </mxCell>
+        <mxCell id="e_crosscloud" edge="1" parent="1" source="POD_ORDER" target="ORDERSP" value="f5 크레덴셜 탈취 → 크로스클라우드" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;dashPattern=6 3;strokeColor=#DC2626;strokeWidth=2.2;fontSize=9;fontColor=#DC2626;fontStyle=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="SAMLIDP" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BAE6FD;fontColor=#0F172A;fontSize=9.5;align=left;spacingLeft=8;" value="🎫 SAML IdP → Cognito&#xa;SSO 페더레이션(그룹 GUID 클레임)" vertex="1">
           <mxGeometry height="40" width="268" x="1626" y="540" as="geometry" />
