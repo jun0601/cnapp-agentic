@@ -7,7 +7,7 @@
 > ④ **"앱 소개" 슬라이드를 재설계했다.** v7에서 "타깃 앱↔관제 앱" 소개를 앱 소개 1장으로 넣었으나, 두 앱의 무게가 다르다 — 타깃 앱은 "일부러 취약하게 설계했다" 한 박스면 충분(골든 시나리오에 흡수), 관제 앱은 "우리가 만든 모든 기능이 모이는 얼굴"이라 온전한 슬라이드 값어치가 있다. → **타깃 앱=골든 시나리오(6번) 박스로, 관제 앱=단독 소개 슬라이드(7번)로 분리.** 기존 "관제 콘솔 상세" 슬라이드는 삭제(7번 소개 + 각 기능 슬라이드가 상세를 담당해 중복 제거).
 > ⑤ **골든 시나리오(6번)를 관제 앱 소개(7번)보다 앞에 뒀다.** 관제 앱 화면(attack-path 그래프·Evidence 탭 등)은 골든 시나리오를 알아야 읽힌다 — 스토리를 먼저 깔고, 관제 앱을 "그 스토리가 실제 제품에 구현된 증거물"로 보여주는 순서.
 > ⑥ **6번 제목을 "골든 시나리오"(팀 내부 용어) → "크로스클라우드 공격 경로"로 변경.**
-> ⑦ **FinOps 전략(옛 15번)과 비용 실측(옛 20번)을 15번 한 장으로 합쳤다.** 같은 NAT 얘기 중복 + PDF는 "선택→효과"가 한 페이지에 있어야 설득되므로. 대표 숫자 ~$0는 성과(19번)에 재노출.
+> ⑦ **FinOps 전략(옛 15번)과 비용 실측(옛 20번)을 15번 한 장으로 합쳤다.** 같은 NAT 얘기 중복 + PDF는 "선택→효과"가 한 페이지에 있어야 설득되므로. ⚠️ 이 과정에서 **"$0"·"무료" 같은 절대 비용 주장은 전부 제거**했다 — 구독형 보안 서비스(Macie·Inspector·Security Hub)를 실 데모에서 켜면 과금되므로 $0는 정직하지 않다. 대표 숫자는 측정 가능한 상대 절감(NAT 90%↓)으로 대체.
 > 총 20장(v7 21장 − 비용 합침 1장). 기준일 2026-07-10.
 >
 > v7 변경 이력(준형, 참고용 보존): 누락 영역 2개 신설 — 수집·정규화 파이프라인(문제 1 증명), 인프라 설계(공유인프라 전용 슬라이드). 인증·SSO는 거버넌스에 카드로 흡수.
@@ -22,8 +22,8 @@
 2. **"역할 분담" 슬라이드는 01 개요의 2번째 항목으로 앞당긴다.** 아키텍처를 보기 전에 "이건 2인 협업이고 이렇게 나눠서 했다"를 먼저 밝힌다 — 그래야 뒤이어 나오는 아키텍처·구현 슬라이드를 볼 때부터 채용담당자가 "이 부분이 이 사람 담당이구나"를 계속 의식하며 본다.
 3. **핵심 성과(임팩트 숫자)는 표지·앞부분에 미리 노출한다.** 이 덱은 발표용이 아니라 **혼자 읽히는 PDF 포폴**이다 — 스킴하는 리뷰어가 앞 몇 장만 보고 덮어도 "이게 실배포된 진짜"임을 알도록, 표지 배지에 검증 가능한 성과 숫자를 얹는다. 상세 성과는 19번(성과)에 그대로 두되, 앞에서 미리 한 번 보여준다. (※ v7까지 있던 "성과를 04 결과 첫 항목에 두고 앞에선 스포일러 안 한다"는 원칙은 발표용 논리라 삭제 — PDF 포폴엔 정반대가 맞다.)
 4. **트러블슈팅 3건(18번)과 표지(1번)만 완성 후 각자 버전으로 분리한다.** 지금 이 문서에 적힌 내용은 두 버전이 갈라지기 전 공용 뼈대이고, 이 두 슬라이드는 각자 `troubleshooting.md`·`CLAUDE.md` 변경 로그의 작성자 태그(`진우`/`준형`) 기준으로 본인 실작업만 골라 개별 작성한다.
-5. **"우리가 만들었다" 톤과 "내가 했다" 톤을 구분한다.** 나머지 전 슬라이드(표지·트러블슈팅 제외)는 프로젝트 전체(우리) 톤으로 통일한다 — 개인(나) 톤은 표지·트러블슈팅 두 곳에만 쓴다. 01의 역할 분담·02의 각 담당 배지(★준형/★진우)는 "누가 만들었는지" 사실을 표시하는 것이지 개인 홍보 톤은 아니다.
-6. **FinOps는 "전략 + 실측"을 한 슬라이드(15번)로 합쳤다.** v7까지는 전략(어떻게 설계)과 실측(얼마)을 15번/20번으로 나눴으나, 같은 NAT 얘기를 두 번 하는 중복이 생기고 PDF 포폴에선 "선택 → 그 효과"가 한 페이지에 나란히 있어야 즉시 설득되므로 합쳤다. 대표 숫자 `~$0`만 19번(성과)에 재노출해 결과 섹션에서 한 번 더 각인시킨다.
+5. **개인 구분(누가 뭐 했나)은 역할분담(4번) 한 곳에서만 보여준다.** 02 구현 등 본문 슬라이드에는 ★준형/★진우 배지를 넣지 않는다 — 본문은 "우리가 만든 제품"에 집중하고, "누가 했나"가 궁금하면 4번을 다시 보면 된다. 이유: ① 배지가 슬라이드마다 흩어지면 협업 프로젝트가 "지분 나누기"처럼 보여 성숙도가 떨어진다. ② 본문에 배지를 심으면 준형/진우 버전이 갈라져 "본문 공유"가 깨진다(배지가 4번에만 있어야 본문이 진짜 하나로 공유됨). ③ 개인 어필은 각자 **표지·트러블슈팅**에서 "나는 이 부분을 했다"로 채운다(공유 덱에서 개인을 드러내는 정석). 본문은 표지·트러블슈팅 제외 전부 "우리" 톤.
+6. **FinOps는 "전략 + 효과"를 한 슬라이드(15번)로 합쳤다.** v7까지는 전략(어떻게 설계)과 실측(얼마)을 15번/20번으로 나눴으나, 같은 NAT 얘기를 두 번 하는 중복이 생기고 PDF 포폴에선 "선택 → 그 효과"가 한 페이지에 나란히 있어야 즉시 설득되므로 합쳤다. **절대 비용("$0"·"무료")은 쓰지 않는다** — 구독형 보안 서비스를 켜면 과금되므로 정직하지 않다. 대신 측정 가능한 상대 절감(NAT 90%↓)과 비용 통제 원칙으로 서술한다.
 7. **02 구현은 기획 배경의 문제 4개를 순서대로 증명한다.** 파편화→수집·정규화(8번) · 상관→크로스클라우드 공격 경로(6번) · 확장→크로스클라우드 공격 경로(6번) · 자동화→엔진(9번)·Bedrock(10번). 이 대응을 유지해 덱 전체가 "문제 제시 → 순서대로 증명"으로 읽히게 한다.
 8. **PDF 포폴이므로 분량이 많은 건 단점이 아니다.** 슬라이드가 스스로 말을 다 해야 하는 문서라, 구현한 것을 글로 충실히 푸는 게 오히려 깊이의 증거다(발표덱처럼 억지로 압축하지 않는다). 단 "글 벽"은 피한다 — 소제목·표·카드로 구조화해 "많지만 읽기 쉽게"를 지킨다.
 
@@ -54,7 +54,7 @@
 1. 트러블슈팅 — 내가 직접 부딪힌 문제 3건
 
 **04 결과**
-1. 성과 (비용 ~$0 포함)
+1. 성과
 2. 데모 영상
 
 ---
@@ -81,7 +81,7 @@
 | 16 | CI/CD | 02 구현 |
 | 17 | 운영 관측 | 02 구현 |
 | 18 | 트러블슈팅 — 내가 직접 부딪힌 문제 3건 | 03 해결 |
-| 19 | 성과 — 핵심 임팩트 (비용 ~$0 포함) | 04 결과 |
+| 19 | 성과 — 핵심 임팩트 | 04 결과 |
 | 20 | 데모 영상 / 마무리 | 04 결과 |
 
 ---
@@ -155,8 +155,8 @@
 | 인증·SSO | Cognito 허브·콘솔 SSO·로그인 감사 | Entra 테넌트·App Registration·SAML IdP |
 | 조치·거버넌스 | 조치(Remediation·SFn·감사)·하드닝(WAF·JWT·TLS) | CloudTrail 감사·키리스 인증(Entra OIDC) |
 
-- 하단 문구: "각 영역을 반으로 나누되, 서로의 영역까지 완전히 이해하는 방식으로 진행했습니다 — 이어지는 02 구현에서 각 담당자를 ★준형/★진우 배지로 계속 표시합니다."
-- ★ 배지는 이 표엔 **안 넣는다**(표 전체가 곧 역할 구분이라 셀마다 붙이면 지저분함). 준형/진우 구분은 **열 색상만으로**: 준형 열=옅은 네이비, 진우 열=옅은 시안 (두 열을 대칭 색상으로 구분해 "반반 협업" 인상). ★ 배지는 02 구현 슬라이드들에서만 사용.
+- 하단 문구: "각 영역을 반으로 나누되, 서로의 영역까지 완전히 이해하는 방식으로 진행했습니다. **이 페이지가 누가 무엇을 했는지 보여주는 유일한 곳**이며, 이후 02 구현은 '우리가 만든 제품'으로 함께 설명합니다."
+- ★ 배지·개인 구분은 **이 슬라이드 한 곳에만**(설계 원칙 5). 준형/진우 구분은 표의 **열 색상으로**: 준형 열=옅은 네이비, 진우 열=옅은 시안 (두 열을 대칭 색상으로 구분해 "반반 협업" 인상). 셀마다 ★를 붙이진 않는다(표 전체가 곧 역할 구분). 02 구현 등 본문 슬라이드엔 배지 없음.
 - **폴백(표가 세로로 넘칠 때)**: 9행이 세로로 길어 하단 배지 스트립과 겹치거나 잘리면, 표를 **좌우 2열로 분할**(예: 왼쪽 5행 / 오른쪽 4행)해 세로 길이를 줄이고 하단 배지 공간을 확보한다. 캔바 실배치에서 세로가 넘치는지 보고 판단.
 
 **이 표 바로 아래, 작은 배지 스트립(표 밑에 작은 칩 4개 한 줄)으로 "어떻게 안 부딪히고 반씩 나눴나 = 협업 방식"을 압축해 붙인다** (원래 별도 슬라이드였던 "계약 기반 설계"를 페이지 수 유지를 위해 이 슬라이드에 접어 넣음 — 표가 "무엇을 나눴는지"라면 이 스트립은 "어떻게 안 부딪혔는지"라 바로 아래 붙는 게 논리적으로 자연스럽다):
@@ -167,8 +167,11 @@
 - 디자인 팁: 표보다 눈에 덜 띄게 — 아이콘+짧은 라벨만 있는 작은 칩 4개를 한 줄에, 표 하단에 옅은 구분선을 긋고 그 아래 배치.
 
 ### 5. 전체 아키텍처
-- 시각자료: **다이어그램 필수** — `portfolio/cnapp-architecture-overview.drawio`를 PNG로 내보내 삽입
-- 보조 문구: "AWS = 워크로드의 주인 · Azure = 신원(Entra ID)의 주인 · read-only first + HITL"
+**상단 리드 문장(제목 아래 1줄):** "AWS는 워크로드(EKS·컨테이너·데이터)의 주인, Azure는 신원(Entra ID)의 주인 — 두 클라우드에 흩어진 보안 신호를 스캐너가 read-only로 모으고, 파이프라인이 정규화하며, AI 엔진이 조사하고, 관제 콘솔이 보여주는 단일 흐름으로 엮었다."
+
+- 다이어그램을 6개 존으로 읽는 가이드(리드 아래, 작게): ① 스캐너(CNAPP 6기둥) → ② 수집·정규화 파이프라인 → ③ 데이터 계층(RDS pgvector) → ④ 에이전틱 AI(Bedrock+RAG) → ⑤ 관제 콘솔 → ⑥ Azure(Entra 신원). 크로스클라우드 공격선(빨강)이 AWS 워크로드에서 Azure 신원으로 넘어가는 게 이 그림의 핵심.
+- 시각자료: **다이어그램 필수** — `portfolio/cnapp-architecture-overview.drawio`를 PNG로 내보내 삽입(한 페이지 꽉 차게, 글씨 안 뭉개지도록 고해상도)
+- 보조 문구(다이어그램 하단): "AWS = 워크로드의 주인 · Azure = 신원(Entra ID)의 주인 · read-only first + HITL"
 
 ### 6. 크로스클라우드 공격 경로
 > 제목을 "골든 시나리오"(팀 내부 용어라 외부 리뷰어에게 안 통함)에서 **"크로스클라우드 공격 경로"**로 변경 — 리뷰어가 제목만 봐도 "AWS→Azure 넘어가는 공격 얘기"임이 바로 전달되고, 이 프로젝트의 핵심 차별점(크로스클라우드)을 제목에서부터 강조한다. 또 이 슬라이드에 타깃 앱 설계 얘기까지 들어가므로 "골든 시나리오"보다 이 제목이 내용을 더 잘 담는다.
@@ -195,101 +198,188 @@
 >
 > **밀도 정책(중요):** 각 항목은 `화면 이름 + 무엇을 하는 화면인지 한 줄 + → 상세 페이지`까지만 담는다. "어떻게 구현/동작하는지"의 깊은 설명은 **일부러 여기 안 넣고** 각 상세 슬라이드(6·10·11·12번)로 미룬다(여기서 원리까지 풀면 뒤 슬라이드와 통째로 중복). 즉 카테고리 나열(얄팍)도 아니고 원리 설명(중복)도 아닌, **"뭘 하는 화면인지 + 상세는 어디"** 딱 그 중간 밀도.
 
+**상단 리드 문장(제목 아래 1줄):** "취약 앱을 감시하는 관제 콘솔은 이 프로젝트의 모든 기능이 하나로 모이는 화면이다 — 스캔·정규화·AI 조사·설명이 전부 이 안에서 사용자에게 보인다."
+
+**앱 개요(리드 아래 캡션 1줄):** "React SPA(Vite+TS) · 9개 화면 · 실 RDS 데이터 라이브 · Cognito SSO 로그인(viewer/approver RBAC) · 커스텀 도메인 운영"
+
 **레이아웃(좌우 배치):**
 - **왼쪽 = 대시보드 스크린샷 1장**(증거). 대시보드에 Secure Score·KPI·attack-path 배너가 다 모여 "한 화면에 프로젝트 요약"이 되므로 대표 화면으로 최적. (스크린샷 위에 콜아웃 선을 직접 얹지 않는다 — 스크린샷 따로 / 설명 따로가 만들기 쉽고 깔끔.)
-- **오른쪽 = 불릿형 소주제 리스트**(아래), 각 항목에 "→ N페이지" 포인터. 스크린샷이 세로로 길면 위-아래 배치로 전환.
+- **오른쪽 = 주제별 카드 3개(블록형)**. ⚠️ 하나의 박스에 6개 화면을 불릿으로 죽 나열하지 말고, **화면들을 성격별로 3개 카드(블록)로 묶어** 각 카드가 독립된 주제로 보이게 한다(카드마다 소제목 + 그 안에 화면 1~2줄). 스크린샷이 세로로 길면 위-아래 배치로 전환.
 
-**상단 소개(1줄):** "관제 콘솔 = React SPA(Vite+TS) · 9개 화면 · 실 RDS 데이터 라이브 · Cognito SSO 로그인(viewer/approver RBAC) · 커스텀 도메인 운영"
+**주제 카드 3개(각 카드 = 소제목 + 화면별 한 줄 + 상세 포인터):**
 
-**불릿 소주제(각: 화면 + 한 줄 설명 + 상세 포인터):**
-- 📊 **대시보드** — Secure Score·심각도별 KPI·크로스클라우드 attack-path 배너를 한눈에 보여주는 홈 화면 → 상세 수치는 19p(성과)
-- 🕸 **Attack-path 그래프** — 6번의 공격 경로를 AWS/Azure 레인으로 시각화, 크로스클라우드 엣지는 빨강으로 구분 → 6p(공격 경로)
-- 🤖 **Evidence(능동조사) 탭** — AI가 실제로 호출한 read-only API와 판정 근거를 타임라인으로 표시 → 10p(Bedrock 실증)
-- 💬 **AI 어시스턴트(/chat)** — pgvector 근거 검색 기반 보안 Q&A 챗봇 → 11p(RAG)
-- 🔍 **Findings 목록** — 스캐너가 올린 finding을 필터·정렬, AI 조사 상태 컬럼 표시 → 12p(실 탐지 현황)
-- ⚙️ **System 뷰** — Bedrock 24h 사용량·데이터 파이프라인 건강 등 운영 지표(관측)
+- **[카드 1] 📊 위험을 한눈에 — 탐지·현황**
+  - 대시보드: Secure Score·심각도별 KPI·크로스클라우드 attack-path 배너를 한 화면에 요약 → 상세 수치 19p(성과)
+  - Findings 목록: 스캐너가 올린 finding을 필터·정렬하고 AI 조사 상태를 컬럼으로 표시 → 12p(실 탐지 현황)
 
-- 강조 문구: "앞에서 본 공격 스토리(6번)가 실제 제품에 살아있다 — 각 화면 = 뒤 기술 슬라이드의 미리보기"
+- **[카드 2] 🤖 AI가 일하는 화면 — 조사·설명 (이 제품의 차별점)**
+  - Evidence(능동조사) 탭: AI가 실제로 호출한 read-only API와 판정 근거를 타임라인으로 표시 → 10p(Bedrock 실증)
+  - AI 어시스턴트(/chat): pgvector 근거 검색 기반 보안 Q&A 챗봇 → 11p(RAG)
+
+- **[카드 3] 🕸 공격 경로·운영 — 시각화·관측**
+  - Attack-path 그래프: 6번의 공격 경로를 AWS/Azure 레인으로 시각화, 크로스클라우드 엣지는 빨강으로 구분 → 6p(공격 경로)
+  - System 뷰: Bedrock 24h 사용량·데이터 파이프라인 건강 등 운영 지표 → 17p(운영 관측)
+
+- **[카드 4] 📋 그 외 화면 — 실무 완성도 (뒤에 단독 슬라이드는 없지만 실제 구현된 화면)**
+  > 카드 1~3이 "뒤에서 자세히 다룰 화면"이라면, 이 카드는 "여기서만 소개하는, 그러나 실무 보안 제품엔 필수인" 나머지 화면들. 3개 화면 모두 실제 구현·라이브 동작한다.
+  - 컴플라이언스: ISMS-P 프레임워크 ↔ control 매핑, 통제별 충족률·PDF 리포트
+  - 조치(Remediation): approver가 승인하면 Step Functions로 실제 조치 실행(HITL) → 13p(거버넌스)와 연결
+  - 감사(Audit): 스캔·판정·조치 이벤트를 시간순 불변 로그로(S3 Object Lock) → 13p(거버넌스)와 연결
+  - (+ 로그인: Entra SAML → Cognito SSO, viewer/approver RBAC)
+
+- 완성도 문구(카드 하단): "총 **9개 화면** — 6개는 앞 카드에서 뒤 슬라이드로 연결, 나머지(컴플라이언스·조치·감사)는 여기서 소개. 대시보드부터 컴플라이언스·감사까지 갖춘 완성형 관제 앱."
+- 강조 문구: "앞에서 본 공격 스토리(6번)가 실제 제품에 살아있다 — 각 카드 = 뒤 기술 슬라이드의 미리보기 + 완성도 증거"
 - 시각자료: **스크린샷 필수** — 콘솔 대시보드 화면 1장(`assets/shot-console-dashboard.png` 등 화질 좋은 것)
+- 디자인 팁: 카드 4개를 2×2 그리드로 배치(스크린샷이 왼쪽이면 오른쪽에 2×2). 카드 2(AI)는 이 제품의 핵심 차별점이라 테두리·아이콘을 살짝 강조. 카드 4는 톤을 약간 낮춰(보조 완성도) 카드 1~3과 위계를 준다.
 
 ### 8. 수집·정규화 파이프라인 — 파편화된 신호를 하나로
 > (신설) 기획 배경의 **문제 1(보안 신호 파편화 → OCSF-lite 정규화)을 실제로 증명하는** 슬라이드. 실 탐지 현황(12번)이 "무슨 스캐너가 뭘 찾았나"라면, 이 슬라이드는 "그 다른 포맷들을 어떻게 하나로 합쳤나"를 보여준다.
-- 흐름 다이어그램(왼→오): 스캐너(ASFF·OCSF·trivy-json 등 이질 포맷) → EventBridge → SQS(+DLQ) → ingest Lambda(표준 봉투) → normalize Lambda(OCSF-lite 변환·resource_id 캐논화·dedup) → RDS(findings) → correlation → orchestrator
-- 핵심 포인트 3가지:
-  1. **포맷 이질성 해소** — ASFF/OCSF/trivy-json 등을 단일 `resource_id`·`control_id` 체계로 정규화(스캐너가 몇 개든 하나의 스키마)
-  2. **2-pass 이벤트 구동** — 1차 정규화·상관 → `attack_path_id` 부여 → 2차 트리아지·조사 트리거
-  3. **완전 agentless** — 스캐너가 계정을 read-only로 훑고 EventBridge로 흘려보냄(타깃 앱↔관제 앱 직접 통신 없음)
-- 담당: 수집부(EventBridge→SQS)=★준형 / 정규화부(Lambda→OCSF-lite)=★진우
+
+**상단 리드 문장(제목 아래 1줄):** "스캐너마다 출력 포맷·심각도 기준이 제각각이면 담당자가 여러 콘솔을 오가야 한다 — 이 파이프라인은 이질적인 스캐너 출력을 하나의 공통 스키마(OCSF-lite)로 정규화해, 스캐너가 몇 개든 단일 콘솔·단일 우선순위로 통합한다."
+
+**흐름 다이어그램(슬라이드 중앙, 가로 왼→오):**
+> 스캐너(ASFF·OCSF·trivy-json·custom) → **EventBridge**(SecurityHub Findings Imported 규칙 + S3 드롭 알림) → **SQS(+DLQ)** → **λ ingest**(표준 수집 봉투로 감쌈) → **λ normalize**(OCSF-lite 변환·`resource_id` 캐논화·dedup) → **RDS**(findings upsert) → correlation → orchestrator
+
+**핵심 포인트 3가지(각: 소제목 + 기술 설명, 카드/블록형으로):**
+
+- **① 포맷 이질성 해소 (OCSF-lite 정규화)** — Security Hub(ASFF)·Prowler(OCSF)·Trivy(trivy-json)·kube-bench(custom) 등 스키마가 전부 다른 출력을, 파서(`_parse_ocsf`·`_parse_asff`·`_parse_trivy`·`_parse_kube_bench`)로 단일 스키마(계약① finding)로 변환한다. 핵심 정규화 규칙 3가지:
+  - **resource_id 캐논화** — 클라우드 불문 `{cloud}:{type}:{native_id}` 형식으로 통일(예: `aws:s3_bucket:member-pii-prod`). ARN이 없는 Azure Entra도 같은 체계로 표현.
+  - **dedup_key = `resource_id|control_id`** — 같은 리소스·같은 통제의 중복 finding을 하나로 병합하고 원본 스캐너 체크 id는 `sources[]`에 누적(예: `securityhub:S3.8`).
+  - **severity_id 내부 컨벤션(1=Critical ~ 5=Info)** — 실제 OCSF(높을수록 심각)와 반대라 정규화 단계에서 매핑.
+  - → 스캐너가 몇 개로 늘어도 다운스트림(콘솔·엔진)은 코드 무변경.
+- **② 2-pass 이벤트 구동** — 1차로 정규화·상관분석을 돌려 각 finding에 `attack_path_id`를 부여하고, 그 완료 이벤트(`cnapp.attackpath.correlation.completed`)를 EventBridge로 발행해 2차로 트리아지·AI 조사(orchestrator)를 깨운다. 폴링이 아니라 이벤트 체인이라 스캔이 들어오는 즉시 자동으로 흐른다.
+- **③ 완전 agentless** — 스캐너가 계정을 read-only로 훑어 결과만 EventBridge로 흘려보낼 뿐, 타깃 앱과 관제 앱은 서로 직접 통신하지 않는다. 감시 대상에 에이전트를 심지 않아 침해 표면이 늘지 않는다. Lambda는 VPC 내부(private subnet)에 배치되어 RDS에 접근하고, DLQ로 실패 메시지를 격리한다.
+
 - 강조 문구: "스캐너가 몇 개든 같은 스키마로 — 문제 1(파편화)의 답"
 - 시각자료: 파이프라인 흐름 다이어그램(아키텍처 개요 drawio의 "이벤트 수집·정규화 파이프라인" 밴드를 확대해 재사용 가능)
 
-### 9. 에이전틱 엔진 — 5단계 능동 조사 루프
-- Orchestrator(전체 지휘, ★진우) → Triage(비용통제 게이트, ★준형) → Hypothesis(공격 가설 생성, ★진우) → **Evidence(AI가 스스로 read-only API 호출, ★준형)** → Reasoning(판정+내러티브 생성, ★진우)
-- 5단계 전체에 ★ 표시로 담당자를 표시 — Evidence·Triage=★준형, Orchestrator·Hypothesis·Reasoning=★진우 — 4번 슬라이드(역할 분담)의 "엔진(Bedrock)" 행과 그대로 연결
-- 강조 배지: "✔ 챗봇 탈출의 단일 기준"
+### 9. 에이전틱 엔진 — 5단계 능동 조사 루프 (이 프로젝트의 핵심 차별점)
+> 기획 배경 문제 4(챗봇의 한계)를 증명하는 슬라이드. "챗봇 탈출의 단일 기준 = LLM이 스스로 read-only API를 호출해 증거를 모으는가(tool use)". 이 5단계가 그걸 실제로 구현한다.
 
-### 10. 실증: Bedrock 능동조사 증거
-- 왼쪽 숫자 강조: 100%(판정신뢰도) · ~$0(검증비용) · E2E(배포→조사→판정→정리 전 구간 관통)
-- 보조 설명: "Bedrock Haiku가 `s3:GetBucketPolicy`·`GetPublicAccessBlock`을 스스로 호출 → 실 S3 응답 근거로 판정"
-- 시각자료: **스크린샷 필수** — Finding 상세의 능동조사(Evidence) 탭
+**상단 리드 문장:** "기존 'AI 보안'은 이미 수집된 데이터를 요약하는 챗봇에 머문다. 이 엔진은 Bedrock이 스스로 read-only API를 골라 호출해 실제 클라우드 상태를 조사하고, 그 응답을 근거로 위험을 판정한다."
+
+**5단계 루프(가로 흐름, 각 단계 소제목 + 무엇을 하는가):**
+
+- **① Orchestrator** — 전체 루프 지휘. Triage→Hypothesis→Evidence→Reasoning을 순서대로 호출하고, 케이스(계약⑦)를 조립해 RDS에 저장.
+- **② Triage (비용 통제 게이트)** — Bedrock을 부르기 전에 규칙으로 먼저 거른다. 게이트 조건 = **`severity_id ≤ 2`(High/Critical) OR `attack_path_id ≠ null`(경로 후보)**. 승급된 소수만 다음 단계로 → LLM 토큰 낭비 차단(실측: 20건 → 12건 승급).
+- **③ Hypothesis (가설 생성)** — 승급된 finding과 attack-path를 LLM에 주고 "검증 가능한 공격 가설"을 생성. Converse `toolChoice`로 `submit_hypotheses` 툴 1회를 강제 호출시켜 구조화된 출력을 받음(자유 텍스트 파싱보다 안정적).
+- **④ Evidence (tool-use 루프) ⭐핵심 단계** — LLM이 가설을 검증할 read-only API를 **스스로 골라 호출**한다. Bedrock Converse `toolConfig`에 단일 툴 `invoke_readonly_api`를 주고, LLM이 `(api, resource_id)`를 결정 → 실행기가 호출 → 응답을 `toolResult`로 되먹임(에이전틱 루프, 최대 6회 `MAX_TOOL_ITERATIONS`). 충분하면 LLM이 스스로 종료(`end_turn`).
+- **⑤ Reasoning (판정·내러티브)** — 수집된 증거로 confirmed/inconclusive/refuted 판정 + 한국어 내러티브 생성(내러티브만 LLM, `risk_level`·권고사항은 결정론적 로직으로 일관성 유지).
+
+**allowlist 2중 강제(거버넌스 핵심 — read-only first):**
+- **① 스키마 레벨**: `toolConfig`의 `api` enum = 계약④ allowlist(AWS 9종 + Azure MS Graph read 3종) → LLM이 애초에 그 밖의 API를 못 고름.
+- **② 실행 직전**: `executor._check()`가 호출 직전 한 번 더 검증 → LLM이 우회를 시도해도 실행기가 차단. 변경/쓰기/삭제 API는 allowlist에 없어 어느 경로로도 호출 불가.
+- 조사에 쓰는 AWS read-only API 9종: `s3:GetBucketPolicy` · `GetBucketAcl` · `GetPublicAccessBlock` · `iam:GetRolePolicy` · `ListAttachedRolePolicies` · `SimulatePrincipalPolicy` · `macie2:GetFindings` · `ec2:DescribeSecurityGroups` · `accessanalyzer:ListFindings`.
+
+- 사용 모델: Bedrock **Claude Haiku 4.5**(서울 global inference profile `global.anthropic.claude-haiku-4-5-20251001-v1:0` — 고빈도 tool 라우팅이라 저가 티어, 비용 대안 Amazon Nova Lite `--model` 스왑 가능).
+- 강조 배지: "✔ 챗봇 탈출의 단일 기준 — 규칙이 정한 API가 아니라 LLM이 스스로 선택·호출"
+
+### 10. 실증: Bedrock 능동조사 증거 (목업이 아니라 실제로 돌았다)
+> 9번이 "설계상 이렇게 동작한다"라면, 10번은 "실제 AWS·실제 Bedrock으로 돌려서 증명했다"는 실측 슬라이드. Phase1 vertical slice(`infra/slice` apply → `python -m engine.run_real` → `terraform destroy`)로 검증.
+
+**왼쪽 빅넘버 3개:** `100%` 판정 신뢰도(CONFIRMED) · `수 센트` 1회 검증 비용(Haiku 토큰 + read-only API 몇 회) · `E2E` 배포→조사→판정→정리 전 구간 관통
+
+**실제로 일어난 일(단계별):**
+1. LLM이 공개 S3 finding을 받고 **스스로** `s3:GetBucketPolicy`·`s3:GetPublicAccessBlock`을 호출할 것을 결정(canned 응답이 아님).
+2. 실 API 응답: 버킷 정책에 `Principal:"*"` 공개 statement 존재 + `BlockPublicAcls=false` 등 PAB 미설정 확인.
+3. 그 증거를 근거로 **CONFIRMED(신뢰도 100%)** 판정 → 케이스에 tool 호출 타임라인·판정·model_trace(토큰) 기록.
+- 방어 심층화: 실 API 오류(NoSuchBucket 등)는 크래시 대신 error `toolResult`로 강등해 LLM이 다른 도구로 조정하게 함(2026-07-04 라이브 실측 반영).
+- 강조 문구: "규칙 플래너가 정해준 게 아니라, LLM이 finding을 읽고 조사 도구를 스스로 선택·호출했다 = tool use 실증"
+- 시각자료: **스크린샷 필수** — Finding 상세의 능동조사(Evidence) 탭(tool 호출 타임라인 stepper)
 
 ### 11. RAG — 지식베이스 기반 설명·챗봇
-> 역할분담표엔 RAG 행이 버젓이 있는데 정작 단독 슬라이드가 없었던 걸 채운다 — Evidence(10번)가 "능동 조사"라면 RAG는 "근거 기반 설명·질의응답"으로, 둘 다 Bedrock을 쓰지만 서로 다른 별개 파이프라인임을 명확히 한다.
-- 흐름 다이어그램(왼→오): finding/질문 → Titan Embed v2(임베딩) → pgvector cosine 검색(코퍼스 14 control·24청크) → Bedrock이 검색된 근거로 답변 생성
-- 2가지 실사용처: ① Finding 상세의 "설명" 탭(control_id 기반 자동 근거 설명) ② `/chat` AI 어시스턴트(자유 질의응답, 근거 chunk 인용)
-- 강조 문구: "Evidence(조사 루프)와는 별개 파이프라인 — 같은 Bedrock을 쓰지만 판정이 아니라 설명·검색을 담당"
-- 시각자료: **스크린샷 권장** — `/chat` 화면 또는 finding 설명 탭
+> Evidence(10번)가 "능동 조사(판정)"라면 RAG는 "근거 기반 설명·질의응답"으로, 둘 다 Bedrock을 쓰지만 서로 다른 별개 파이프라인임을 명확히 한다.
+
+**리드 문장:** "finding이 왜 위험한지, 어떻게 고치는지를 LLM이 지어내지 않고, 사내 지식 코퍼스에서 근거를 벡터 검색해 그 근거로만 답한다(할루시네이션 억제)."
+
+**파이프라인(왼→오, 기술 스택 명시):**
+> 질문/finding → **Titan Embed v2**(`amazon.titan-embed-text-v2:0`, 1024-dim 임베딩) → **pgvector cosine 검색**(RDS PostgreSQL 16, `rag_chunks` 테이블, HNSW 인덱스 `vector_cosine_ops`, `<=>` 연산자) → 상위 top-k 근거 청크 → **Bedrock Claude**가 그 근거로 답변 생성(근거 chunk 인용)
+
+**핵심 기술 포인트:**
+- **적재·검색 동일 모델 강제** — 코퍼스 적재(`CorpusLoader`)와 쿼리 임베딩이 반드시 같은 Titan Embed v2여야 벡터 공간이 맞음(계약⑥ `embedding_model` 상수로 고정).
+- **코퍼스 규모** — 14개 INTERNAL control · 24개 청크(한국어). control_id 기반 인덱스(`idx_rag_control`)로 finding→설명 직접 매핑도 가능.
+- **2가지 실사용처**: ① Finding 상세의 "설명" 탭(control_id 기반 자동 근거 설명, `finding_explanations` 테이블) ② `/chat` AI 어시스턴트(자유 질의응답).
+- 강조 문구: "Evidence(조사 루프)와는 별개 파이프라인 — 같은 Bedrock, 다른 목적(판정 vs 설명·검색)"
+- 시각자료: **스크린샷 권장** — `/chat` 화면 또는 finding 설명 탭(근거 chunk가 control_id로 인용되는 부분)
 
 ### 12. 실 탐지 현황 (표)
-| 스캐너 | 영역 | 실행 방식 | 실측 결과 | 담당 |
-|---|---|---|---|---|
-| kube-bench | KSPM | 실 3노드 Job 실행 | CIS 4.1.1 cluster-admin 실 탐지 | ★진우 |
-| Trivy | 취약점 | 인클러스터 ECR 스캔 | 실 CVE 205건 | ★진우 |
-| Entra ID CIEM | CIEM(Azure) | Prowler entra_* | 과도권한 앱·위험 설정 실탐지 | ★진우 |
-| IAM Access Analyzer | CIEM(AWS) | 실 스캔 관통 | 외부신원(GitHub OIDC) 1건 특정 | ★준형 |
-| Prowler | CSPM/CIEM(AWS+Azure) | 실계정 스캔 + Azure는 az rest 우회로 관통 | 정규화 파이프라인 실관통 | 공동(AWS=★준형, Azure 우회=★진우) |
-- 하단 문구: "실제 계정을 read-only로 스캔해 목업(골든 20건)을 넘어선 실 finding을 콘솔에 반영"
+> 목업(골든 시드)만이 아니라, **실제 스캐너를 라이브로 돌려** 실 계정·실 클러스터의 finding을 파이프라인에 관통시킨 증거. CNAPP 6기둥이 전부 실동작한다.
+
+**CNAPP 6기둥 정의(표 상단, 이 프로젝트의 커버리지 범위):** **CSPM**(클라우드 설정 점검) · **CIEM**(과도 권한·신원) · **취약점**(CVE·이미지) · **KSPM**(쿠버네티스 보안) · **DSPM**(민감 데이터 탐지) · **attack-path**(개별 finding을 공격 경로로 상관). 아래 표는 각 기둥을 실제 스캐너로 어떻게 커버했는지 보여준다.
+
+| 스캐너 | 기둥 | 실행 방식 | 실측 결과 |
+|---|---|---|---|
+| kube-bench | KSPM | 실 3노드에 in-cluster Job 배포 → JSON 회수 | CIS 4.1.1 cluster-admin 과다바인딩 실 탐지 |
+| Trivy | 취약점 | 인클러스터 Job(hostNetwork)으로 ECR product 이미지 스캔 | 실 CVE **205건**(KEV 매핑) |
+| Entra ID CIEM | CIEM(Azure) | Prowler `entra_*` 체크(SP OIDC 키리스 인증) | 과도권한 앱·위험 consent 실 탐지 |
+| IAM Access Analyzer | CIEM(AWS) | `accessanalyzer:ListFindings` 실 스캔 | 외부신원(GitHub OIDC) 1건 특정(EKS OIDC 노이즈 5건 필터) |
+| Prowler | CSPM(AWS+Azure) | GitHub Actions cron 자동 스캔 → S3 → EventBridge → ingest | 정규화 파이프라인 실관통(AWS는 OIDC, Azure는 구독 Reader) |
+| Macie | 데이터(DSPM) | S3 member-pii 버킷 PII 탐지(합성 rrn 미끼) | Evidence 조사의 `macie2:GetFindings` 근거로 활용 |
+
+- 기술 포인트: kube-bench·Trivy는 **인클러스터 Job**으로 노드 권한(hostNetwork/ECR)을 빌려 실행 → 실 normalize Lambda invoke → RDS → 라이브 콘솔 반영. Prowler는 **GitHub Actions cron**(`prowler-scan.yml`)으로 매일 자동 스캔 후 S3 드롭 → 파이프라인 자동 합류.
+- 하단 문구: "목업 골든 20건을 넘어, 실 계정을 read-only로 스캔한 실 finding이 콘솔에 반영됨"
 
 ### 13. 보안 거버넌스 & 플랫폼 자기방어
-- 6개 카드: Read-only First / **HITL 승인 경로(실증 완료 — 승인→실행→점수 상승, drift 0)** / 불변 감사로그(S3 Object Lock) / 키리스 인증(GitHub OIDC+IRSA) / **CloudFront WAF(플랫폼 자체 보호, 실 XSS 공격 차단 확인)** / **SSO 페더레이션(Entra SAML→Cognito, RBAC viewer/approver)** ← 역할표 "인증·SSO" 행을 여기 카드로 흡수(접근 통제 성격이라 거버넌스와 같은 묶음)
-- 이 슬라이드는 프로젝트 전체 성과를 다루므로 "우리는"·"이 프로젝트는" 톤 유지(4번 슬라이드의 "내가"와 구분)
+> "남의 클라우드 취약점을 찾아주는 도구가, 정작 자기 자신은 허술하면 안 된다" — 이 플랫폼도 스스로 보안 원칙을 지켰다는 걸 보여주는 슬라이드. 6개 카드(각: 원칙 + 어떻게 구현했나):
+
+- **Read-only First** — 에이전트는 기본적으로 조회만. Evidence의 allowlist가 스키마·실행 2중으로 강제해 변경/쓰기 API는 원천 차단.
+- **HITL 승인 경로(실증 완료)** — 실제 변경(조치)은 사람 승인 후에만. approver가 콘솔에서 승인 → `remediation_requests` INSERT → **Step Functions `StartExecution`** → 실 조치 실행. 실측: 승인→실행→finding remediated→Secure Score 상승, **terraform drift 0**(재apply 시 안 꼬이는 조치만 데모 — S3 SSE·ECR scan).
+- **불변 감사로그(S3 Object Lock)** — 모든 조치를 Object Lock(GOVERNANCE 모드) 버킷에 기록 → 나중에 삭제·변조 불가.
+- **키리스 인증** — 장기 키/비밀번호 미사용. CI는 **GitHub OIDC→IAM Role**, 파드는 **IRSA**로 임시 자격증명만. (Azure도 prowler-sp Federated Credential로 키리스)
+- **CloudFront WAF(플랫폼 자체 보호)** — WAFv2 WebACL(AWS 관리규칙 CommonRuleSet·KnownBadInputs + IP당 5분 2000 Rate limit). 실검증: XSS 페이로드가 `CrossSiteScripting_QUERYARGUMENTS`로 실제 차단(CloudWatch 지표 확인). ⚠️ 타깃 앱 의도적 결함은 안 건드리는 플랫폼 전용 하드닝.
+- **SSO 페더레이션** — Entra SAML IdP → Cognito(OIDC/PKCE) → 그룹 GUID 클레임으로 viewer/approver RBAC. console-backend는 `aws-jwt-verify`로 JWKS 서명·issuer·audience·exp 검증(fail-closed).
+- 이 슬라이드는 "우리는"·"이 프로젝트는" 톤(제품 전체 성과).
 
 ### 14. 인프라 설계
-> (신설) 5번 전체 아키텍처가 "무엇이 있는가"를 한 장에 보여준다면, 이 슬라이드는 "AWS 인프라를 어떻게 설계했는가"를 파고든다. 준형 메인 담당(공유인프라)이 다이어그램 안에만 묻혀 있던 걸 전용 슬라이드로 꺼낸다.
-- 4개 축:
-  1. **레이어드 Terraform** — shared→karpenter→target→backend→console, `deploy.ps1`로 apply 정방향·destroy 역방향 순서 강제(실패 시 중단, 종량제 리소스를 안전하게 반복 apply/destroy)
-  2. **VPC 설계** — public/private 서브넷 분리, NAT Gateway 대신 NAT Instance(t4g.micro) + S3/DynamoDB Gateway Endpoint(비용·데이터 경로 최적화)
-  3. **컴퓨트·데이터** — EKS + Karpenter(spot 우선·on-demand 폴백) + HPA / RDS PostgreSQL t3.micro + pgvector(private subnet) / Lambda VPC 배치
-  4. **키리스** — GitHub OIDC→IAM Role(CI), 파드 IRSA(장기 키 미사용)
-- 담당: ★준형
+> 5번 전체 아키텍처가 "무엇이 있는가"라면, 이 슬라이드는 "AWS 인프라를 어떻게 설계했는가"를 파고든다.
+
+**리드 문장:** "종량제 리소스를 상시 방치하지 않으려면 apply→destroy를 안전하게 반복할 수 있어야 한다 — 그래서 인프라를 레이어드 Terraform으로 짜고, 순서를 코드로 강제했다."
+
+**4개 축(각: 소제목 + 기술 상세):**
+1. **레이어드 Terraform** — `shared → karpenter → target · backend · console`(monitoring 별도) 5레이어. 하위 레이어가 상위를 `terraform_remote_state`로 참조. `infra/deploy.ps1`이 **apply는 정방향, destroy는 역방향**으로 순회하며 실패 시 즉시 중단(상태 보호). 실행: `./infra/deploy.ps1 -Action apply` / `-Action destroy -AutoApprove`.
+   - Karpenter destroy 후 고아 스팟노드 자동 종료 스윕(`karpenter.sh/nodepool` 태그 인스턴스) — pod ENI가 node SG를 붙잡아 shared destroy가 막히던 문제를 코드화.
+2. **VPC 설계** — `10.20.0.0/16`, 2 AZ(ap-northeast-2a/2c), public/private 서브넷 분리. **NAT Gateway($32/월) 대신 NAT Instance**(`t4g.micro`, fck-nat AMI arm64, IMDSv2 강제) + **S3/DynamoDB Gateway Endpoint**(NAT 우회로 데이터 전송 비용 절감).
+3. **컴퓨트·데이터** — **EKS 1.34**(관리형 노드그룹 spot `t3.small`, scale 0~2) + **Karpenter**(spot 우선·on-demand 폴백, 프리티어 제약으로 `t3.small`/`t3.micro`만) + HPA. **RDS PostgreSQL 16 `t3.micro` + pgvector**(private subnet, Secrets Manager로 자격증명). Lambda는 VPC 내부 배치(RDS 접근).
+4. **키리스(D4)** — CI는 **GitHub OIDC → IAM Role**, 파드는 **IRSA**(역할별 `:aud`·`:sub` 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
 - 강조 문구: "레이어드 IaC로 apply→destroy를 안전하게 반복 — 필요할 때만 리소스, 잊지 않고 되돌리기"
-- 시각자료: 레이어 다이어그램(shared→…→console) 또는 VPC 서브넷 배치도
+- 시각자료: 레이어 다이어그램(shared→…→console) 또는 VPC 서브넷 배치도. (스크린샷 없이 도식/텍스트만으로도 성립하는 슬라이드)
 
 ### 15. FinOps — 비용을 설계 원칙으로 (전략 + 실측 합본)
 > **v8에서 옛 15번(FinOps 전략)과 옛 20번(비용 실측)을 한 슬라이드로 합쳤다.** 이유: ① 두 슬라이드가 같은 NAT 얘기를 두 번 하는 중복이 있었고(중복 피하려 전략에서 숫자를 억지로 빼야 했음 = 원래 한 몸이라는 신호), ② PDF 포폴은 스킴하므로 "이 선택(전략) → 그래서 이만큼 아낌(실측)"이 **한 페이지에 나란히** 있어야 즉시 설득된다(따로 두면 5장 넘어가서 다시 연결해야 함). 14번 인프라 설계의 "그 인프라를 어떻게 싸게 굴렸나" 짝 슬라이드.
-> ※ 04 결과에서 비용 슬라이드가 빠진 대신, 대표 숫자 `~$0`는 19번 성과에도 얹어 결과 섹션에서 한 번 더 노출한다.
+> ⚠️ "$0"·"무료" 같은 절대 비용 주장은 쓰지 않는다 — Macie·Inspector·Security Hub 같은 구독형 보안 서비스를 실제 데모에서 켜면 과금되므로 "$0"는 정직하지 않다. 대신 **측정 가능한 상대 절감(NAT 90%↓)**과 **비용을 통제하는 설계 원칙**으로 서술한다.
 
-**표: 전략 → 왜 → 실측 효과 (선택과 효과가 한 행에서 바로 읽히게):**
+**표: 전략 → 왜 → 효과 (선택과 효과가 한 행에서 바로 읽히게):**
 
-| 전략 | 왜 골랐나(트레이드오프) | 실측 효과 |
+| 전략 | 왜 골랐나(트레이드오프) | 효과 |
 |---|---|---|
 | 경량 대체(NAT Instance·RDS t3.micro+pgvector) | 관리형 편의보다 비용 — 데모 규모엔 경량이 합리적 | **NAT 월 ~$32 → ~$3 (약 90%↓)** |
-| Mock-first 개발 | 인프라 없이 2인 병렬 개발 | 빌드 기간 클라우드 지출 **$0** |
-| Apply → Test → Destroy | 상시 가용성 포기, 월 과금 → 시간 과금 | 종량제 상시 방치 **0건** |
+| Mock-first 개발 | 인프라 없이 2인 병렬 개발 | 빌드 기간 클라우드 인프라 미가동 |
+| Apply → Test → Destroy | 상시 가용성 포기, 월 과금 → 시간 과금 | 종량제·구독형 서비스 상시 방치 안 함 |
 | 모델 티어링 + Triage 게이트 | Haiku(저가)/Sonnet(고품질) 분리 + 승급된 것만 조사 | 토큰 비용을 소수 케이스로 한정 |
 
-- 하단 빅넘버(강조): **~$0** — apply→검증→destroy 전 사이클 실측 비용
-- 보조 설명: "AWS 프로모션 크레딧이 실사용을 100% 상쇄 — 실사용 $0.38 / 크레딧 -$0.38 / 순액 -$0.0000001(2026-07-05 실측)"
-- 보조 설명 2: "종량제 서비스(Config·Security Hub·Inspector 등)는 검증 세션에서만 켜고 destroy"
+- 하단 대표 숫자(강조): **NAT 월 ~$32 → ~$3 (약 90%↓)** — 측정 가능한 실제 절감(NAT Gateway 대신 NAT Instance 선택의 효과).
+- 핵심 원칙: "비용을 나중에 줄이는 게 아니라 **설계 단계에서 통제**한다 — 종량제·구독형 보안 서비스(Config·Security Hub·Inspector·Macie 등)는 상시 켜지 않고 **검증 세션에서만 켜고 destroy**해 상시 비용을 시간 비용으로 전환."
 
 ### 16. CI/CD
-- GitHub Actions(회귀 10종+Shift-Left Trivy/Checkov) · ECR ×4 · ArgoCD GitOps · EKS+Karpenter+HPA · cron 스캔 자동화(Prowler) — **★준형**
-- 강조 문구: "커밋 하나가 회귀 10종 통과해야 병합 — 코드 품질을 파이프라인이 강제"
-- 16·17번은 4번(역할 분담) "토대" 행의 두 절반(준형=CI/CD, 진우=모니터링)을 각각 한 슬라이드씩 펼친 짝 슬라이드로 연속 배치한다.
+> 16·17번은 각각 5블록씩 내용이 충실하고 성격도 다르므로(16=코드→배포 자동화 / 17=운영 중 관측) **분리 유지**한다(합치면 10블록이 한 장에 몰려 빽빽).
+
+**리드 문장:** "커밋 하나가 회귀 게이트를 통과해야만 병합되고, 병합된 이미지는 ArgoCD가 자동으로 클러스터에 동기화한다 — 코드 품질과 배포를 파이프라인이 강제한다."
+
+- **CI (GitHub Actions `ci.yml`)** — 매 push·PR에 하드 게이트: **회귀 10종**(영역별 `run_demo` 9개 + `run_e2e`) + `contracts/validate.py`(계약 4-assert)가 전부 exit 0이어야 통과. + Shift-Left(report): **Trivy**(config·이미지) · **Checkov**(IaC 미스컨피그). 회귀는 순수 stdlib라 별도 클라우드 인프라 없이 GitHub Actions 러너에서 실행.
+- **CD (ArgoCD GitOps)** — Application `shop-target`이 Git을 pull-sync(self-heal·prune·CreateNamespace). Git = 단일 진실, 클러스터가 거기로 수렴.
+- **이미지 빌드** — `build-images.yml`(OIDC 키리스)로 **ECR ×4**(product·order·member·console-backend) build→push.
+- **오토스케일** — Karpenter(spot·consolidation) + HPA. cron 스캔 자동화(`prowler-scan.yml`·`access-analyzer-scan.yml`).
+- 강조 문구: "커밋 하나가 회귀 10종 통과해야 병합 — CI→ECR→ArgoCD→EKS 완전 관통 증명"
 
 ### 17. 운영 관측
-- CloudWatch 24위젯 · X-Ray(5개 Lambda 분산추적) · Grafana(4소스 통합: Prometheus·CloudWatch·PostgreSQL·X-Ray) · CloudTrail 연동 · Teams 알림(비용·로그인·알람 3채널) — **★진우**
-- 강조 배지: "AI 에이전트가 실제로 호출한 API를 트레이스 하나로 추적 가능"
+**리드 문장:** "AI 에이전트가 실제로 호출한 API 하나까지 X-Ray 트레이스로 따라갈 수 있고, 4개 데이터소스를 Grafana 한 곳에서 본다."
+
+- **CloudWatch** — 대시보드 24위젯 + 알람 7종(Lambda 에러·SQS 백로그·Bedrock 비용·트리아지 이상 등). 엔진은 EMF(Embedded Metric Format)로 케이스별 판정·토큰·tool 호출을 자체 계측(`CnappAgentic/Engine` 네임스페이스).
+- **X-Ray** — 5개 Lambda(ingest·normalize·correlation·orchestrator·remediation) 분산추적. SQS 구간은 `links[]`로, EventBridge 구간은 트레이스 병합으로 연결(실측으로 검증).
+- **Grafana(on EKS)** — 4소스 통합: Prometheus(클러스터) · CloudWatch(AWS) · PostgreSQL(파이프라인 건강) · X-Ray(트레이스). ArgoCD로 배포, IRSA로 CloudWatch read.
+- **CloudTrail** — 관리 이벤트 전량 → CloudWatch Logs 연동(감사).
+- **Teams 알림** — 비용·로그인·알람 3채널 분리(각 전용 웹훅).
+- 강조 배지: "AI가 자율 호출한 read-only API를 트레이스 하나로 추적 가능"
 
 ### 18. 트러블슈팅 — 내가 직접 부딪힌 문제 3건 (★ 완성 후 각자 버전으로 분리 — 아래는 진우 초안, 준형은 `troubleshooting.md`·변경 로그의 "준형" 작성자 태그 기준 본인 사례 3건으로 별도 사본 작성)
 > 아래 3건은 모두 `troubleshooting.md`·변경 로그에 **작성자 "진우"로 기록된** 본인 실작업이다.
@@ -302,13 +392,13 @@
 > 표지에서 성과 숫자를 미리 노출했으므로(설계 원칙 3), 이 슬라이드는 그 숫자들을 **한자리에 모아 근거와 함께 상세히** 보여주는 역할이다(표지=티저, 여기=상세).
 
 - 리드 문구: "설계 → 목업 검증 → 전 레이어 실배포까지 완주해 실제로 검증했다"
-- 숫자 5개(큰 글씨):
+- 숫자 4개(큰 글씨):
   - **100%** — 실 Bedrock 조사 판정 신뢰도(CONFIRMED)
   - **205+** — 실 스캔 탐지 CVE·CIS 결함 건수
   - **9종** — 실 조사 가능 read-only API allowlist
   - **0건** — HITL 조치 실행 후 terraform drift(재apply 시 원복 안 됨)
-  - **~$0** — apply→검증→destroy 전 사이클 실측 비용(비용 슬라이드를 15번에 합치며 대표 숫자만 여기 재노출)
 - 보조 설명: 실 Bedrock Claude Haiku가 실 S3를 스스로 read-only 조사 → CONFIRMED 판정 / kube-bench·Trivy·IAM Access Analyzer·Prowler(AWS/Azure) 실 라이브 스캔 관통 / 조치 승인 → 실 Step Functions 실행 → Secure Score 상승까지 실증 / CloudFront WAF로 실 XSS 공격 차단 확인
+- (비용은 15번 FinOps에서 다룸 — 여기선 절대 비용 숫자를 넣지 않는다)
 
 ### 20. 데모 영상 / 마무리
 - "감사합니다" + "실 배포·실 검증까지 완료한 상태이며, 발견되는 문제는 하나씩 보완하며 운영을 고도화하고 있습니다."
@@ -323,8 +413,14 @@
 - **색상 방향(제안)**: 짙은 네이비(#0B1220~#16213A) + 시안 포인트(#06B6D4). 크로스클라우드 위험 강조는 레드(#DC2626), AWS/Azure 구분은 각 브랜드 컬러(주황 #FF9900 / 파랑 #0078D4)를 배지로만 살짝 사용.
 - **다크/라이트 샌드위치**: 표지(1)·마무리(20)는 다크 배경, 나머지는 화이트 배경.
 - **섹션 kicker**: 모든 슬라이드 상단에 "01 개요" / "02 구현" / "03 해결" / "04 결과" 라벨을 작게 고정 표시(목차에서 본 4구분과 항상 매칭되게).
-- **"★준형"/"★진우" 표시**: 4·8·9·12·14·16·17번 슬라이드에 반복 등장하는 담당 표시는 두 이름 모두 동일한 배지 스타일(색만 준형=네이비 계열, 진우=시안 계열로 구분)로 통일.
+- **★ 담당 배지는 역할분담(4번)에만.** 본문(02 구현 등) 슬라이드에는 ★준형/★진우 배지를 넣지 않는다(설계 원칙 5) — 개인 구분은 4번 한 곳, 본문은 "우리" 톤. 표지·트러블슈팅만 각자 개인 버전.
 - **표가 들어가는 슬라이드(4, 12, 15)**: 마지막 행이 줄바꿈되면서 하단 캡션과 겹치지 않도록 행 높이를 넉넉히 줄 것.
-- **14번(인프라 설계)·15번(FinOps)은 짝**: "이렇게 설계했다 → 이렇게 싸게 굴렸다"로 연속 배치. 15번은 전략 표 + 하단 빅넘버(~$0)를 한 슬라이드에 담으므로 세로 공간을 넉넉히.
-- **19번(성과)**: 빅넘버 5개(100%·205+·9종·0건·~$0)를 같은 톤으로 나열. ~$0는 15번(FinOps 실측)과 중복이 아니라 "결과 섹션에서의 재노출"이니 작게 곁들이는 정도로.
-- 스크린샷·다이어그램이 아직 없는 슬라이드는 `cnapp-agentic_자료수집_체크리스트.md`의 우선순위대로 자료를 먼저 확보한 뒤 채워 넣는다: **7(관제 콘솔 대표 화면)·8(수집·정규화 흐름도)·10(Bedrock Evidence 탭)·11(RAG /chat)·14(인프라 레이어/VPC 도식)**. (7 재설계·8·14는 신설/변경 슬라이드라 자료수집 체크리스트에도 항목 반영 필요.)
+- **14번(인프라 설계)·15번(FinOps)은 짝**: "이렇게 설계했다 → 이렇게 싸게 굴렸다"로 연속 배치. 15번은 전략 표 + 하단 대표 숫자(NAT 90%↓)를 한 슬라이드에 담으므로 세로 공간을 넉넉히.
+- **19번(성과)**: 빅넘버 4개(100%·205+·9종·0건)를 같은 톤으로 나열. **절대 비용 숫자($0·무료)는 넣지 않는다**(구독형 서비스 과금 시 정직하지 않음 — 비용 얘기는 15번의 상대 절감으로만).
+- **사진은 작아도 됨(이번 포폴의 특징)**: 발표용이 아니라 혼자 읽히는 PDF라, 스크린샷을 크게 키울 필요 없이 텍스트와 나란히 작게 배치해도 된다(오히려 글의 밀도가 주인공). 스크린샷 없는 슬라이드(8·14 등)는 도식/텍스트만으로도 성립.
+- 스크린샷·다이어그램이 아직 없는 슬라이드는 `cnapp-agentic_자료수집_체크리스트.md`의 우선순위대로 자료를 먼저 확보한 뒤 채워 넣는다: **7(관제 콘솔 대표 화면)·8(수집·정규화 흐름도)·10(Bedrock Evidence 탭)·11(RAG /chat)·14(인프라 레이어/VPC 도식)**.
+
+### 슬라이드 분량 검토 (합병 여부)
+- **16번(CI/CD) + 17번(운영 관측) → 분리 유지 확정.** 처음엔 "배지 없앤 지금 쪼갤 명분이 없다"고 합병을 검토했으나, 각각 5블록씩 내용이 충실하고(16=CI 게이트·CD·이미지·오토스케일·cron / 17=CloudWatch·X-Ray·Grafana·CloudTrail·Teams) **성격도 안 겹친다(배포 자동화 vs 운영 관측)**. 합치면 10블록이 한 장에 몰려 오히려 빽빽 → 분리가 맞다.
+- **10번(Bedrock 실증)은 9번(엔진)과 분리 유지.** "목업이 아니라 실제로 돌았다"는 실증은 신뢰도 핵심이라 Evidence 탭 스크린샷과 함께 독립 슬라이드로. 9번(이론) → 10번(증거) 흐름도 자연스러움.
+- 그 외 슬라이드도 v8 기준 각자 충분한 밀도 확보 — **합병 대상 없음.**
