@@ -183,7 +183,7 @@
   3. **[AWS]** 데이터 탈취 — member 공개 S3에서 PII 탈취(Macie가 미리 탐지한 미끼)
   4. **[Azure]** 신원 장악 — 탈취 자격증명으로 Entra 과도권한 앱 장악 → 디렉터리 전체 통제
 - 강조 문구: "③→④ 구간 = 크로스클라우드 경계(credential_theft) — 단일 클라우드 도구는 이 경계 횡단을 볼 수 없다"
-- 🎨 **시각자료(draw.io 권장)**: 4단계 타임라인(product→order→member→Entra)을 노드·화살표 다이어그램으로 draw.io 제작. 3→4 화살표만 빨간색 굵게 강조(나머지는 회색/기본), 4개 노드를 아이콘(컨테이너·열쇠·S3버킷·Entra앱)으로. 전체 아키텍처 drawio 하단의 "골든 크로스클라우드 attack-path" 배너를 크롭·재사용 가능.
+- 🎨 **시각자료(박스+아이콘 혼합)**: 4단계 타임라인(product→order→member→Entra)을 노드·화살표로. 노드 아이콘(컨테이너·열쇠·S3버킷·Entra앱)은 있지만 "공격 4단계"라는 흐름 자체는 개념이라 **박스+아이콘 혼합**. 3→4 화살표만 빨간색 굵게 강조(나머지 회색). 전체 아키텍처 drawio 하단의 "골든 크로스클라우드 attack-path" 배너를 크롭·재사용 가능.
 - ⚠️ 정직성 선: 이건 **분석·시각화 수준(MVP)**이지 실제 자동 익스플로잇이 아니다 — "이런 독성 조합을 탐지·상관분석·시각화한다"로 서술(과장 금지).
 
 **타깃 앱 설계 의도 박스(슬라이드 하단 작은 박스)** — "취약 앱 하나 갖다 쓴 게 아니라, 취약점을 이해하고 의도적으로 설계·배치했다"를 보여주는 게 목적. 위 타임라인의 "무대(product·order·member)"를 어떻게 설계했는지라 같은 슬라이드에 있는 게 자연스럽다:
@@ -253,7 +253,7 @@
 - **③ 완전 agentless** — 스캐너가 계정을 read-only로 훑어 결과만 EventBridge로 흘려보낼 뿐, 타깃 앱과 관제 앱은 서로 직접 통신하지 않는다. 감시 대상에 에이전트를 심지 않아 침해 표면이 늘지 않는다. Lambda는 VPC 내부(private subnet)에 배치되어 RDS에 접근하고, DLQ로 실패 메시지를 격리한다.
 
 - 강조 문구: "스캐너가 몇 개든 같은 스키마로 — 문제 1(파편화)의 답"
-- 🎨 **시각자료(draw.io 필수)**: 스캐너(이질 포맷)→EventBridge→SQS→ingest→normalize→RDS 흐름 다이어그램을 draw.io로 제작. **전체 아키텍처 drawio(`portfolio/cnapp-architecture-overview.drawio`)의 "이벤트 수집·정규화 파이프라인" 밴드를 크롭·확대해 재사용**하면 톤 일관·제작 빠름. 텍스트 화살표(`A → B`)로 대체하지 말 것.
+- 🎨 **시각자료(draw.io 적합 — AWS 서비스 아이콘)**: 스캐너→EventBridge→SQS→ingest→normalize→RDS 흐름. **전부 실제 AWS 서비스라 draw.io의 AWS 아이콘으로 그리기 딱 맞음.** 전체 아키텍처 drawio(`portfolio/cnapp-architecture-overview.drawio`)의 "이벤트 수집·정규화 파이프라인" 밴드를 크롭·확대해 재사용하면 톤 일관·제작 빠름. 텍스트 화살표(`A → B`)로 대체하지 말 것.
 
 ### 9. 에이전틱 엔진 — 5단계 능동 조사 루프 (이 프로젝트의 핵심 차별점)
 > 기획 배경 문제 4(챗봇의 한계)를 증명하는 슬라이드. "챗봇 탈출의 단일 기준 = LLM이 스스로 read-only API를 호출해 증거를 모으는가(tool use)". 이 5단계가 그걸 실제로 구현한다.
@@ -275,7 +275,7 @@
 
 - 사용 모델: Bedrock **Claude Haiku 4.5**(서울 global inference profile `global.anthropic.claude-haiku-4-5-20251001-v1:0` — 고빈도 tool 라우팅이라 저가 티어, 비용 대안 Amazon Nova Lite `--model` 스왑 가능).
 - 강조 배지: "✔ 챗봇 탈출의 단일 기준 — 규칙이 정한 API가 아니라 LLM이 스스로 선택·호출"
-- 🎨 **시각자료(draw.io 필수)**: 5단계 루프(Orchestrator→Triage→Hypothesis→Evidence→Reasoning)를 가로 흐름으로, **Evidence 단계에서 AWS read-only API로 나갔다 돌아오는 왕복 화살표(①스스로 호출 ②증거→판정)**를 강조한 다이어그램을 draw.io로 제작. 전체 아키텍처 drawio의 "에이전틱 AI 조사 루프" 블록을 크롭·확대해 재사용 가능. 이 왕복 화살표가 "챗봇 탈출"의 시각적 증거라 반드시 그림으로.
+- 🎨 **시각자료(박스 다이어그램 — 캔바 직접 제작)**: 5단계 루프(Orchestrator→Triage→Hypothesis→Evidence→Reasoning)를 가로 흐름으로, **Evidence 단계에서 AWS read-only API로 나갔다 돌아오는 왕복 화살표(①스스로 호출 ②증거→판정)**를 강조. ⚠️ 이 단계들은 AWS 서비스가 아니라 **우리 로직 단계라 서비스 아이콘이 없다** → draw.io가 아니라 **박스+화살표로 직접**(캔바에서 만들거나 전체 drawio의 "에이전틱 AI 조사 루프" 블록을 크롭). Bedrock·AWS API 부분만 아이콘 사용. 이 왕복 화살표가 "챗봇 탈출"의 시각적 증거라 반드시 그림으로.
 
 ### 10. 실증: Bedrock 능동조사 증거 (목업이 아니라 실제로 돌았다)
 > 9번이 "설계상 이렇게 동작한다"라면, 10번은 "실제 AWS·실제 Bedrock으로 돌려서 증명했다"는 실측 슬라이드. Phase1 vertical slice(`infra/slice` apply → `python -m engine.run_real` → `terraform destroy`)로 검증.
@@ -303,7 +303,7 @@
 - **코퍼스 규모** — 14개 INTERNAL control · 24개 청크(한국어). control_id 기반 인덱스(`idx_rag_control`)로 finding→설명 직접 매핑도 가능.
 - **2가지 실사용처**: ① Finding 상세의 "설명" 탭(control_id 기반 자동 근거 설명, `finding_explanations` 테이블) ② `/chat` AI 어시스턴트(자유 질의응답).
 - 강조 문구: "Evidence(조사 루프)와는 별개 파이프라인 — 같은 Bedrock, 다른 목적(판정 vs 설명·검색)"
-- 🎨 **시각자료**: ① RAG 파이프라인 흐름 다이어그램(질문→Titan Embed→pgvector cosine 검색→Bedrock 답변)을 **draw.io로 제작**(권장) + ② `/chat` 화면 또는 finding 설명 탭 **스크린샷**(근거 chunk가 control_id로 인용되는 부분). 다이어그램 + 스크린샷 조합이면 "구조 + 실동작"이 같이 보임.
+- 🎨 **시각자료(박스+아이콘 혼합)**: ① RAG 파이프라인 흐름(질문→Titan Embed→pgvector cosine 검색→Bedrock 답변)을 **박스+화살표로 제작** — Titan·Bedrock은 서비스 아이콘 있음, pgvector 검색은 개념 박스(아이콘 없음)라 혼합. draw.io/캔바 어느 쪽이든 무방. + ② `/chat` 화면 또는 finding 설명 탭 **스크린샷**(근거 chunk가 control_id로 인용되는 부분). 다이어그램 + 스크린샷 조합이면 "구조 + 실동작"이 같이 보임.
 
 ### 12. 실 탐지 현황 (표)
 > 목업(골든 시드)만이 아니라, **실제 스캐너를 라이브로 돌려** 실 계정·실 클러스터의 finding을 파이프라인에 관통시킨 증거. CNAPP 6기둥이 전부 실동작한다.
@@ -345,7 +345,7 @@
 3. **컴퓨트·데이터** — **EKS 1.34**(관리형 노드그룹 spot `t3.small`, scale 0~2) + **Karpenter**(spot 우선·on-demand 폴백, 프리티어 제약으로 `t3.small`/`t3.micro`만) + HPA. **RDS PostgreSQL 16 `t3.micro` + pgvector**(private subnet, Secrets Manager로 자격증명). Lambda는 VPC 내부 배치(RDS 접근).
 4. **키리스(D4)** — CI는 **GitHub OIDC → IAM Role**, 파드는 **IRSA**(역할별 `:aud`·`:sub` 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
 - 강조 문구: "레이어드 IaC로 apply→destroy를 안전하게 반복 — 필요할 때만 리소스, 잊지 않고 되돌리기"
-- 🎨 **시각자료(draw.io 권장)**: 레이어 의존 다이어그램(`shared → karpenter → target·backend·console` 화살표, remote_state 참조 방향) **또는** VPC 서브넷 배치도(public/private·NAT Instance·EKS·RDS)를 draw.io로 제작. 스크린샷 없이 도식/텍스트만으로도 성립하는 슬라이드라 다이어그램이 주인공.
+- 🎨 **시각자료(둘 중 택1)**: ⓐ **VPC 서브넷 배치도**(public/private·NAT Instance·EKS·RDS) — 전부 AWS 서비스라 **draw.io AWS 아이콘 적합**, 또는 ⓑ **레이어 의존 다이어그램**(`shared → karpenter → target·backend·console` 화살표) — 이건 terraform 레이어라 서비스 아이콘이 없으니 **박스+화살표**. 스크린샷 없이 도식만으로 성립하는 슬라이드라 다이어그램이 주인공.
 
 ### 15. FinOps — 비용을 설계 원칙으로 (전략 + 실측 합본)
 > **v8에서 옛 15번(FinOps 전략)과 옛 20번(비용 실측)을 한 슬라이드로 합쳤다.** 이유: ① 두 슬라이드가 같은 NAT 얘기를 두 번 하는 중복이 있었고(중복 피하려 전략에서 숫자를 억지로 빼야 했음 = 원래 한 몸이라는 신호), ② PDF 포폴은 스킴하므로 "이 선택(전략) → 그래서 이만큼 아낌(실측)"이 **한 페이지에 나란히** 있어야 즉시 설득된다(따로 두면 5장 넘어가서 다시 연결해야 함). 14번 인프라 설계의 "그 인프라를 어떻게 싸게 굴렸나" 짝 슬라이드.
@@ -423,20 +423,23 @@
 - **사진은 작아도 됨(이번 포폴의 특징)**: 발표용이 아니라 혼자 읽히는 PDF라, 스크린샷을 크게 키울 필요 없이 텍스트와 나란히 작게 배치해도 된다(오히려 글의 밀도가 주인공). 스크린샷 없는 슬라이드(8·14 등)는 도식/텍스트만으로도 성립.
 
 ### 🎨 자료 제작 목록 (슬라이드별 — 무엇을 어떻게 만들지)
-> **원칙**: "흐름·파이프라인·구조"를 보여주는 슬라이드는 **텍스트 화살표(`A → B`)로 때우지 말고 draw.io 다이어그램으로 제작**한다. 대부분 전체 아키텍처 drawio(`portfolio/cnapp-architecture-overview.drawio`)에 이미 해당 부분이 있으므로 **크롭·확대해 재사용**하면 톤 일관·제작 빠름(새로 그리기 최소화).
+> **원칙**: "흐름·파이프라인·구조"를 보여주는 슬라이드는 텍스트 화살표(`A → B`)로 때우지 말고 다이어그램으로 만든다. **단, 도구는 내용에 따라 다르다:**
+> - **draw.io(AWS 서비스 아이콘)** = EventBridge·SQS·Lambda·EKS·RDS 같은 **실제 AWS 서비스가 주인공**일 때. drawio에 AWS 아이콘 세트가 있어 적합. 대부분 전체 아키텍처 drawio(`portfolio/cnapp-architecture-overview.drawio`)에 이미 있으므로 **크롭·재사용**.
+> - **박스+화살표(캔바 직접, 아이콘 없음)** = Orchestrator·Triage·Hypothesis 같은 **우리 로직 단계**나 terraform 레이어처럼 **AWS 서비스 아이콘이 없는 개념**일 때. draw.io 쓸 이유 없이 캔바에서 박스로 직접.
 
-| 슬라이드 | 필요 자료 | 유형 | 만드는 법 |
+| 슬라이드 | 필요 자료 | 유형(도구) | 만드는 법 |
 |---|---|---|---|
-| 5 전체 아키텍처 | 전체 다이어그램 | draw.io(있음) | `cnapp-architecture-overview.drawio` PNG 내보내기(고해상도, 한 페이지 꽉) |
-| 6 크로스클라우드 공격경로 | 4단계 attack-path 타임라인 | draw.io(크롭) | 전체 drawio 하단 "골든 attack-path" 배너 크롭·확대, 3→4 빨강 강조 |
+| 5 전체 아키텍처 | 전체 다이어그램 | draw.io(AWS 아이콘, 있음) | `cnapp-architecture-overview.drawio` PNG 내보내기(고해상도, 한 페이지 꽉) |
+| 6 크로스클라우드 공격경로 | 4단계 attack-path 타임라인 | **박스+아이콘 혼합** | 노드 아이콘(컨테이너·S3·Entra앱)+개념 흐름. 전체 drawio 하단 "골든 attack-path" 배너 크롭 가능 |
 | 7 관제 앱 소개 | 대시보드 스크린샷 1장 | 스크린샷 | `assets/shot-console-dashboard.png`(화질 좋은 것) |
-| 8 수집·정규화 | 파이프라인 흐름도 | **draw.io 필수** | 전체 drawio "이벤트 수집·정규화 파이프라인" 밴드 크롭·확대 |
-| 9 에이전틱 엔진 | 5단계 루프 + Evidence↔API 왕복 | **draw.io 필수** | 전체 drawio "에이전틱 AI 조사 루프" 블록 크롭·확대 |
+| 8 수집·정규화 | 파이프라인 흐름도 | **draw.io(AWS 아이콘)** | 전부 AWS 서비스라 draw.io 딱 맞음. 전체 drawio "수집·정규화 파이프라인" 밴드 크롭 |
+| 9 에이전틱 엔진 | 5단계 루프 + Evidence↔API 왕복 | **박스+화살표(캔바 직접)** | 5단계는 우리 로직이라 서비스 아이콘 없음 → 박스로. Bedrock·AWS API 부분만 아이콘 |
 | 10 Bedrock 실증 | Evidence 탭 스크린샷 | 스크린샷 | Finding 상세의 능동조사(tool 타임라인) 탭 캡처 |
-| 11 RAG | RAG 파이프라인 흐름도 + /chat 스크린샷 | draw.io + 스크린샷 | 흐름도 draw.io 신규(질문→Titan→pgvector→Bedrock) + `/chat` 캡처 |
-| 14 인프라 설계 | 레이어 의존도 또는 VPC 서브넷 배치도 | draw.io(신규) | shared→…→console 화살표 or VPC 도식 신규 제작 |
+| 11 RAG | RAG 흐름도 + /chat 스크린샷 | **박스+아이콘 혼합** + 스크린샷 | Titan·Bedrock은 아이콘, pgvector 검색은 개념 박스. + `/chat` 캡처 |
+| 14 인프라 설계 | VPC 배치도 **또는** 레이어 의존도 | ⓐVPC=draw.io(AWS 아이콘) / ⓑ레이어=박스 | 택1. VPC 도식은 draw.io, terraform 레이어 의존도는 박스+화살표 |
 
-- **draw.io 신규 제작이 필요한 것 = 11(RAG 흐름) · 14(인프라 도식)** 정도. 나머지(5·6·8·9)는 전체 drawio 크롭으로 커버 → 새로 그릴 부담 최소.
+- **AWS 아이콘(draw.io) = 5·8·14ⓐ** / **박스 위주(캔바 직접) = 6·9·11·14ⓑ** / **스크린샷 = 7·10·11**.
+- 전체 drawio에서 크롭으로 커버되는 것 = 5·6·8. 새로 만들 것 = 9(박스 루프)·11(박스 흐름)·14(도식). 부담 크지 않음.
 - 표·카드·빅넘버 위주 슬라이드(1·2·3·4·12·13·15·16·17·18·19·20)는 다이어그램 불필요.
 
 ### 슬라이드 분량 검토 (합병 여부)
