@@ -25,21 +25,35 @@ def set_triage(case: dict, priority_score: float, escalate: bool, reason: str) -
     return case
 
 
-def set_hypotheses(case: dict, hypotheses: List[str]) -> dict:
-    """(참고) hypothesis 단계는 진우 담당 — Evidence 계획 근거로만 사용."""
+def set_hypotheses(
+    case: dict, hypotheses: List[str], tokens: int = 0, model: str = "template",
+) -> dict:
+    """(참고) hypothesis 단계는 진우 담당 — Evidence 계획 근거로만 사용.
+
+    2026-07-10: model_trace에 hypothesis 스테이지 자체가 누락돼있던 버그 수정
+    (_trace 호출이 원래 없었음) — BedrockHypothesisAgent 실배포 시 tokens·model이
+    실제 사용량으로 채워진다(mock 템플릿은 기본값 tokens=0/model="template" 유지).
+    """
     case["hypotheses"] = list(hypotheses)
     case["stage"] = "hypothesis"
+    _trace(case, "hypothesis", model, tokens=tokens)
     return case
 
 
-def set_reasoning(case: dict, narrative: str, risk_level: str, recommended_actions: List[str]) -> dict:
+def set_reasoning(
+    case: dict, narrative: str, risk_level: str, recommended_actions: List[str],
+    tokens: int = 0, model: str = "template",
+) -> dict:
     case["reasoning"] = {
         "narrative": narrative,
         "risk_level": risk_level,
         "recommended_actions": list(recommended_actions),
     }
     case["stage"] = "reasoning"
-    _trace(case, "reasoning", "sonnet")  # Reasoning은 Sonnet (실배포 시)
+    # 2026-07-10: "sonnet" 하드코딩 제거(이 계정은 Sonnet Marketplace 미승인이라 실제론 Haiku가
+    # 돌면서 라벨만 sonnet으로 찍히는 오탐이었음) — 호출자(orchestrator)가 실제 agent의
+    # model_label·last_tokens를 전달한다.
+    _trace(case, "reasoning", model, tokens=tokens)
     return case
 
 

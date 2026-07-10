@@ -2,10 +2,13 @@
 
 infra/engine의 orchestrator Lambda가 배포(실코드 스왑 포인트). 로직=Orchestrator(reasoning/orchestrator.py).
 2-pass: correlation이 발행한 cnapp.attackpath.correlation.completed로 기동 → RDS finding+attack_path 로드 →
-Triage→Hypothesis→Evidence(실 Bedrock tool-use)→Reasoning → cases + finding_explanations 적재.
+Triage→Hypothesis(실 Bedrock)→Evidence(실 Bedrock tool-use)→Reasoning(실 Bedrock) → cases + finding_explanations 적재.
 
-실/목 스왑(REAL_TOOLS=1 기본): RealToolExecutor + BedrockEvidenceAgent(run_real.py와 동일 구성) —
-Phase1에서 실 Bedrock Haiku가 실 S3를 자가 조사 CONFIRMED로 검증된 그 경로. 0이면 MockToolExecutor.
+실/목 스왑(REAL_TOOLS=1 기본): RealToolExecutor + BedrockEvidenceAgent(run_real.py와 동일 구성) +
+BedrockHypothesisAgent + BedrockReasoningAgent(2026-07-10 추가, 셋 다 같은 BEDROCK_MODEL_ID 공유 —
+현재 계정은 Sonnet Marketplace 구독 미승인이라 전부 Haiku). Evidence는 Phase1에서 실 Bedrock
+Haiku가 실 S3를 자가 조사 CONFIRMED로 검증된 그 경로. REAL_TOOLS=0이면 셋 다 MockToolExecutor
++ 템플릿(HypothesisAgent·ReasoningAgent)으로 무비용 복귀.
 
 Lambda 설정:
   handler = "engine.handler.handler"
@@ -107,18 +110,30 @@ def handler(event: dict, context=None) -> dict:
 
 
 def _orchestrator() -> Orchestrator:
-    """실(Bedrock tool-use) ↔ 목 스왑. run_real.py와 동일 구성."""
+    """실(Bedrock tool-use) ↔ 목 스왑. run_real.py와 동일 구성.
+
+    2026-07-10: Hypothesis·Reasoning도 REAL_TOOLS 게이트에 합류(같은 BEDROCK_MODEL_ID 공유) —
+    Evidence만 실이던 갭을 채움. 셋 다 동일 인터페이스라 주입만으로 스왑, MockToolExecutor
+    경로(REAL_TOOLS=0)는 기존 템플릿 3종 그대로.
+    """
     if os.environ.get("REAL_TOOLS", "1") != "1":
         return Orchestrator()  # MockToolExecutor(무비용)
     from engine.core.tools import RealToolExecutor
     from engine.evidence.bedrock_planner import BedrockEvidenceAgent
+    from engine.reasoning.bedrock_hypothesis import BedrockHypothesisAgent
+    from engine.reasoning.bedrock_reasoning import BedrockReasoningAgent
     region = os.environ.get("AWS_REGION", "ap-northeast-2")
     ex = RealToolExecutor(region=region)
     kwargs = {"region": region}
     model_id = os.environ.get("BEDROCK_MODEL_ID")
     if model_id:
         kwargs["model_id"] = model_id
-    return Orchestrator(executor=ex, evidence_agent=BedrockEvidenceAgent(ex, **kwargs))
+    return Orchestrator(
+        executor=ex,
+        evidence_agent=BedrockEvidenceAgent(ex, **kwargs),
+        hypothesis_agent=BedrockHypothesisAgent(**kwargs),
+        reasoning_agent=BedrockReasoningAgent(**kwargs),
+    )
 
 
 def _case_finding_ids(case: dict) -> list:

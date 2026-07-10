@@ -23,6 +23,17 @@ from engine.reasoning.reasoning import _recommended_actions, _risk_level
 # 겪은 것과 같은 이유로 접근 열린 Haiku로 임시 대체(승인 나면 model_id 생성자 인자로 Sonnet 전달).
 DEFAULT_MODEL_ID = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
 
+
+def _short_model_label(model_id: str) -> str:
+    """model_trace에 남길 짧은 티어 라벨(bedrock_hypothesis.py와 동일 헬퍼, 독립 배포 유지 위해 중복)."""
+    m = model_id.lower()
+    if "haiku" in m:
+        return "haiku"
+    if "sonnet" in m:
+        return "sonnet"
+    return model_id
+
+
 _SYSTEM_PROMPT = (
     "너는 클라우드 보안 사고 리포트 작성 에이전트다. Evidence 에이전트가 read-only API로 "
     "수집한 증거를 바탕으로, 보안 분석가가 읽을 한국어 내러티브를 2~4문장으로 작성한다. "
@@ -78,6 +89,9 @@ class BedrockReasoningAgent:
         profile: Optional[str] = None,
     ) -> None:
         self.model_id = model_id
+        self.model_label = _short_model_label(model_id)
+        # orchestrator가 analyze() 호출 후 읽는 관측용 속성 — BedrockHypothesisAgent와 동일 패턴.
+        self.last_tokens = (0, 0)
         try:
             import boto3
         except ImportError as e:  # pragma: no cover
@@ -100,6 +114,8 @@ class BedrockReasoningAgent:
             messages=[{"role": "user", "content": [{"text": _user_prompt(case, findings_map)}]}],
             inferenceConfig={"maxTokens": 512, "temperature": 0.3},
         )
+        usage = resp.get("usage") or {}
+        self.last_tokens = (usage.get("inputTokens", 0), usage.get("outputTokens", 0))
         narrative_parts = [
             block["text"] for block in resp["output"]["message"]["content"] if "text" in block
         ]

@@ -182,7 +182,13 @@ class Orchestrator:
 
         # ── ② Hypothesis ──────────────────────────────────────────
         hypotheses = self._hyp.generate(escalated, paths)
-        case_mod.set_hypotheses(c, hypotheses)
+        # last_tokens/model_label: mock(HypothesisAgent)·real(BedrockHypothesisAgent) 둘 다
+        # 동일 이름 속성을 노출해서(계약 밖 부가정보) getattr 하나로 통일 처리(2026-07-10).
+        hyp_in, hyp_out = getattr(self._hyp, "last_tokens", (0, 0))
+        case_mod.set_hypotheses(
+            c, hypotheses, tokens=hyp_in + hyp_out,
+            model=getattr(self._hyp, "model_label", "template"),
+        )
 
         # ── ③ Evidence ────────────────────────────────────────────
         ev_out = self._ev.investigate(case_findings)
@@ -197,11 +203,18 @@ class Orchestrator:
 
         # ── ④ Reasoning ───────────────────────────────────────────
         rsn = self._rsn.analyze(c, fmap)
-        case_mod.set_reasoning(c, rsn["narrative"], rsn["risk_level"], rsn["recommended_actions"])
+        rsn_in, rsn_out = getattr(self._rsn, "last_tokens", (0, 0))
+        case_mod.set_reasoning(
+            c, rsn["narrative"], rsn["risk_level"], rsn["recommended_actions"],
+            tokens=rsn_in + rsn_out, model=getattr(self._rsn, "model_label", "template"),
+        )
 
+        # EMF 비용 지표는 케이스 1건 전체(Hypothesis+Evidence+Reasoning 3스테이지 합)를 반영—
+        # 2026-07-10 이전엔 Evidence만 집계돼 실제 Bedrock 비용을 과소산정하고 있었음.
         _emit_case_metrics(
             c, len(findings), len(escalated), (time.time() - t0) * 1000,
-            input_tokens=ev_out.input_tokens, output_tokens=ev_out.output_tokens,
+            input_tokens=hyp_in + ev_out.input_tokens + rsn_in,
+            output_tokens=hyp_out + ev_out.output_tokens + rsn_out,
         )
         _emit_tool_usage_metrics(case_id, ev_out.plan)
         return c, escalated, case_findings

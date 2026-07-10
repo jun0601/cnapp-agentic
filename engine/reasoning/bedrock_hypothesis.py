@@ -25,6 +25,17 @@ DEFAULT_MODEL_ID = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 _TOOL_NAME = "submit_hypotheses"
 
+
+def _short_model_label(model_id: str) -> str:
+    """model_trace에 남길 짧은 티어 라벨 — inference profile 전체 ARN 문자열 대신
+    "haiku"/"sonnet" 같이 사람이 바로 읽는 이름으로(모델이 바뀌어도 라벨은 실제 사용값 반영)."""
+    m = model_id.lower()
+    if "haiku" in m:
+        return "haiku"
+    if "sonnet" in m:
+        return "sonnet"
+    return model_id
+
 _SYSTEM_PROMPT = (
     "너는 클라우드 보안 위협 헌팅 에이전트다. 승급된(escalated) finding들과 attack-path "
     "그래프를 보고, Evidence 에이전트가 read-only API로 검증할 수 있는 **구체적이고 "
@@ -94,6 +105,10 @@ class BedrockHypothesisAgent:
         profile: Optional[str] = None,
     ) -> None:
         self.model_id = model_id
+        self.model_label = _short_model_label(model_id)
+        # orchestrator가 generate() 호출 후 읽는 관측용 속성(계약 밖) — HypothesisAgent와
+        # 동일 이름이라 mock↔real 어느 쪽이든 getattr(agent, "last_tokens", (0,0))로 동일하게 읽힘.
+        self.last_tokens = (0, 0)
         try:
             import boto3
         except ImportError as e:  # pragma: no cover
@@ -104,6 +119,7 @@ class BedrockHypothesisAgent:
     def generate(self, findings: List[dict], paths: List[dict]) -> List[str]:
         """finding 목록과 attack_path에서 검증 가설 목록을 생성한다(HypothesisAgent와 동일 시그니처)."""
         if not findings:
+            self.last_tokens = (0, 0)
             return ["escalated finding의 위험이 실제 환경에서도 재현 가능한지 확인이 필요하다"]
 
         resp = self._client.converse(
@@ -113,6 +129,8 @@ class BedrockHypothesisAgent:
             toolConfig=_tool_config(),
             inferenceConfig={"maxTokens": 1024, "temperature": 0.2},
         )
+        usage = resp.get("usage") or {}
+        self.last_tokens = (usage.get("inputTokens", 0), usage.get("outputTokens", 0))
         for block in resp["output"]["message"]["content"]:
             tu = block.get("toolUse")
             if tu and tu.get("name") == _TOOL_NAME:

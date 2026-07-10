@@ -54,6 +54,11 @@ class HypothesisAgent:
     인터페이스(입출력 형태)는 동일하게 유지한다.
     """
 
+    # orchestrator가 호출 후 읽는 관측용 속성(계약 밖 부가 정보) — 템플릿은 LLM 미사용이라
+    # 항상 0/템플릿 라벨. BedrockHypothesisAgent는 동일 이름 속성을 실사용량으로 갱신한다.
+    last_tokens = (0, 0)
+    model_label = "template"
+
     def generate(self, findings: List[dict], paths: List[dict]) -> List[str]:
         """finding 목록과 attack_path에서 검증 가설 목록을 생성한다."""
         seen = set()  # type: ignore[var-annotated]

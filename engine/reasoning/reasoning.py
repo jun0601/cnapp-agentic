@@ -97,6 +97,10 @@ class ReasoningAgent:
     반환 딕셔너리 구조(narrative·risk_level·recommended_actions)는 동일하게 유지.
     """
 
+    # orchestrator가 호출 후 읽는 관측용 속성 — HypothesisAgent와 동일 패턴.
+    last_tokens = (0, 0)
+    model_label = "template"
+
     def analyze(self, case: dict, findings_map: Dict[str, dict]) -> dict:
         """case(evidence 완료)를 받아 reasoning 결과 딕셔너리를 반환한다."""
         meta = case.get("evidence_meta", {})
