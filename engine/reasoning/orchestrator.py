@@ -121,13 +121,17 @@ class Orchestrator:
         self,
         executor: Optional[ToolExecutor] = None,
         evidence_agent: Optional[object] = None,
+        hypothesis_agent: Optional[object] = None,
+        reasoning_agent: Optional[object] = None,
     ) -> None:
-        # evidence_agent: 규칙 플래너(EvidenceAgent, 기본) ↔ LLM 플래너(BedrockEvidenceAgent)
-        # 스왑 지점. 둘 다 investigate(findings)->EvidenceOutput 동일 인터페이스.
+        # evidence_agent/hypothesis_agent/reasoning_agent: 템플릿·규칙 플래너(기본) ↔ 실배포
+        # LLM 플래너(Bedrock*Agent) 스왑 지점. 셋 다 원본과 동일 인터페이스
+        # (generate(findings,paths)->List[str] / investigate(findings)->EvidenceOutput /
+        #  analyze(case,findings_map)->dict) 이라 주입만 하면 로직 무변 스왑.
         self.executor = executor or MockToolExecutor()
-        self._hyp = HypothesisAgent()
+        self._hyp = hypothesis_agent or HypothesisAgent()
         self._ev = evidence_agent or EvidenceAgent(self.executor)
-        self._rsn = ReasoningAgent()
+        self._rsn = reasoning_agent or ReasoningAgent()
 
     def run(
         self,
