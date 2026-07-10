@@ -55,6 +55,7 @@ def handler(event: dict, context=None) -> dict:
         _write_audit(record, region)
         _mark_remediated(event.get("remediation_id"), event.get("finding_id"),
                          event.get("approver"), region)
+        _retrigger_correlation(region)  # finding=remediated 반영해 attack_paths 재계산(경로 소멸)
     return record
 
 
@@ -215,6 +216,29 @@ def _mark_remediated(remediation_id, finding_id, approver, region: str) -> None:
                             (finding_id,))
     finally:
         conn.close()
+
+
+def _retrigger_correlation(region: str) -> None:
+    """조치로 finding이 remediated된 뒤 correlation Lambda를 비동기 재실행 → attack_paths 재계산.
+
+    '수정→소멸 루프'(console §6.1)를 개별 finding뿐 아니라 **공격 경로 리스트**에도 반영한다:
+    조치로 finding이 open에서 빠지면, 그 finding에 의존하던 attack-path가 correlation 재계산에서
+    미발화 → 콘솔 경로 리스트에서 사라진다("공개버킷 차단 → 그 버킷을 쓰던 경로들이 동시에 닫힘").
+
+    - InvocationType=Event(비동기) — 조치 응답을 안 막고 fire-and-forget.
+    - CORRELATION_FUNCTION 미설정(로컬/무 배선)이면 조용히 skip.
+    - 재트리거 실패가 조치 자체를 실패시키면 안 되므로 광범위 except로 삼킴(조치는 이미 완료됨).
+    """
+    fn = os.environ.get("CORRELATION_FUNCTION")
+    if not fn:
+        return
+    try:
+        import boto3
+        boto3.client("lambda", region_name=region).invoke(
+            FunctionName=fn, InvocationType="Event", Payload=b"{}",
+        )
+    except Exception:  # noqa: BLE001 — 관측/재계산 실패가 본 조치를 막지 않게
+        pass
 
 
 def _connect(region: str):

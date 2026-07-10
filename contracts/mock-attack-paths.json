@@ -1,5 +1,5 @@
 {
-  "_description": "계약③(attack-path.schema.json) 목업 — 골든 시나리오 1경로. 콘솔이 엔진 없이도 크로스클라우드 그래프(2.2)를 렌더할 수 있게 함. mock-findings.json의 attack_path_id=a0000000-...0001 finding들이 이 경로로 묶임. 4개 엣지 type(lateral_move·data_exfil·credential_theft·identity_takeover) 전부 발화, cross_cloud:true가 AWS→Azure 경계 횡단 강조.",
+  "_description": "계약③(attack-path.schema.json) 목업 — 한 posture에서 발견되는 독립 공격 경로 3종(위험도순). 콘솔이 엔진 없이도 경로 리스트+크로스클라우드 그래프(2.2)를 렌더. correlation.py의 _build_hero/_build_aws_data_exfil/_build_azure_identity 출력과 동일. ①(0001) hero 크로스클라우드(5노드·Critical, cross_cloud:true) ②(0002) AWS 단독 데이터 탈취(3노드·Critical) ③(0003) Azure 단독 신원 장악(2노드·High). 경로끼리 finding을 공유할 수 있고(한 미스컨피그가 여러 경로에 참여), finding의 attack_path_id는 최상위 경로에 귀속.",
   "attack_paths": [
     {
       "attack_path_id": "a0000000-0000-4000-8000-000000000001",
@@ -18,6 +18,32 @@
         { "from": "n4", "to": "n5", "type": "identity_takeover", "cross_cloud": false, "label": "탈취 자격증명으로 과도권한 App Registration 장악 → 디렉터리 전체 통제권" }
       ],
       "narrative_text": "공격자가 product의 취약 이미지(KEV CVE)로 침투해 order 파드의 과도 IRSA 권한을 탈취(측면 이동)하고, 그 권한으로 member의 공개 S3 버킷에서 회원 PII를 탈취했다. 동시에 order 파드 평문 시크릿에 노출된 Azure 서비스 주체 자격증명으로 클라우드 경계를 넘어, Azure Entra ID의 과도권한 App Registration을 장악해 디렉터리 전체 통제권을 확보했다. 단일 finding은 각각 중간 위험이나, 묶이면 AWS 워크로드→Azure 신원을 가로지르는 Critical 탈취 경로가 된다."
+    },
+    {
+      "attack_path_id": "a0000000-0000-4000-8000-000000000002",
+      "severity_id": 1,
+      "nodes": [
+        { "id": "b1", "cloud": "aws", "resource_id": "aws:security_group:sg-0order5678", "label": "order SSH 0.0.0.0/0 외부 노출", "pillar": "cspm" },
+        { "id": "b2", "cloud": "aws", "resource_id": "aws:iam_role:order-irsa", "label": "order 과도 IRSA(s3:*)", "pillar": "ciem" },
+        { "id": "b3", "cloud": "aws", "resource_id": "aws:s3_bucket:member-pii-prod", "label": "member 공개 S3 + 회원 PII", "pillar": "data" }
+      ],
+      "edges": [
+        { "from": "b1", "to": "b2", "type": "lateral_move", "cross_cloud": false, "label": "인터넷 개방 SSH로 order 파드 침투 → IRSA 권한 획득" },
+        { "from": "b2", "to": "b3", "type": "data_exfil", "cross_cloud": false, "label": "s3:* 와일드카드로 공개 member 버킷의 회원 PII 직접 탈취" }
+      ],
+      "narrative_text": "인터넷에 개방된 order 워크로드(SSH 0.0.0.0/0)를 통해 침투한 공격자는 order IRSA의 s3:* 와일드카드 권한을 획득해, 크로스클라우드 피벗 없이도 공개된 member 버킷의 회원 PII를 직접 탈취할 수 있다. hero 경로의 Azure 구간이 차단되더라도 이 AWS 단독 경로만으로 데이터는 여전히 노출된다 — 과도 IRSA와 공개 버킷 각각을 독립적으로도 조치해야 하는 이유다."
+    },
+    {
+      "attack_path_id": "a0000000-0000-4000-8000-000000000003",
+      "severity_id": 2,
+      "nodes": [
+        { "id": "d1", "cloud": "azure", "resource_id": "azure:service_principal:b2c3d4e5-7777-8888-9999-aaaabbbbcccc", "label": "장기 유효 SP 자격증명(24개월)", "pillar": "ciem" },
+        { "id": "d2", "cloud": "azure", "resource_id": "azure:app_registration:a1b2c3d4-1111-2222-3333-444455556666", "label": "과도권한 App Registration", "pillar": "ciem" }
+      ],
+      "edges": [
+        { "from": "d1", "to": "d2", "type": "identity_takeover", "cross_cloud": false, "label": "유출된 장기 SP 자격증명으로 과도권한 앱 장악 → Entra 디렉터리 전체 통제" }
+      ],
+      "narrative_text": "AWS 침해와 무관하게 Azure 내부만으로 성립하는 신원 탈취 경로. 24개월 유효한 서비스 주체(SP) 자격증명이 유출되면 과도권한(Directory.ReadWrite.All) App Registration을 장악해 Entra 디렉터리 전체 통제권을 얻는다. 대상 앱에는 위험한 admin consent도 부여돼 있어 위험이 가중된다. AWS 워크로드를 전혀 거치지 않고도 신원 평면만으로 도달 가능하다."
     }
   ]
 }

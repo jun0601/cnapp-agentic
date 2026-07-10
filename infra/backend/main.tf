@@ -711,6 +711,11 @@ data "aws_iam_policy_document" "remediation" {
     actions   = ["secretsmanager:GetSecretValue"]
     resources = [local.rds_secret_arn]
   }
+  statement {
+    sid       = "RetriggerCorrelation" # 조치로 finding=remediated 후 correlation 재실행 → attack_paths 재계산(수정→소멸 루프를 공격 경로 리스트에도 반영: 조치하면 그 finding에 의존하던 경로가 사라짐)
+    actions   = ["lambda:InvokeFunction"]
+    resources = [aws_lambda_function.correlation.arn]
+  }
 }
 resource "aws_iam_role_policy" "remediation" {
   name   = "remediation"
@@ -749,9 +754,10 @@ resource "aws_lambda_function" "remediation" {
   }
   environment {
     variables = {
-      AUDIT_BUCKET  = aws_s3_bucket.audit.bucket
-      DB_HOST       = local.rds_endpoint
-      DB_SECRET_ARN = local.rds_secret_arn
+      AUDIT_BUCKET         = aws_s3_bucket.audit.bucket
+      DB_HOST              = local.rds_endpoint
+      DB_SECRET_ARN        = local.rds_secret_arn
+      CORRELATION_FUNCTION = aws_lambda_function.correlation.function_name # 조치 후 attack_paths 재계산 재트리거(비동기 invoke)
     }
   }
   depends_on = [aws_cloudwatch_log_group.remediation, aws_iam_role_policy_attachment.remediation_vpc]

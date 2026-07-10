@@ -7,7 +7,7 @@ JSON 유효성 + 의미 정합 4-assert를 검사한다. json.load가 못 잡는
 asserts:
   (a) finding.pillar == catalog[control_id].pillar
   (b) resource_id 2번째 세그먼트 == resource_type        (4.4.1a 캐논)
-  (c) 모든 attack-path node.resource_id 에 '해당 path' finding ≥1
+  (c) 모든 attack-path node.resource_id 가 실 finding에 grounding(≥1, 멀티경로 공유 노드 허용)
   (d) dedup_key == resource_id|control_id
 보너스:
   (e) finding.control_id 가 control-catalog 에 존재
@@ -76,14 +76,17 @@ def main():
         if f["dedup_key"] != expect:
             errors.append(f"[d] {fid}: dedup_key '{f['dedup_key']}' != '{expect}'")
 
-    # (c) 모든 attack-path 노드에 해당 path finding ≥1
+    # (c) 모든 attack-path 노드는 실제 finding에 grounding돼 있어야 함(resource_id 기준 ≥1)
+    # 멀티경로(2026-07-10): 한 finding이 여러 경로에 참여할 수 있는데 attack_path_id는 단일값이라
+    # 최상위 경로 하나에만 태깅된다(correlation._backfill_multi) → "해당 path에 태깅된 finding"을
+    # 요구하면 공유 노드가 오탐. 노드가 실 finding에 근거하는지(grounding)만 검사한다.
     for p in paths:
         pid = p["attack_path_id"]
         for n in p["nodes"]:
             rid = n["resource_id"]
-            hits = [f for f in findings if f["resource_id"] == rid and f.get("attack_path_id") == pid]
+            hits = [f for f in findings if f["resource_id"] == rid]
             if not hits:
-                errors.append(f"[c] attack-path {pid} node '{n['id']}'({rid}) 에 해당 path finding 없음")
+                errors.append(f"[c] attack-path {pid} node '{n['id']}'({rid}) 에 대응 finding 없음(grounding 실패)")
         # 엣지 노드 참조 유효성
         node_ids = {n["id"] for n in p["nodes"]}
         for e in p["edges"]:

@@ -47,25 +47,26 @@ def main() -> int:
     engine = CorrelationEngine()
     paths = engine.correlate(findings)  # 내부에서 backfill도 실행
 
-    # ── ① 상관 결과 요약 ─────────────────────────────────────────
-    _hr("① 상관 결과")
-    print("전체 finding %d건 -> attack-path %d건 생성" % (len(findings), len(paths)))
-    for p in paths:
-        cc_count = sum(1 for e in p["edges"] if e.get("cross_cloud"))
-        print("  attack_path_id : %s" % p["attack_path_id"])
-        print("  severity_id    : %d (Critical)" % p["severity_id"])
-        print("  노드 %d개 / 엣지 %d개 / cross_cloud 엣지 %d개"
-              % (len(p["nodes"]), len(p["edges"]), cc_count))
+    _SEV = {1: "Critical", 2: "High", 3: "Medium", 4: "Low", 5: "Info"}
 
-    # ── ② 공격 경로 그래프 ───────────────────────────────────────
-    _hr("② 공격 경로 그래프")
-    if paths:
-        p = paths[0]
-        print("[노드]")
+    # ── ① 상관 결과 요약(위험도순 경로 리스트) ─────────────────────
+    _hr("① 상관 결과 — 한 posture에서 발견된 독립 경로들(위험도순)")
+    print("전체 finding %d건 -> attack-path %d건 생성" % (len(findings), len(paths)))
+    for rank, p in enumerate(paths, 1):
+        cc_count = sum(1 for e in p["edges"] if e.get("cross_cloud"))
+        kind = "크로스클라우드" if cc_count else (
+            "AWS 단독" if all(n["cloud"] == "aws" for n in p["nodes"]) else "Azure 단독")
+        print("  #%d [%s] %s  노드 %d/엣지 %d (cross_cloud %d)  %s"
+              % (rank, _SEV.get(p["severity_id"], "?"), kind,
+                 len(p["nodes"]), len(p["edges"]), cc_count, p["attack_path_id"]))
+
+    # ── ② 공격 경로 그래프(전 경로) ──────────────────────────────
+    _hr("② 공격 경로 그래프 — 경로별 노드·엣지")
+    for rank, p in enumerate(paths, 1):
+        print("\n[경로 #%d · %s]" % (rank, _SEV.get(p["severity_id"], "?")))
         for n in p["nodes"]:
             tag = "[AWS]  " if n["cloud"] == "aws" else "[Azure]"
             print("  %s %s  %s  (%s)" % (tag, n["id"], n["resource_id"], n["pillar"]))
-        print("\n[엣지]")
         for e in p["edges"]:
             cc = " <<CROSS-CLOUD>>" if e.get("cross_cloud") else ""
             print("  %s --[%s]--> %s%s" % (e["from"], e["type"], e["to"], cc))
@@ -120,16 +121,40 @@ def main() -> int:
         if len(backfilled) < 5:
             errs.append("backfill finding 부족: %d건" % len(backfilled))
 
+        # ── 멀티 경로 검증(2026-07-10) ──────────────────────────────
+        if len(paths) != 3:
+            errs.append("경로 수 불일치: %d != 3" % len(paths))
+        ids = [pp["attack_path_id"] for pp in paths]
+        if ids and ids[0] != golden["attack_path_id"]:
+            errs.append("hero가 최상단(위험도순)이 아님: %s" % ids[0])
+
+        pb = next((pp for pp in paths if pp["attack_path_id"] == "a0000000-0000-4000-8000-000000000002"), None)
+        if not pb:
+            errs.append("경로 B(AWS 단독 데이터 탈취) 미생성")
+        else:
+            if any(n["cloud"] != "aws" for n in pb["nodes"]):
+                errs.append("경로 B에 비-AWS 노드 존재(AWS 단독이어야 함)")
+            if any(e.get("cross_cloud") for e in pb["edges"]):
+                errs.append("경로 B에 cross_cloud 엣지 존재")
+
+        pd = next((pp for pp in paths if pp["attack_path_id"] == "a0000000-0000-4000-8000-000000000003"), None)
+        if not pd:
+            errs.append("경로 D(Azure 단독 신원 장악) 미생성")
+        else:
+            if any(n["cloud"] != "azure" for n in pd["nodes"]):
+                errs.append("경로 D에 비-Azure 노드 존재(Azure 단독이어야 함)")
+
     if errs:
         for e in errs:
             print("FAIL: %s" % e)
         return 1
 
-    print("attack_path_id 정합: OK ✅")
-    print("노드 5개(AWS 3 + Azure 2) / 엣지 4개: OK ✅")
+    print("경로 3종 생성(hero 크로스클라우드 · AWS 단독 데이터 · Azure 단독 신원): OK ✅")
+    print("hero 최상단(위험도순 정렬): OK ✅")
+    print("hero attack_path_id 정합 / 노드 5개(AWS 3 + Azure 2) / 엣지 4개: OK ✅")
     print("엣지 4종(lateral_move/data_exfil/credential_theft/identity_takeover): OK ✅")
     print("cross_cloud credential_theft 엣지: OK ✅")
-    print("2-pass backfill %d건: OK ✅" % len(backfilled))
+    print("2-pass backfill %d건(각 finding을 최상위 경로에 귀속): OK ✅" % len(backfilled))
     return 0
 
 

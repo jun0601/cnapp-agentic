@@ -98,7 +98,7 @@
       "severity_id": 2, "status": "open",
       "sources": ["prowler:entra_policy_restricts_user_consent_for_apps"],
       "dedup_key": "azure:app_registration:a1b2c3d4-1111-2222-3333-444455556666|INTERNAL-ENTRA-RISKY-CONSENT-001",
-      "priority_score": null, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
+      "priority_score": null, "attack_path_id": "a0000000-0000-4000-8000-000000000003",
       "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
     },
 
@@ -121,7 +121,7 @@
       "severity_id": 2, "status": "open",
       "sources": ["securityhub:EC2.19"],
       "dedup_key": "aws:security_group:sg-0order5678|INTERNAL-SG-OPEN-INGRESS-001",
-      "priority_score": null, "attack_path_id": null,
+      "priority_score": null, "attack_path_id": "a0000000-0000-4000-8000-000000000002",
       "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
     },
     {

@@ -24,8 +24,17 @@ const ROLE_CLS: Record<string, string> = {
   system: 'text-indigo-500',
 }
 
+// UTC ISO(백엔드 저장·반환은 UTC) → KST(서울) 표시. 한국은 DST가 없어 고정 +9h.
+// login_notifier/login-trigger와 동일한 'YYYY-MM-DD HH:MM:SS KST' 포맷으로 통일.
 function fmt(ts: string) {
-  return ts.replace('T', ' ').replace('Z', ' UTC')
+  const d = new Date(ts)
+  if (isNaN(d.getTime())) return ts // 파싱 실패 시 원문 보존(방어)
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return (
+    `${kst.getUTCFullYear()}-${p(kst.getUTCMonth() + 1)}-${p(kst.getUTCDate())} ` +
+    `${p(kst.getUTCHours())}:${p(kst.getUTCMinutes())}:${p(kst.getUTCSeconds())} KST`
+  )
 }
 
 export default function Audit() {

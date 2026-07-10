@@ -70,6 +70,13 @@ def handler(event: dict, context=None) -> dict:
 
     findings = _load_open_findings()
     paths = CorrelationEngine().correlate(findings)  # 멤버 finding에 attack_path_id backfill(in-memory)
+    current_ids = [p["attack_path_id"] for p in paths]
+    # 이번 상관에서 발화 안 한(=없어진) 경로를 제거 — 조치로 finding이 open에서 빠지면 그 finding에
+    # 의존하던 attack-path가 미발화 → 콘솔 리스트에서 사라짐(수정→소멸 루프를 경로에도 반영).
+    # FK(fk_findings_attack_path, ON DELETE SET NULL)가 삭제된 경로를 참조하던 findings.attack_path_id를
+    # 자동으로 NULL 처리하므로 finding 태그 수동 정리 불필요. (멀티경로 전엔 upsert만 해도 문제없었으나,
+    # 조치로 경로가 사라지는 시나리오가 생기면서 stale row 잔존이 드러남 — 2026-07-10.)
+    _delete_stale_paths(current_ids)
     _upsert_paths(paths)
     _backfill_findings(findings)  # in-memory backfill → RDS 반영
     _emit_correlation_completed(len(paths), batch_id)
@@ -83,6 +90,24 @@ def _load_open_findings() -> list:
             cur.execute(_SELECT_OPEN)
             cols = [c[0] for c in cur.description]
             return [dict(zip(cols, row)) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def _delete_stale_paths(current_ids: list) -> None:
+    """현재 상관 결과에 없는 attack_path row 제거(경로 소멸 반영). current_ids가 비면 전부 삭제.
+
+    FK ON DELETE SET NULL이 findings.attack_path_id를 자동 정리(수동 UPDATE 불필요).
+    `!= ALL(array)` = 배열의 모든 원소와 다름 = 목록에 없음(psycopg2가 list→PG array 어댑팅).
+    """
+    conn = _connect()
+    try:
+        with conn, conn.cursor() as cur:
+            if current_ids:
+                # attack_path_id는 uuid 컬럼 → 파라미터 배열을 ::uuid[]로 캐스트(text[] 기본 어댑팅과 타입 불일치 방지)
+                cur.execute("DELETE FROM attack_paths WHERE attack_path_id != ALL(%s::uuid[]);", (current_ids,))
+            else:
+                cur.execute("DELETE FROM attack_paths;")
     finally:
         conn.close()
 
