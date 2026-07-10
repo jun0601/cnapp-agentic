@@ -17,8 +17,12 @@ spec:
         clusterName: cnapp-agentic-shared
         region: ap-northeast-2
         replicaCount: 1 # 프리티어 파드밀도 절약(데모라 HA 불필요) — external-dns 등 슬롯 확보
-        # vpcId는 일부러 안 박음 — 컨트롤러가 노드 IMDS에서 자동 발견(shared 재apply로 VPC가
-        # 새로 생겨도 하드코딩 stale 문제가 없음). 예전엔 옛 VPC ID가 박혀 "0 subnets"로 깨졌었음.
+        # ⚠️ vpcId 명시 필수(2026-07-10 재확인) — 한때 "노드 IMDS 자동발견"으로 빼봤으나,
+        # 이 클러스터 EC2가 IMDSv2 하드닝(HttpPutResponseHopLimit=1)이라 파드 네트워크
+        # 네임스페이스에서 IMDS 홉이 초과돼 "context deadline exceeded"로 컨트롤러가 크래시함
+        # (hop-limit은 의도된 보안 설정이라 여기서 안 건드림 — infra/shared 소유).
+        # shared 재apply로 VPC가 재생성되면 여기 값을 aws ec2 describe-vpcs로 갱신할 것.
+        vpcId: vpc-0c5232afa9cae3604
         serviceAccount:
           create: true
           name: aws-load-balancer-controller

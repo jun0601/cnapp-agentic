@@ -216,7 +216,7 @@ resource "kubectl_manifest" "nodepool" {
           ]
         }
       }
-      limits = { cpu = "8" } # 데모 상한(무한 스케일 방지)
+      limits = { cpu = "10" } # 데모 상한(무한 스케일 방지) — 2026-07-10 8→10, 프리티어 파드밀도 부족(ArgoCD 컨트롤러·Helm hook Job 등 부가 파드가 못 뜨는 문제)로 여유 1대치 추가
       disruption = {
         consolidationPolicy = "WhenEmptyOrUnderutilized"
         consolidateAfter    = "30s" # 유휴 노드 빠르게 정리(비용)
