@@ -1,8 +1,10 @@
-﻿# 에이전틱 AI 기반 멀티클라우드 CNAPP 보안 플랫폼
+# 에이전틱 AI 기반 멀티클라우드 CNAPP 보안 플랫폼
 
-> 멀티클라우드(**AWS = 워크로드의 주인 / Azure = 신원의 주인(Entra ID)**) 환경의 설정부터 워크로드·IaC 코드까지 **code-to-cloud 보안 위험을 점검·통합·상관분석**하고, 그 위에 **에이전틱 AI(Bedrock 멀티에이전트 + RAG)**로 발견 항목을 설명·우선순위화·자동 개선하는 CNAPP형 보안 플랫폼.
+> 멀티클라우드(**AWS = 워크로드의 주인 / Azure = 신원의 주인(Entra ID)**) 환경의 설정부터 워크로드·IaC 코드까지 **code-to-cloud 보안 위험을 점검·통합·상관분석**하고, 그 위에 **에이전틱 AI(Amazon Bedrock + RAG)**로 발견 항목을 설명·우선순위화·자동 개선하는 CNAPP형 보안 플랫폼.
 >
-> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 개인 프로젝트**입니다. 현재 단계: 설계 문서·공통 계약 정합 완료 · **구현 진행 중** — 공통 계약(INTERNAL control 14종·골든 목업·CI 게이트) + 공유 인프라 스캐폴드 + TF state 부트스트랩 + **관제 앱(`apps/console`) 8화면 목업 동작** + **타깃 앱(`apps/target`) shop 포털·member 서비스 실행** + 결함 IaC(`infra/target`) + **엔진 5단계 능동조사·attack-path 상관·정규화부·RAG·Trivy 스캐너(목업 동작)** + **❤️ 엔진 실 tool-use(Phase1) 실검증 완료**(실 Bedrock Claude Haiku가 실 S3를 스스로 read-only 조사 → CONFIRMED, 2026-07-02) + **🔗 Phase2 end-to-end 배선 관통**(스캐너→정규화→상관→엔진→RAG `run_e2e.py`) + **관제 백엔드(`apps/console-backend`)·배포 인프라 6층(`infra/`)·pgvector 스키마·Lambda 핸들러** 코드 완성 + **📊 운영 관측(`infra/monitoring`) 코드 완성**(대시보드 24위젯·CloudTrail 연동·Teams 알림·엔진 EMF 계측, 2026-07-03) (전 terraform `validate` 통과). **다음 = 단계별 실 apply**(apply→검증→destroy).
+> 클라우드 보안 엔지니어 포트폴리오 목적의 **2인 협업 프로젝트**입니다.
+>
+> **현재 단계: 전 레이어 실배포·실검증 완료.** AWS+Azure 멀티클라우드에 실제로 배포해 — 스캐너(kube-bench·Trivy·Prowler AWS/Azure·IAM Access Analyzer)가 실 계정·실 클러스터를 read-only로 스캔하고, 에이전틱 엔진이 **실 Bedrock으로 read-only API를 스스로 호출해 능동 조사·판정**하며, 관제 콘솔이 커스텀 도메인(`cnapp-agentic.cloud`)에서 **SSO 실 로그인**으로 동작하고, HITL 조치가 **실 Step Functions로 실행**되는 것까지 검증했다. 비용 규율상 상시 가동이 아니라 **apply→검증→destroy 사이클**로 운영한다.
 
 ### 📂 이 레포는 무엇인가 / docs 안내
 
@@ -11,184 +13,164 @@
 | 문서 | 무엇인지 |
 |---|---|
 | [docs/project-draft.md](docs/project-draft.md) | **전체 설계서(SSOT)** — 방향·범위·핵심 결정(D1~D19)·아키텍처·로드맵·미확정 항목 총괄. 여기부터 읽는다. |
-| [docs/target-app-design.md](docs/target-app-design.md) | **타깃 앱 설계도** — 일부러 취약하게 만드는 고객사 워크로드(findings 소스). 기능 베이스(retail-store)·의도적 결함 목록·골든 attack-path + **§7 구현 청사진**(결함↔IaC 토글 매핑). |
-| [docs/console-app-design.md](docs/console-app-design.md) | **관제 앱 설계도** — 우리가 만드는 보안 관제 플랫폼(NOVA 대응). 화면·백엔드·RBAC·RAG↔UI 매핑 + **§15 구현 청사진**(스택·API 표면·화면↔mock). |
-| [docs/console-manual.md](docs/console-manual.md) | 📖 **관제 콘솔 사용 매뉴얼** — "무엇을 보고 무엇을 누르나". 화면별 기능(대시보드·Findings·Evidence 능동조사·Attack-path·AI 챗·AI·시스템·조치·컴플라이언스·감사)·AI 동작·데모 시연 동선·FAQ. **앱 파악용 첫 문서.** |
+| [docs/target-app-design.md](docs/target-app-design.md) | **타깃 앱 설계도** — 일부러 취약하게 만드는 워크로드(findings 소스). 기능 베이스(retail-store)·의도적 결함 목록(f1~f8)·골든 attack-path + §7 구현 청사진(결함↔IaC 토글 매핑). |
+| [docs/console-app-design.md](docs/console-app-design.md) | **관제 앱 설계도** — 우리가 만드는 보안 관제 플랫폼. 화면·백엔드·RBAC·RAG↔UI 매핑 + §15 구현 청사진(스택·API 표면·화면↔mock). |
+| [docs/console-manual.md](docs/console-manual.md) | 📖 **관제 콘솔 사용 매뉴얼** — "무엇을 보고 무엇을 누르나". 화면별 기능·AI 동작·데모 시연 동선·FAQ. **앱 파악용 첫 문서.** |
 | [docs/manual-infra.md](docs/manual-infra.md) | **수동 관리 리소스 현황** — 콘솔/CLI로 직접 설정한 리소스(계정 초기화·Terraform 부트스트랩·Azure SSO 등). Terraform 관리 대상 제외. |
-| [docs/cost-strategy.md](docs/cost-strategy.md) | 💰 **비용 최적화 전략** — 무료 크레딧·평가판 안에서 프로덕션급 아키텍처를 증명한 FinOps 결정 원장(mock-first·경량 대체·모델 티어링·destroy 규율 + 정직한 트레이드오프). |
-| [CLAUDE.md](CLAUDE.md) | **작업 기준·협업 규칙** — 위 설계서들의 요약 + 협업 규칙. |
+| [docs/cost-strategy.md](docs/cost-strategy.md) | 💰 **비용 최적화 전략** — 프로덕션급 아키텍처를 저비용으로 증명한 FinOps 결정 원장(mock-first·경량 대체·모델 티어링·destroy 규율 + 정직한 트레이드오프). |
+| [portfolio/cnapp-agentic_PPT_구성안.md](portfolio/cnapp-agentic_PPT_구성안.md) | 🎞️ **포트폴리오 PPT 구성안** — 발표/PDF 포폴 슬라이드 설계(20장). |
+| [CLAUDE.md](CLAUDE.md) | **작업 기준·협업 규칙 + 변경 로그** — 위 설계서들의 요약 + 협업 규칙. 상세 변경 이력. |
 
 ---
 
 ## 🔑 핵심 키워드
 
-- **Multi-Cloud** — AWS(워크로드의 주인)와 Azure(신원의 주인, Entra ID)의 흩어진 보안 상태를 OCSF로 정규화해 단일 뷰로 통합하고, **AWS 워크로드 침해가 Azure 신원 장악으로 번지는** 클라우드 경계를 넘는 위험 경로를 추적한다. *각 클라우드의 장점대로 — 컨테이너·클라우드 네이티브 워크로드는 AWS, Microsoft 생태계 신원은 Azure.* (데이터 중복 저장은 명분이 약해, 데이터는 AWS S3에만 둔다.)
-- **CNAPP** — CSPM·CIEM·취약점·KSPM·데이터 보안·attack-path를 하나의 그래프로 묶어, 단일 도구로는 못 잡는 **독성 조합(toxic combination)**을 탐지한다.
-- **Agentic AI** — 질문해야 답하는 챗봇이 아니라, 에이전트가 read-only API를 스스로 호출(tool use)해 증거를 모으고 가설→증거→판정 루프로 위험을 추론한다.
+- **Multi-Cloud** — AWS(워크로드의 주인)와 Azure(신원의 주인, Entra ID)의 흩어진 보안 상태를 OCSF-lite로 정규화해 단일 뷰로 통합하고, **AWS 워크로드 침해가 Azure 신원 장악으로 번지는** 클라우드 경계를 넘는 위험 경로를 추적한다. *(데이터 중복 저장은 명분이 약해, 데이터·PII는 AWS S3에만 둔다.)*
+- **CNAPP (6기둥)** — CSPM(설정)·CIEM(권한)·취약점(CVE)·KSPM(쿠버네티스)·DSPM(데이터)·attack-path(상관)를 하나의 그래프로 묶어, 단일 도구로는 못 잡는 **독성 조합(toxic combination)**을 탐지한다.
+- **Agentic AI** — 질문해야 답하는 챗봇이 아니라, 에이전트가 **read-only API를 스스로 호출(tool use)**해 실제 클라우드 상태를 조사하고 가설→증거→판정 루프로 위험을 추론한다. ("챗봇 탈출의 단일 기준 = LLM이 스스로 API를 호출해 증거를 모으는가.")
 
 ---
 
 ## ✨ 주요 기능
 
-- **6기둥 CNAPP 점검** — CSPM(설정), CIEM(권한), 취약점, KSPM(쿠버네티스), 데이터 보안(DSPM 맛), attack-path를 통합 점검.
-- **에이전틱 AI 분석** — finding 자동 설명(근거·조치법 카드), 위험 우선순위 자동 정렬, attack-path 내러티브 생성, 그리고 read-only tool use로 증거를 능동 수집.
-- **크로스클라우드 attack-path** — "AWS 취약 워크로드 침투 → 과도 권한 측면 이동 + **평문 시크릿에서 Azure 자격증명 발견** → 공개 S3의 PII 탈취 → **탈취 자격증명으로 Azure Entra ID 신원 장악(과도권한 앱/계정)**"처럼, 개별적으로는 중간 위험인 finding들을 하나의 신원 탈취 경로로 엮어낸다. *(MVP는 이 경로를 분석·시각화하는 수준, 실제 AWS→Azure 횡단 동작 구현은 보너스.)*
-- **Shift-Left CI 게이트** — PR 단계에서 Checkov/OPA(IaC 미스컨피그)와 Trivy(이미지 CVE)로 검사해, 위험한 변경이 프로덕션에 가기 전에 차단한다.
-- **휴먼인더루프 자동 개선** — 에이전트는 기본적으로 조회만 수행하고, 변경(remediation)은 승인 경로를 통해서만 적용하며 모든 판정·조치를 불변 감사로그로 남긴다.
+- **6기둥 CNAPP 점검(실동작)** — CSPM(Config·Security Hub·Prowler·Macie)·CIEM(IAM Access Analyzer·Entra Prowler)·취약점(Trivy)·KSPM(kube-bench)·DSPM(Macie)·attack-path(커스텀 상관 엔진 R1~R5)를 실 계정·실 클러스터에서 스캔.
+- **에이전틱 AI 능동 조사** — Orchestrator→Triage→Hypothesis→Evidence→Reasoning 5단계 루프. Evidence 단계의 Bedrock이 계약으로 고정된 read-only allowlist(AWS 9종) 안에서 **스스로 도구를 골라 호출**해 `GetBucketPolicy`·`GetPublicAccessBlock` 등으로 실 S3를 조사하고 CONFIRMED 판정까지 실증.
+- **크로스클라우드 attack-path** — "AWS 취약 워크로드 침투(product KEV 이미지) → 과도 IRSA 측면이동 + **평문 시크릿에서 Azure 자격증명 발견** → 공개 S3의 PII 탈취 → **탈취 자격증명으로 Entra ID 과도권한 앱 장악**"처럼, 개별로는 중간 위험인 finding들을 하나의 신원 탈취 경로로 엮는다. 3단계 이상 체인은 severity를 Critical로 자동 격상. *(MVP는 분석·시각화 수준, 실제 횡단 익스플로잇은 범위 밖.)*
+- **RAG 기반 설명·챗봇** — Titan Embed v2(1024-dim) → pgvector cosine 검색(HNSW) → Bedrock이 근거 청크로만 답변(할루시네이션 억제). finding 상세 설명 탭 + `/chat` AI 어시스턴트.
+- **HITL 자동 개선(실증)** — 에이전트는 기본 read-only. 변경(remediation)은 approver 승인 → **Step Functions 실행** → finding remediated → Secure Score 상승. 모든 조치는 **S3 Object Lock 불변 감사로그**로 기록(실측: terraform drift 0).
+- **Shift-Left CI 게이트 + 플랫폼 자기방어** — PR 단계에서 Checkov(IaC)·Trivy(이미지) 검사 + 회귀 10종 하드 게이트. 플랫폼 자체는 CloudFront **WAF**(실 XSS 차단 확인)·JWT 서명검증·전구간 TLS·키리스 인증으로 하드닝.
 
 ---
 
 ## 🏗️ 아키텍처 개요
 
 ```
-[ 입력: CNAPP 신호 ]
-  AWS 설정/워크로드 :  Config · Security Hub · Prowler · Inspector · Trivy · kube-bench · IAM Access Analyzer · Macie(S3 전용)
-  AWS 빌드 게이트   :  CI에서 Checkov/OPA(IaC) · Trivy(이미지)
-  Azure            :  Entra ID(CIEM: 과도권한 앱·위험한 consent·권한상승) · Defender for Cloud(리소스 secure score)
-        │  (ASFF / OCSF 정규화)
+[ 입력: CNAPP 신호 (계정을 read-only로 스캔 · agentless) ]
+  AWS 설정/워크로드 :  Config · Security Hub · Prowler · Trivy · kube-bench · IAM Access Analyzer · Macie(S3 전용)
+  AWS 빌드 게이트   :  CI에서 Checkov(IaC) · Trivy(이미지)
+  Azure            :  Entra ID(CIEM: 과도권한 앱·위험한 consent) — Prowler entra_*  · *Defender for Cloud는 범위 제외(Azure 실 리소스 0개)*
+        │  (ASFF / OCSF / trivy-json → OCSF-lite 정규화, resource_id 캐논화, dedup)
         ▼
-  EventBridge → SQS → Lambda
-        │
-  ┌──── 공유 에이전틱 엔진 (Bedrock 멀티에이전트 + RAG) ────┐
+  EventBridge → SQS(+DLQ) → λ ingest → λ normalize → RDS(findings)
+        │  (2-pass 이벤트 구동)
+  ┌──── 공유 에이전틱 엔진 (Bedrock Claude Haiku + RAG) ────┐
   │  Orchestrator → Triage → Hypothesis → Evidence → Reasoning │
-  │  거버넌스: 최소권한 · read-only first · 불변 감사로그       │
+  │  거버넌스: read-only first · allowlist 2중 강제 · 불변 감사로그 │
   └────────────────────────────────────────────────────────────┘
         │
-  [ attack-path 그래프 ]  권한 + 취약점 + 설정 + 데이터 → 탈취 경로(AWS 워크로드→Azure 신원 크로스클라우드)
+  [ attack-path 그래프 ]  R1~R5 상관 → AWS 워크로드 → Azure 신원 크로스클라우드 탈취 경로
         │
-  위험 → 자동 개선 제안 → 휴먼인더루프(승인) → Step Functions → 감사로그
+  위험 → 조치 제안 → HITL(approver 승인) → Step Functions → S3 Object Lock 감사로그
         │
-  [ 관제 앱 ]  posture 점수 + findings + attack-path + AI 설명/조치  (React · S3+CloudFront)
+  [ 관제 앱 ]  Secure Score + findings + attack-path + AI 설명/조치  (React SPA · S3+CloudFront+WAF · Cognito SSO)
 ```
 
 **연결 구조 (agentless):** 점검 대상인 타깃 앱은 클라우드 계정에 *배포*만 되고, 스캐너가 계정을 외부에서 **read-only로 스캔**한다. findings는 수집 파이프라인을 거쳐 정규화·저장되며, 관제 앱은 그 저장소를 읽어 표시한다. 타깃 앱과 관제 앱 사이의 직접 통신은 없다.
+
+> 전체 아키텍처 다이어그램: [portfolio/cnapp-architecture-overview.drawio](portfolio/cnapp-architecture-overview.drawio)
 
 ---
 
 ## 🧰 기술 스택
 
-영역별로 사용하는 주요 기술은 다음과 같다.
-
 | 영역 | 사용 기술 |
 |---|---|
-| **AWS 보안** | CloudTrail, Config, Security Hub, Prowler, Inspector, IAM Access Analyzer, Macie(S3 민감데이터 전용) |
-| **Azure 보안** | Microsoft Entra ID(신원·CIEM 핵심), Defender for Cloud(리소스 secure score) — *데이터 저장소 아님* |
-| **워크로드 / 배포** | EKS, ECR, **ArgoCD(GitOps CD)**, **Karpenter(노드 오토스케일·spot·consolidation) · HPA(파드)**, IRSA |
-| **CI/CD** | **GitHub Actions**(CI: 회귀 + Shift-Left 스캔 Trivy·Checkov, $0) → **ArgoCD**(CD: GitOps pull-sync). 선언형 코드 = [`gitops/`](gitops/) |
-| **Shift-Left** | GitHub Actions(OIDC), Checkov / OPA, Trivy, kube-bench |
-| **에이전틱 AI** | Amazon Bedrock(멀티에이전트), 수동 RAG, pgvector(RDS PostgreSQL t3.micro) |
-| **수집 / 오케스트레이션** | EventBridge, SQS, Lambda, Step Functions, OCSF 정규화 |
-| **인증** | Microsoft Entra ID(IdP, SAML) → Cognito(허브) → ALB(authenticate-cognito) |
-| **관제 앱 (프론트)** | Vite + React + TypeScript, TanStack Query, Tailwind, React Flow(attack-path 그래프), Recharts(점수), MSW(mock 하네스) |
-| **관제 앱 (백엔드)** | TypeScript Lambda (findings 읽기 API) — *폴리글랏: console=TS / engine·pipeline=Python* |
-| **관측 / 호스팅** | S3 + CloudFront, kube-prometheus-stack(EKS 안) + CloudWatch Dashboard/Alarms(EKS 밖, Lambda·RDS·SQS·SFn·S3·Bedrock·Cognito) + Grafana IRSA(CloudWatch 통합 데이터소스) + CloudTrail + SNS→Lambda→Teams 알림 |
-| **IaC** | Terraform |
+| **AWS 보안** | CloudTrail, Config, Security Hub, Prowler, IAM Access Analyzer, Macie(S3 민감데이터), CloudFront **WAF**(플랫폼 자기방어) |
+| **Azure 보안** | Microsoft Entra ID(신원·CIEM 핵심, Prowler `entra_*`) — *데이터 저장소 아님 · Defender for Cloud는 범위 제외(실 리소스 0)* |
+| **워크로드 / 배포** | EKS(1.34), ECR, **ArgoCD(GitOps CD)**, **Karpenter(spot·consolidation) · HPA**, IRSA |
+| **CI/CD** | **GitHub Actions**(CI: 회귀 10종 + Shift-Left Trivy·Checkov) → **ArgoCD**(CD: GitOps pull-sync). 선언형 코드 = [`gitops/`](gitops/) |
+| **에이전틱 AI** | Amazon Bedrock(Claude Haiku 4.5, Converse tool-use), 수동 RAG(Titan Embed v2), pgvector(RDS PostgreSQL 16) |
+| **수집 / 오케스트레이션** | EventBridge, SQS(+DLQ), Lambda, Step Functions(HITL 조치), OCSF-lite 정규화 |
+| **인증 / 거버넌스** | Microsoft Entra ID(IdP, SAML) → Cognito(OIDC/PKCE 허브) → SPA 직접 로그인, `aws-jwt-verify`(JWKS 서명검증), S3 Object Lock(불변 감사) |
+| **관제 앱 (프론트)** | Vite + React + TypeScript, TanStack Query, Tailwind, React Flow(attack-path), Recharts, MSW(mock 하네스) |
+| **관제 앱 (백엔드)** | TypeScript Lambda(ALB→Lambda, 읽기 API) — *폴리글랏: console=TS / engine·pipeline=Python* |
+| **관측 / 호스팅** | S3 + CloudFront, kube-prometheus-stack(EKS) + CloudWatch(24위젯·알람 7종) + **X-Ray(5 Lambda 분산추적)** + Grafana(4소스 통합) + CloudTrail + Teams 알림(3채널) |
+| **IaC** | Terraform(레이어드 5층 + monitoring) · `deploy.ps1` 순서 강제 |
 
 ---
 
 ## 🏗️ 폴더 구조
 
-> 마커: ✅ 내용 있음(구현/스캐폴드) · 📁 빈 폴더(자리 확보) · ⬜ 아직 미생성(계획).
-> **각 영역 하위폴더 = 소유자별 2개**(준형/진우, 공유는 예외 — §4.6). ⬜ 영역의 하위폴더 이름은 **가제(계획)** — 실제 폴더는 그 단계에서 생성.
-
 ```
 cnapp-agentic/
-├── CLAUDE.md                 ✅ 작업 기준 · 협업 규칙 · 변경 로그(읽기 우선)
-├── README.md                 ✅
-├── troubleshooting.md        ✅ 작업 로그 (트러블슈팅 + 진행, [영역] 태그)
-├── cnapp-architecture.svg    ✅ 아키텍처 다이어그램
-├── run_e2e.py                ✅ Phase2 end-to-end 러너(스캐너→정규화→상관→엔진→RAG 한 줄 관통)
-├── .github/workflows/        ✅ ci.yml(10개 데모·run_e2e·validate + Trivy/Checkov) · build-images.yml(OIDC 키리스 Docker→ECR)
-├── gitops/                   ✅ CD(ArgoCD Application) + 오토스케일링(Karpenter·HPA) 선언형 — apply는 EKS 세션
-├── contracts/                ✅ ★공유 이음새 계약(7종 JSON Schema) + control-catalog(14종) + 골든 mock 3종 + validate.py
-├── docs/                     ✅ 설계 SSOT — project-draft · target/console-app-design · manual-infra · cost-strategy
+├── CLAUDE.md                 작업 기준 · 협업 규칙 · 변경 로그(읽기 우선)
+├── README.md
+├── troubleshooting.md        작업 로그 (트러블슈팅 + 진행, [영역] 태그)
+├── run_e2e.py                end-to-end 러너(스캐너→정규화→상관→엔진→RAG 한 줄 관통)
+├── .github/workflows/        ci.yml(회귀 10종 + Trivy/Checkov) · build-images.yml · prowler-scan.yml · access-analyzer-scan.yml · live-health-canary.yml
+├── gitops/                   CD(ArgoCD Application) + 오토스케일(Karpenter·HPA) + monitoring(Grafana 대시보드) 선언형
+├── contracts/                ★공유 이음새 계약(7 JSON) + control-catalog(15종) + 골든 mock 3종 + validate.py(4-assert)
+├── docs/                     설계 SSOT — project-draft · target/console-app-design · console-manual · manual-infra · cost-strategy
+├── portfolio/                포폴 자산 — 아키텍처 drawio · PPT 구성안
 ├── apps/
-│   ├── target/               ✅ 취약 타깃 앱 (product · order · member[Python] + PII seeder) — 코드만
-│   ├── console/              ✅ 관제 앱 프론트 (Vite+React+TS, 8화면 MSW 목업 동작) — 코드만
-│   └── console-backend/      ✅ 관제 앱 백엔드 (ALB→Lambda, findings 읽기 API, mock+실 pgvector 스텁) — 코드만
-├── engine/                   ✅ 공유 에이전틱 엔진 (전체 루프 동작) — 하위=소유자별
+│   ├── target/               취약 타깃 앱 (product · order · member[FastAPI] + PII seeder)
+│   ├── console/              관제 앱 프론트 (Vite+React+TS · 9화면 · 실 RDS 라이브)
+│   └── console-backend/      관제 앱 백엔드 (ALB→Lambda TS · 실 pgvector 쿼리)
+├── engine/                   공유 에이전틱 엔진
 │   ├── core/                 (공유) contracts · tools · case
-│   ├── evidence/             (준형) triage · evidence — 능동조사
-│   └── reasoning/            (진우) hypothesis · reasoning · orchestrator
-├── scanners/                 ✅ 스캐너 연동 (Prowler AWS/Azure 라이브 관통)
-│   ├── cspm/                 ✅ SecurityHub·Macie·Prowler → 계약⑤ 봉투 · **Prowler AWS GitHub Actions 자동스캔→S3→ingest 라이브 관통**(2026-07-08) (준형)
-│   ├── workload/             ✅ Trivy·kube-bench · Inspector(scan_securityhub 경유) · Defender ⬜ 범위제외(Azure 실 리소스 0개, D11) (진우)
-│   └── ciem/                 ✅ Prowler entra_* → 계약⑤ 봉투 · **Azure 라이브 관통**(구독 Reader 부여로 해결, 2026-07-08) (진우)
-├── pipeline/                 ✅ 수집·정규화 (목업 동작)
-│   ├── ingest/               ✅ EventBridge/S3 이벤트 → 계약⑤ 봉투 → SQS (준형)
-│   └── normalize/            ✅ Lambda→OCSF (ASFF·prowler·trivy→OCSF-lite, dedup·역인덱스) (진우)
-├── rag/                      ✅ RAG (목업 동작)
-│   ├── corpus/               ✅ 청크 → Titan 임베딩 → pgvector 적재(계약⑥, mock+실) (준형)
-│   └── retrieval/            ✅ 검색 · LLM 답변 (진우)
-├── attackpath/               ✅ finding→그래프 상관 동작 (골든 정합 OK)
-│   ├── model/                (준형) 그래프 데이터 모델·불변식 검증 ✅
-│   └── correlation/          (진우) R1~R5 상관·2-pass backfill ✅
-└── infra/                    Terraform (레이어드) — shared 먼저 → 영역별. 전 6레이어 validate 통과
-    ├── README.md             ✅ 인프라 루트 개요(레이어링·apply 규율·preflight 체크리스트·비용)
-    ├── deploy.ps1            ✅ ★레이어 순서 강제 실행기(apply 정방향·destroy 역방향·실패 시 중단, ASCII 전용)
-    ├── shared/               ✅ VPC·NAT·EKS·ECR·RDS pgvector·OIDC·IAM + db/schema.sql(pgvector 6테이블) + Karpenter discovery 태그
-    ├── karpenter/            ✅ 동적 노드 오토스케일러(컨트롤러 helm·IRSA·spot SQS·NodePool·EC2NodeClass) — 2026-07-03 shared에서 분리
-    ├── target/               ✅ 취약 워크로드 + 의도적 결함 IaC(f3·f4·f6 var.enable_* 토글)
-    ├── console/              ✅ S3+CloudFront·ALB(authenticate-cognito)→Lambda·Cognito SSO(count 가드)
-    ├── backend/              ✅ 수집·정규화+상관·오케스트레이터 Lambda(2-pass)·Bedrock IAM·조치 SFn + remediation 실행기·감사 Object Lock (구 pipeline+engine 병합)
-    ├── monitoring/           ✅ 운영 관측(진우) — Grafana IRSA·CloudWatch 대시보드 24위젯·CloudTrail 연동·Teams 알림
-    ├── slice/                ✅ 엔진 실 tool-use 최소비용 검증 픽스처(Phase1 — 레이어 아님)
-    └── {scanners,rag,attackpath} ⬜ 영역별 terraform(미구현 — 데모 핵심 경로 밖)
+│   ├── evidence/             (준형) triage · evidence · bedrock_planner — 능동조사
+│   └── reasoning/            (진우) hypothesis · reasoning · orchestrator (+ 실 Bedrock 스왑판)
+├── scanners/                 cspm(준형) / workload·ciem(진우) — 실 계정 라이브 관통
+├── pipeline/                 ingest(준형) / normalize(진우) — 실 finding 흐름
+├── rag/                      corpus(준형) / retrieval(진우) — Titan+pgvector+Bedrock
+├── attackpath/               model(준형) / correlation(진우) — R1~R5 상관·2-pass
+└── infra/                    Terraform (레이어드) — deploy.ps1로 순서 강제
+    ├── shared/               VPC·NAT Instance·EKS·ECR·RDS pgvector·OIDC·IAM + db/schema.sql(7테이블)
+    ├── karpenter/            동적 노드 오토스케일러(helm·IRSA·spot·NodePool)
+    ├── target/               취약 워크로드 + 의도적 결함 IaC(토글)
+    ├── console/              S3+CloudFront+WAF · ALB→Lambda · Cognito SSO · 커스텀 도메인
+    ├── backend/              수집·정규화+상관·오케스트레이터 Lambda(2-pass) · remediation SFn · 감사 Object Lock
+    └── monitoring/           운영 관측(진우) — Grafana IRSA · CloudWatch 24위젯 · X-Ray · CloudTrail · Teams
 
-# 컴포넌트 폴더(scanners·pipeline·engine·rag·attackpath)는 코드만 — 배포는 CI가 infra/에서 apply.
-# 폴더는 사람이 아니라 컴포넌트로 나눔(소유·이음새는 docs/project-draft 4.6).
+# 컴포넌트 폴더(scanners·pipeline·engine·rag·attackpath)는 코드만 — 배포는 infra/에서 apply.
+# 폴더는 사람이 아니라 컴포넌트로 나눔(소유·이음새는 docs/project-draft §4.6).
 ```
 
 ---
 
-## 👥 역할 분담 (2인)
+## 👥 역할 분담 (2인 협업)
 
-> 원칙 — 일을 나누되 **둘 다 상대 영역까지 이해**한다. 각 영역을 반반 갈라 양쪽이 핵심을 다 만진다. 상시 협의로 조정되는 살아있는 분담이며, 상세 SSOT는 [CLAUDE.md §5](CLAUDE.md) · [project-draft §4.1](docs/project-draft.md).
-> **영역 순서 = 대략의 진행 순서**(앱·환경 → 인프라 → 스캐너 → 수집·정규화 → RAG → 엔진 → attack-path). 정확한 순서는 아니고 "이 느낌으로 쌓아간다".
+> 원칙 — 일을 나누되 **둘 다 상대 영역까지 이해**한다. 각 영역을 반으로 갈라 양쪽이 핵심을 다 만진다. 상시 협의로 조정되는 살아있는 분담이며, 상세 SSOT는 [CLAUDE.md §5](CLAUDE.md) · [project-draft §4.1](docs/project-draft.md).
+
+| 영역 | 이준형 | 김진우 |
+|---|---|---|
+| **토대** | 앱(타깃+관제) 개발 · CI/CD · Shift-Left · 공유 인프라 주도 | 모니터링·관측(Grafana · X-Ray) |
+| **스캐너 — CSPM** | CSPM(Config · Prowler · Security Hub · Macie) | 워크로드(Trivy · kube-bench) + Azure(Entra CIEM) |
+| **스캐너 — CIEM** | IAM Access Analyzer(AWS) | Entra ID(Azure) |
+| **수집 · 정규화** | 수집부(EventBridge → SQS) | 정규화부(Lambda → OCSF-lite) |
+| **엔진 (Bedrock)** | Evidence(tool use) · Triage | Hypothesis · Reasoning · Orchestrator |
+| **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | 검색 · LLM 답변 생성 |
+| **attack-path** | 그래프 데이터 모델 | 상관 로직(5개 규칙 체인) · 내러티브 |
+| **인증 · SSO** | Cognito 허브 · 콘솔 SSO · 로그인 감사 | Entra 테넌트 · App Registration · SAML IdP |
+| **조치 · 거버넌스** | 조치(Remediation · SFn · 감사) · 하드닝(WAF · JWT · TLS) | CloudTrail 감사 · 키리스 인증(Entra OIDC) |
+
+> ⚠️ "관제"는 두 가지 — **관제 "앱"**(CNAPP 보안 대시보드 제품) = 준형 / **운영 "관측"**(Grafana·CloudTrail·X-Ray 플랫폼 관측) = 진우. 애플리케이션 2개(타깃·관제)는 모두 준형이 개발한다.
 >
-> **⚠️ 상태는 2축 — 각 칸은 `⬜ 없음 → 🔨 목업/스캐폴드 → ✅ 완성`을 두 번(목업 축·실 축) 거친다:**
-> - **진행(목업)** = 인프라·AI 0원, 로직만(`contracts/mock-*.json` 기반). `⬜`/`🔨`/`✅`.
-> - **실(real) 전환** = 진짜 클라우드·Bedrock 동작. `⬜ 미착수` / `🔨 코드·검증전` / `✅ 실동작`.
-> - 👉 **표의 '진행(목업)' ✅는 로직만 완성**이라는 뜻이고, 진짜 동작 여부는 마지막 **'실(real) 전환'** 컬럼이다. **첫 실동작 칸 = 엔진(Phase1) ✅**(2026-07-02 실 Bedrock + 실 S3 검증) — 나머지 칸은 Phase2~에서 실 전환.
-
-| 영역 | 준형 | 준형 진행(목업) | 진우 | 진우 진행(목업) | 🚀 실(real) 전환 |
-|---|---|---|---|---|---|
-| 🖥️ **앱 & 환경 세팅** | 타깃 앱 · 관제 앱 **2개 개발** | ✅ 목업 동작(콘솔 8화면 · 타깃 member+포털) | **AWS/Azure 환경**(M365·Entra 데모 테넌트·계정 초기) | 🔄 AWS 계정 ✅ / Azure 테넌트 진행중 | ⬜ apply 시 배포(Phase2~) · Azure 테넌트·AWS 계정은 실물 ✅ |
-| 🏗️ **공유 인프라 · 토대** | `infra/` 6층(shared·karpenter·target·console·backend·monitoring) + `deploy.ps1` 순서강제 · CI/CD · Shift-Left | ✅ **라이브 풀사이클 실검증**(apply 207→검증→destroy 208·$0, 2026-07-03) | 모니터링·운영관제(Grafana·CloudTrail) | ✅ 코드 완성(`infra/monitoring`, 대시보드 24위젯·CloudTrail 연동·Teams 알림) | ✅ **Karpenter 수명주기 실증**(스팟 프로비저닝 ~30초·consolidation) — 남은 실전환=데모 시나리오(스캐너 실 finding·SSO 라이브·gitops 부트스트랩) |
-| 🔍 **스캐너** | CSPM(Config·Prowler·Security Hub·Macie) · IAM Access Analyzer | ✅ 목업 동작(`scanners/cspm`, 골든 5종) | 워크로드(Inspector·Trivy·kube-bench·Defender) · Entra CIEM(`scanners/ciem`) | ✅ Trivy·kube-bench(f2·f13 골든) ✅ · Entra CIEM ✅(f8·f9·f16·f17 골든) · Inspector는 별도 코드 불필요(scan_securityhub 경유) · Defender만 남음(데모 때만) | ✅ **Prowler AWS+Azure 실계정 라이브 관통(2026-07-08, GitHub Actions 자동스캔→S3→ingest→RDS)** · kube-bench·Trivy 실 클러스터 스캔(2026-07-06) — Security Hub·Macie는 계정 구독제약이라 데모 직전 활성 |
-| 📥 **수집 · 정규화** | 수집부 (EventBridge→SQS) | ✅ 목업 동작(`pipeline/ingest`) | 정규화부 (Lambda→OCSF) | ✅ 목업 동작(`pipeline/normalize`) | ✅ **라이브 관통(2026-07-08)** — ingest·normalize Lambda 배포·실 finding 흐름(Prowler S3→ingest→SQS→normalize→RDS, kube-bench/Trivy도 실 normalize 경유) |
-| 📚 **RAG** | 코퍼스 · 임베딩 · pgvector 적재 | ✅ 목업+**실 경로**(`rag/corpus`, Titan v2 적재) | 검색 · LLM 답변 생성 | ✅ 목업+**실 경로**(`rag/retrieval`: Titan+pgvector cosine·Sonnet converse) | 🔧 배선 완료 — 라이브 검증만 남음(적재+검색 실 관통) |
-| 🧠 **엔진 (Bedrock)** | Evidence(tool use) · Triage | ✅ 목업 능동조사(`engine/`) | Hypothesis · Reasoning · Orchestrator | ✅ 목업 동작(전체 루프) | **✅ Phase1 완료(2026-07-02)** — 실 Bedrock(Haiku)이 실 S3를 read-only **자가 조사 → CONFIRMED**(apply→`run_real`→destroy) |
-| 🕸️ **attack-path** | 그래프 데이터 모델 | ✅ 모델·불변식 검증(`attackpath/model`) | 상관 로직(R1~R5) · 내러티브 | ✅ R1~R5 상관·2-pass backfill | ⬜ Phase2에 엮임(실 finding 상관) |
-
-> ⚠️ "관제"는 두 가지 — **관제 "앱"**(CNAPP 보안 대시보드 제품) = 준형 / **운영 "관제"**(Grafana·CloudTrail 플랫폼 관측) = 진우. 애플리케이션 2개는 모두 준형이 개발한다.
->
-> **진행 순서(내가 뚫는 순서) = 표 위→아래가 아니라 위험 순:** **Phase1** 엔진 행을 목업→실(엔진 실 tool-use, ← 지금) · **Phase2** 세로 한 줄을 실로 연결(스캐너 1개→수집·정규화→엔진→attack-path→콘솔) · **Phase3** 나머지 칸 폭 채우기(스캐너 다수·RAG·CI/CD·ISMS-P).
+> **협업 방식** — 컴포넌트 이음새를 JSON 계약(7종)으로 **먼저 고정**하고, 각자 `contracts/mock-*.json`으로 병렬 개발한 뒤 `mock=False` 한 줄로 실 데이터로 스왑했다. CI Validate 게이트(4-assert)가 계약 정합을 강제 → 2인이 직렬 의존 없이 동시에 작업.
 
 ---
 
 ## 🚧 구현 현황 (Status)
 
+> **전 영역 라이브 실검증 완료.** 아래는 각 영역이 실제로 어디까지 동작하는지.
+
 | 영역 | 상태 |
 |---|---|
-| 📜 **공통 계약 (`contracts/`)** | ✅ **졸업** — 계약 7종 JSON Schema + INTERNAL control 카탈로그(14종) + 골든 시나리오 mock(findings·attack-path·case). `validate.py` 4-assert + GitHub Actions CI 게이트로 정합 보장 |
-| 🖥️ **관제 콘솔 (`apps/console`)** | ✅ **라이브 완성 + 비주얼 고도화 + 실데이터 크래시 봉합(2026-07-07)** — 실데이터 렌더 + **SSO 실 로그인**(APPROVER) + **AI 어시스턴트 챗**(`/chat`, RAG 실 답변·pgvector 근거) + **AI·시스템 관측 뷰**(`/system`) + **전 페이지 프리미엄 톤**(9화면·로그인/콜백 프리미엄·전역 fade-up). **⚠️ 실데이터 크래시 2건 봉합**: Finding 상세 `sources` 누락·Evidence 탭 case 필드 누락(console-backend 실쿼리가 프론트 필드를 덜 SELECT — mock엔 안 나던 것) → **playwright 9/9 렌더+실 API 필드 전수 감사로 검증**. `docs/console-manual.md`(사용 매뉴얼) 신설 |
-| 🛒 **타깃 앱 (`apps/target`)** | ✅ **ArgoCD로 실기동(2026-07-07)** — member/product/order **Running**(GitOps: build-images.yml→ECR→ArgoCD Synced/Healthy, CI→ECR→ArgoCD 완전 관통). member(FastAPI) API 200·**PII seeder S3 적재**(IRSA 403 근본수정: `s3:GetObject`+`ListBucket`, Macie 미끼). 모든 PII/시크릿 가짜 |
-| 🖥️ **관제 백엔드 (`apps/console-backend`)** | ✅ **mock + real pg 둘 다 배선(2026-07-03)** — ALB→Lambda(TS). `USE_MOCK=false`(기본)면 **실 pgvector 쿼리**(findings·finding_explanations·cases·attack_paths 조인, Secrets Manager 자격증명) — async 전환 + **esbuild 번들**(pg 인라인 → VPC Lambda 배포 가능). RBAC는 **Authorization: Bearer(옵션B OIDC)** + 레거시 x-amzn-oidc-data 병행. tsc·build 통과 |
-| 🧩 **로직 계층 (전부 목업 동작 · exit 0)** | ✅ 엔진 5단계 능동조사(`engine`)·attack-path R1~R5 상관+그래프(`attackpath`)·수집부(`pipeline/ingest`)·정규화부(`pipeline/normalize`)·RAG 검색·답변(`rag/retrieval`)+코퍼스 적재(`rag/corpus`)·Trivy+kube-bench(`scanners/workload`)+CSPM(`scanners/cspm`)+CIEM(`scanners/ciem`) 스캐너. 각 영역 준형/진우 half 다 채워짐(계약 SSOT로 정합) |
-| ❤️ **엔진 실 tool-use (Phase1 — 심장)** | ✅ **실검증 완료(2026-07-02)** — `infra/slice` apply → `run_real` → destroy 전 과정 실행. **실 Bedrock Claude Haiku가 스스로 `s3:GetBucketPolicy`·`GetPublicAccessBlock` 호출 → 실 S3 응답으로 판정 CONFIRMED(100%)** → 즉시 destroy(비용 ~$0). 챗봇 탈출(LLM 능동 tool use)이 목업이 아니라 **실제로 동작함을 증명**. **➕ 2026-07-04: RealToolExecutor를 S3 2종→AWS allowlist 9종(IAM·SG·Macie·AccessAnalyzer)으로 확장 → 골든 경로 전체(f3·f4·f6·f7)를 실 증거로 조사 가능(오프라인 검증 0 fail)** |
-| 🔗 **Phase2 end-to-end 배선 (`run_e2e.py`)** | ✅ **관통 확인(2026-07-02)** — 스캐너(Trivy) → 정규화 → 상관(attack-path) → 엔진 → RAG를 **한 러너로 연결**, 스캐너발 CVE가 파이프라인 끝(엔진 판정·RAG 설명)까지 도달(exit 0). 정규화·상관은 실 코드 관통, 스캐너는 실 trivy 출력 동일 구조 JSON(⬜ 라이브 `trivy image`는 trivy 설치/CI 대기), 엔진·RAG는 무비용 Mock(실 tool-use는 Phase1) |
-| 🏗️ **공유 인프라 (`infra/shared`·`infra/target`)** | ✅ **스캐폴드** — VPC·NAT Instance·EKS(spot·IRSA)·ECR·RDS pgvector·OIDC·Evidence/Bedrock IAM + 결함 IaC 토글(f3·f4·f6). `terraform validate`/`fmt` 통과. apply는 게이트 후 |
-| 🚚 **배포 인프라 (`infra/console`·`backend`)** | ✅ **코드 완성 + Lambda 실코드 배포(2026-07-03)** — console(ALB→Lambda·Cognito SAML SSO·S3+CloudFront) · backend(수집·정규화+상관·오케스트레이터 Lambda + remediation SFn·감사 Object Lock). **Lambda 5종 스텁→실코드 스왑 완료**(`build_lambdas.py`가 패키지+contracts+psycopg2 레이어 번들, deploy.ps1 자동 훅). 라이브 풀사이클 실검증됨. **slice=레이어 아닌 저비용 픽스처** |
-| 🔑 **SSO 옵션B (프론트 OIDC)** | ✅ **배선 완성(2026-07-03)** — `apps/console/src/lib/oidc.ts`(PKCE·Web Crypto·라이브러리 없음)로 Cognito Hosted UI 직접 로그인 + `/callback` + API Bearer 토큰 + custom:groups(GUID) 역할. infra/console `domain-sso.tf`가 SPA 클라이언트 발급. ⏳ 라이브는 도메인+ACM(manual-infra §5) |
-| 🗄️ **DB 스키마 + Lambda wrapper** | ✅ **코드 완성** — `infra/shared/db/schema.sql`(pgvector 6테이블: findings·attack_paths·cases·finding_explanations·remediation_requests·rag_chunks, 계약①③⑦⑥ 도출·멱등) + 핸들러 wrapper 4종(ingest·normalize·correlation·orchestrator, 기존 로직 재사용 + RDS I/O + 2-pass 발행, engine은 `REAL_TOOLS=1`이면 실 Bedrock tool-use). py_compile+import OK. ⬜ 실 RDS 대상 SQL은 apply 세션에서 라이브 검증 |
-| 📊 **운영 관측 (`infra/monitoring`)** | ✅ **코드 완성(2026-07-03)** — Grafana IRSA(CloudWatch read-only) + CloudWatch Dashboard **24위젯**(Lambda 6종·SQS·RDS·ALB·Step Functions(remediation)·S3 감사버킷·Cognito·Bedrock 호출/에러/토큰(모델별)+비용 metric math·엔진 EMF 6종(트리아지·tool-use·확신도·판정시간·**케이스별 토큰·tool별 breakdown**)·CloudFront 1) + **CloudTrail→CloudWatch Logs 배관**(트레일 자체는 수동 유지) + **Teams 알림 풀스택**(SNS·Lambda 실코드·시크릿·알람 7종 — Bedrock 에러·**Bedrock 비용 가드레일** 포함) + **AI 관측 3종 추가**(비용 알람·`bedrock_planner.py` 토큰 캡처→case당 비용 EMF·tool별 호출 breakdown EMF). `engine/reasoning/orchestrator.py`·`engine/evidence/bedrock_planner.py`에 계측 추가로 엔진 축 위젯·트리아지 알람도 실데이터 받을 준비 완료. `fmt`+`init`+`validate` 3개 통과. CloudFront 위젯은 `infra/console`의 `cloudfront_distribution_id` output 연결 완료로 게이트 해제 |
-| 📦 **TF state 부트스트랩** | ✅ `cnapp-agentic-tfstate` 버킷(manual-infra §2) · **Bedrock 모델 액세스 ✅**(manual-infra §4) |
-| ⚙️ **CI/CD (`.github/workflows/`·`gitops/`)** | ✅ **코드 세팅** — CI(`ci.yml`: 10개 데모·run_e2e·validate 회귀 + Trivy/Checkov Shift-Left, $0) · **이미지빌드(`build-images.yml`: GitHub OIDC 키리스 → member·product Docker build→ECR push)** · CD(ArgoCD Application) + 오토스케일(Karpenter/HPA). github_ci 역할에 ECR push 최소권한 attach. ⬜ 실적용은 EKS apply 세션. 근거 = cost-strategy §2.7 |
-| ✅ **라이브 실전환 완료 (2026-07-06)** | 전 레이어 apply · **커스텀 도메인(cnapp-agentic.cloud)+ACM+SSO 실 로그인** · 데이터평면 관통(실 Bedrock tool-use) · RAG /chat · remediation · gitops(member/product/order Running) · **보안 하드닝 7종(#1~#7, 전구간 TLS·CloudFront 로깅 포함 마감)** · **관제앱 비주얼 고도화+AI 챗+`/system` AI 관측 뷰+AI 재조사 라이브 트리거** 다 라이브 검증 |
-| 🔴 **실 findings 라이브 관통 (2026-07-06)** | ✅ **워크로드 스캐너 2종 실제 라이브 실행** — **kube-bench**(실 3노드 Job → CIS 4.1.1 cluster-admin 실 탐지)·**Trivy**(인클러스터 ECR 스캔 → 실 CVE 205개) → **실 `normalize` Lambda → RDS → 라이브 콘솔 23건**(골든 20 + 실 스캔 3). `INTERNAL-KSPM-CLUSTERADMIN-001` 신설·normalizer 노이즈 규칙 개선. ✅ **Prowler(CSPM/CIEM) AWS+Azure GitHub Actions 자동스캔 라이브 관통(2026-07-08)** — Python 3.8 문제는 GitHub Actions(ubuntu)에서 우회·IRSA 대신 OIDC 역할·노이즈는 normalizer FAIL-only 규칙으로 해결, Azure는 구독 Reader 부여(az rest)로 해결 → S3→ingest→normalize→RDS 전 구간 실 관통. Security Hub·Macie는 계정 구독제약이라 데모 직전 활성 |
+| 📜 **공통 계약 (`contracts/`)** | ✅ 계약 7종 JSON + INTERNAL control 카탈로그(**15종**) + 골든 mock 3종. `validate.py` 4-assert + GitHub Actions CI 게이트로 정합 보장 |
+| 🖥️ **관제 콘솔 (`apps/console`)** | ✅ **라이브 운영** — 커스텀 도메인(`cnapp-agentic.cloud`) · **SSO 실 로그인**(Entra SAML→Cognito) · 실 RDS 데이터 · **9화면**(대시보드·Findings·Finding상세[Evidence 능동조사 탭]·Attack-path·AI 챗[`/chat`]·System·컴플라이언스[ISMS-P]·조치[HITL]·감사) |
+| 🛒 **타깃 앱 (`apps/target`)** | ✅ **ArgoCD로 실기동** — member/product/order Running(build-images.yml→ECR→ArgoCD Synced/Healthy). member(FastAPI) API 200 · PII seeder S3 적재(Macie 미끼). 모든 PII/시크릿 가짜, 결함 8종은 IaC에 의도적으로 심음 |
+| 🧠 **에이전틱 엔진 (`engine/`)** | ✅ **실 Bedrock 능동조사** — Evidence가 실 Claude Haiku로 read-only API를 스스로 호출해 실 S3 조사 → CONFIRMED(100%). Hypothesis·Reasoning도 실 Bedrock 스왑 구현·검증(2026-07-10). allowlist 2중 강제(스키마 enum + 실행 직전 재확인) |
+| 🔍 **스캐너 (`scanners/`)** | ✅ **실 계정 라이브 관통** — kube-bench(CIS 4.1.1 실탐지)·Trivy(실 CVE 205)·**Prowler AWS+Azure**(GitHub Actions 자동스캔→S3→ingest)·IAM Access Analyzer(외부신원 특정). Security Hub·Macie는 계정 구독제약이라 데모 직전 활성 |
+| 📥 **수집 · 정규화 (`pipeline/`)** | ✅ **라이브 관통** — EventBridge→SQS→ingest→normalize Lambda→RDS. ASFF/OCSF/trivy-json/custom → OCSF-lite(resource_id 캐논·dedup). 2-pass 이벤트 구동 |
+| 📚 **RAG (`rag/`)** | ✅ **라이브** — Titan Embed v2(1024-dim) 적재 → pgvector cosine(HNSW) 검색 → Bedrock 답변. finding 설명 탭·`/chat` 실동작 |
+| 🕸️ **attack-path (`attackpath/`)** | ✅ R1~R5 상관 + 그래프 모델 · 2-pass backfill. 실 RDS 기준 재계산(골든 5노드 크로스클라우드 체인) |
+| ⚡ **조치 (Remediation)** | ✅ **HITL 실증** — approver 승인 → `remediation_requests` INSERT → Step Functions `StartExecution` → finding remediated → Secure Score 상승. S3 Object Lock 불변 감사. terraform drift 0 |
+| 🏗️ **인프라 (`infra/`)** | ✅ **라이브 풀사이클** — 레이어드 5층 apply→검증→destroy 반복 실증(deploy.ps1). VPC(NAT Instance)·EKS 1.34(Karpenter spot)·RDS PG16+pgvector·Lambda VPC 배치. 키리스(GitHub OIDC·IRSA) |
+| 🔐 **거버넌스 · 하드닝** | ✅ CloudFront WAF(실 XSS 차단 확인) · JWT 서명검증(`aws-jwt-verify`) · 전구간 TLS · read-only first · 불변 감사(Object Lock) |
+| 📊 **운영 관측 (`infra/monitoring`)** | ✅ **라이브** — Grafana(4소스: Prometheus·CloudWatch·PostgreSQL·X-Ray) · CloudWatch 24위젯·알람 7종 · X-Ray 5 Lambda 분산추적 · CloudTrail 연동 · Teams 알림 3채널 |
+| ⚙️ **CI/CD (`.github/`·`gitops/`)** | ✅ CI(회귀 10종 + Trivy/Checkov Shift-Left) · 이미지빌드(OIDC 키리스→ECR) · ArgoCD GitOps · cron 자동스캔(Prowler·Access Analyzer)·라이브 헬스 캔어리 |
 
-> **전략 = 계약·목업 우선.** 실제 스캐너/엔진을 기다리지 않고 `contracts/mock-*.json`으로 관제 콘솔·엔진을 끝까지 만든 뒤 실데이터로 교체 — 직렬 의존을 두 병렬 트랙으로 분리한다.
+> **전략 = 계약·목업 우선.** 실제 스캐너/엔진을 기다리지 않고 `contracts/mock-*.json`으로 관제 콘솔·엔진을 끝까지 만든 뒤 실데이터로 교체 — 직렬 의존을 두 병렬 트랙으로 분리한 뒤, 전 영역을 실 클라우드로 관통시켰다.
 
 ---
 
