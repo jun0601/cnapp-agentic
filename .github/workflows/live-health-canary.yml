@@ -12,8 +12,11 @@ name: live-health-canary
 # 하는 상태인지"를 판단(버킷 없으면 destroy 상태로 보고 조용히 skip).
 
 on:
-  schedule:
-    - cron: "*/20 * * * *" # 20분마다
+  # schedule: destroy 시 "다운" 알림 노이즈 방지로 일시 정지(2026-07-13, 준형 요청).
+  #   backend 버킷 존재 skip 가드가 있으나(버킷이 destroy 후 잔존하면 오판) 확실하게 스케줄을 끔.
+  #   모니터링 재개하려면 아래 2줄 주석 해제(재apply 후 권장). 수동 실행(workflow_dispatch)은 계속 가능.
+  # schedule:
+  #   - cron: "*/20 * * * *" # 20분마다
   workflow_dispatch:
 
 permissions:
