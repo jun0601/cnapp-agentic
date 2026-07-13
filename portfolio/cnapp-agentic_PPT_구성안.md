@@ -184,7 +184,7 @@
 
 [제목] 역할 분담 (협업 구조)
 
-[중제목] 9개 영역을 반씩 나누되, 서로의 영역까지 이해하며 진행 — 계약(Contract) 기반 병렬 개발
+[중제목] 9개 영역 반씩 분담 · 계약(Contract) 기반 병렬 개발 · 사일로 없이 서로의 영역까지 이해
 
 [2열 표 — 영역 / 이준형 / 김진우]
 
@@ -220,7 +220,7 @@
 
 [제목] 전체 아키텍처
 
-[중제목] AWS는 워크로드(EKS·컨테이너·데이터)의 주인, Azure는 신원(Entra ID)의 주인
+[중제목] AWS = 워크로드(EKS·컨테이너·데이터)의 주인 · Azure = 신원(Entra ID)의 주인
 
 [중앙 = 다이어그램] portfolio/cnapp-architecture-overview.drawio PNG(고해상도, 한 페이지 꽉)
 
@@ -269,7 +269,7 @@
 
 [제목] 크로스클라우드 공격 경로
 
-[중제목] AWS 워크로드 침해가 Azure 신원 장악으로 번지는 크로스클라우드 공격 체인
+[중제목] AWS 워크로드 침해 → 평문 자격증명 → Azure 신원 장악, 크로스클라우드 공격 체인
 
 [4단계 타임라인 — 가로, 왼→오]
 ① [AWS] 워크로드 침투 — product 취약 이미지(KEV) → 컨테이너 장악, privileged로 측면이동
@@ -410,10 +410,10 @@
 
 [제목] 에이전틱 엔진 — 5단계 능동 조사 루프
 
-[중제목] 기존 'AI 보안'은 이미 수집된 데이터를 요약하는 챗봇에 머문다. 이 엔진은 Bedrock이 스스로 read-only API를 골라 호출해 실제 클라우드 상태를 조사하고, 그 응답을 근거로 위험을 판정한다.
+[중제목] 기존 'AI 보안' = 데이터 요약 챗봇에 머묾 → 이 엔진은 Bedrock이 read-only API를 스스로 호출·조사해 근거 기반 위험 판정
 
 [5단계 루프 — 가로 흐름]
-① Orchestrator — 전체 루프 지휘. Triage→Hypothesis→Evidence→Reasoning을 순서대로 호출하고 케이스(계약⑦)를 조립해 RDS에 저장
+① Orchestrator — 전체 루프 지휘 · Triage→Hypothesis→Evidence→Reasoning 순차 호출 · 케이스(계약⑦) 조립 → RDS 저장
 ② Triage (비용 통제 게이트) — Bedrock 부르기 전 규칙으로 선별. 게이트 = severity_id ≤ 2 OR attack_path_id ≠ null. 승급된 소수만 통과 (실측: 20건 → 12건)
 ③ Hypothesis (가설 생성) — 승급 finding·attack-path로 검증 가능한 공격 가설 생성. Converse toolChoice로 구조화 출력 강제
 ④ Evidence (tool-use 루프, 핵심 단계) — LLM이 검증할 read-only API를 스스로 골라 호출. 응답을 toolResult로 되먹임(최대 6회), 충분하면 스스로 종료
@@ -448,7 +448,7 @@
 
 [제목] 실증 — Bedrock 능동조사 증거 (목업이 아니라 실제로 돌았다)
 
-[중제목] 설계 설명이 아니라 실제 AWS·실제 Bedrock으로 관통 검증한 결과 (Phase1 vertical slice)
+[중제목] 설계 설명이 아닌 실제 AWS·실제 Bedrock 관통 검증 결과 · Phase1 vertical slice
 
 [왼쪽 빅넘버 3개]
 100% — 판정 신뢰도(CONFIRMED)
@@ -456,9 +456,9 @@
 E2E — 배포→조사→판정→정리 전 구간 관통
 
 [실제로 일어난 일 — 단계별]
-1. LLM이 공개 S3 finding을 받고 스스로 s3:GetBucketPolicy·s3:GetPublicAccessBlock 호출을 결정(canned 응답이 아님)
-2. 실 API 응답: 버킷 정책에 Principal:"*" 공개 statement 존재 + BlockPublicAcls=false 등 PAB 미설정 확인
-3. 그 증거를 근거로 CONFIRMED(신뢰도 100%) 판정 → 케이스에 tool 호출 타임라인·판정·model_trace(토큰) 기록
+1. 공개 S3 finding 수신 → LLM이 스스로 s3:GetBucketPolicy·s3:GetPublicAccessBlock 호출 결정 (canned 아님)
+2. 실 API 응답 → 버킷 정책 Principal:"*" 공개 statement + BlockPublicAcls=false 등 PAB 미설정 확인
+3. 증거 기반 CONFIRMED(신뢰도 100%) 판정 → 케이스에 tool 호출 타임라인·판정·model_trace(토큰) 기록
 
 [방어 심층화 캡션] 실 API 오류(NoSuchBucket 등)는 크래시 대신 error toolResult로 강등해 LLM이 다른 도구로 조정하게 함(2026-07-04 라이브 실측)
 
@@ -515,7 +515,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 [제목] 보안 거버넌스 & 플랫폼 자기방어
 
-[중제목] 취약점을 찾는 보안 도구일수록 자기 자신부터 안전해야 한다 — 이 플랫폼도 동일한 보안 원칙을 스스로 적용했다.
+[중제목] 취약점을 찾는 보안 도구일수록 자기 자신부터 안전해야 → 이 플랫폼도 동일 원칙을 스스로 적용
 
 [카드 1 — Read-only First] 에이전트는 기본적으로 조회만. Evidence의 allowlist가 스키마·실행 2중으로 강제해 변경/쓰기 API는 원천 차단.
 
@@ -549,7 +549,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 [제목] 인프라 설계
 
-[중제목] 종량제 리소스를 상시 방치하지 않으려면 apply→destroy를 안전하게 반복할 수 있어야 한다 — 그래서 인프라를 레이어드 Terraform으로 짜고, 순서를 코드로 강제했다.
+[중제목] 종량제 리소스 상시 방치 금지 → apply→destroy 안전 반복이 관건 · 레이어드 Terraform으로 순서를 코드로 강제
 
 [축 1 — 레이어드 Terraform] shared → karpenter → target·backend·console(monitoring 별도) 5레이어. 하위가 상위를 terraform_remote_state로 참조. deploy.ps1이 apply는 정방향, destroy는 역방향으로 순회하며 실패 시 즉시 중단(상태 보호). + Karpenter destroy 후 고아 스팟노드 자동 종료 스윕.
 
@@ -583,7 +583,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 [제목] FinOps — 비용을 설계 원칙으로
 
-[중제목] 비용은 나중에 줄이는 게 아니라 설계 단계에서 통제한다.
+[중제목] 비용은 나중에 줄이는 게 아니라 설계 단계에서 통제
 
 [표 — 전략 / 왜 골랐나(트레이드오프) / 효과]
 
@@ -615,7 +615,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 [제목] CI/CD
 
-[중제목] 커밋 하나가 회귀 게이트를 통과해야만 병합되고, 병합된 이미지는 ArgoCD가 자동으로 클러스터에 동기화한다 — 코드 품질과 배포를 파이프라인이 강제한다.
+[중제목] 커밋 하나가 회귀 게이트 통과해야 병합 → 이미지는 ArgoCD가 클러스터에 자동 동기화 · 품질·배포를 파이프라인이 강제
 
 [블록 1 — CI (GitHub Actions ci.yml)] 매 push·PR에 하드 게이트: 회귀 10종(영역별 run_demo 9개 + run_e2e) + contracts/validate.py(계약 4-assert)가 전부 exit 0이어야 통과. + Shift-Left(report): Trivy(config·이미지)·Checkov(IaC).
 
