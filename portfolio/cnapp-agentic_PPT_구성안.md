@@ -529,6 +529,8 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 [카드 6 — SSO 페더레이션] Entra SAML IdP → Cognito(OIDC/PKCE) → 그룹 GUID 클레임으로 viewer/approver RBAC. console-backend는 aws-jwt-verify로 JWKS 서명·issuer·audience·exp 검증(fail-closed).
 
+[시각자료] 심층 방어(defense-in-depth) 도식 — 위 6개 원칙을 "바깥→안쪽 방어 계층"으로 시각화. 요청·공격이 바깥에서 안으로 통과하며 층마다 걸러지고, 한 층이 뚫려도 다음 층이 막는 구조. 층: ① CloudFront+WAF(엣지 차단) → ② Cognito SSO+JWT 검증(인증·RBAC) → ③ read-only 에이전트(allowlist 2중) → ④ HITL 승인 경계(변경은 사람 승인) → 중심=보호 대상(AWS 워크로드·Azure 신원). 하단 관통 밴드=키리스(OIDC/IRSA)·불변 감사로그(S3 Object Lock). 상세 제작법은 문서 하단 '자료 제작 목록' 참고.
+
 ---
 
 ### 14. 인프라 설계
@@ -707,11 +709,12 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 | 9 에이전틱 엔진 | 5단계 루프 + Evidence↔API 왕복 | **박스+화살표(캔바 직접)** | 5단계는 우리 로직이라 서비스 아이콘 없음 → 박스로. Bedrock·AWS API 부분만 아이콘 |
 | 10 Bedrock 실증 | Evidence 탭 스크린샷 | 스크린샷 | Finding 상세의 능동조사(tool 타임라인) 탭 캡처 |
 | 11 RAG | RAG 흐름도 + /chat 스크린샷 | **박스+아이콘 혼합** + 스크린샷 | Titan·Bedrock은 아이콘, pgvector 검색은 개념 박스. + `/chat` 캡처 |
+| 13 거버넌스·자기방어 | 심층 방어(defense-in-depth) 도식 | **박스+아이콘 혼합(캔바 직접)** | 6개 원칙을 겹겹의 방어 계층으로. 바깥→안: ① CloudFront+WAF → ② Cognito SSO+JWT → ③ read-only 에이전트(allowlist 2중) → ④ HITL 승인 → 중심=보호 대상(AWS 워크로드·Azure 신원). 하단 밴드=키리스(OIDC/IRSA)·불변 감사로그(S3 Object Lock)가 전 계층 관통. 동심(중첩) 또는 좌우 겹겹 박스. AWS 서비스(WAF·CloudFront·Cognito·ALB·SFn·S3 Object Lock)는 아이콘, 개념(read-only·HITL·allowlist)은 박스. 도식이 주인공(좌/중앙) + 6개 카드가 각 층 상세(우). 메시지: "한 층이 뚫려도 다음 층이 막는 defense-in-depth" |
 | 14 인프라 설계 | VPC 배치도 **또는** 레이어 의존도 | ⓐVPC=draw.io(AWS 아이콘) / ⓑ레이어=박스 | 택1. VPC 도식은 draw.io, terraform 레이어 의존도는 박스+화살표 |
 
-- **AWS 아이콘(draw.io) = 5·8·14ⓐ** / **박스 위주(캔바 직접) = 6·9·11·14ⓑ** / **스크린샷 = 7·10·11**.
-- 전체 drawio에서 크롭으로 커버되는 것 = 5·6·8. 새로 만들 것 = 9(박스 루프)·11(박스 흐름)·14(도식). 부담 크지 않음.
-- 표·카드·빅넘버 위주 슬라이드(1·2·3·4·12·13·15·16·17·18·19·20)는 다이어그램 불필요.
+- **AWS 아이콘(draw.io) = 5·8·14ⓐ** / **박스 위주(캔바 직접) = 6·9·11·13·14ⓑ** / **스크린샷 = 7·10·11**.
+- 전체 drawio에서 크롭으로 커버되는 것 = 5·6·8. 새로 만들 것 = 9(박스 루프)·11(박스 흐름)·13(심층 방어 도식)·14(도식). 부담 크지 않음.
+- 표·카드·빅넘버 위주 슬라이드(1·2·3·4·12·15·16·17·18·19·20)는 다이어그램 불필요.
 
 ### 슬라이드 분량 검토 (합병 여부)
 - **16번(CI/CD) + 17번(운영 관측) → 분리 유지 확정.** 처음엔 "배지 없앤 지금 쪼갤 명분이 없다"고 합병을 검토했으나, 각각 5블록씩 내용이 충실하고(16=CI 게이트·CD·이미지·오토스케일·cron / 17=CloudWatch·X-Ray·Grafana·CloudTrail·Teams) **성격도 안 겹친다(배포 자동화 vs 운영 관측)**. 합치면 10블록이 한 장에 몰려 오히려 빽빽 → 분리가 맞다.
