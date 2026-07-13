@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useScores, useAttackPaths, useFindings } from '@/api/queries'
 import { StatCard } from '@/components/StatCard'
 import { FindingCard } from '@/components/FindingCard'
@@ -52,7 +54,7 @@ function ScoreExplainTooltip({ cloud, score, findings }: { cloud: 'aws' | 'azure
   )
 }
 
-function ScoreBar({ cloud, score, label, findings }: { cloud: 'aws' | 'azure'; score: number; label: string; findings: Finding[] }) {
+function ScoreBar({ cloud, score, label, findings, delta }: { cloud: 'aws' | 'azure'; score: number; label: string; findings: Finding[]; delta: number }) {
   const grad = cloud === 'aws' ? 'from-amber-400 to-orange-500' : 'from-sky-400 to-blue-600'
   const textColor = cloud === 'aws' ? 'text-aws' : 'text-azure'
   return (
@@ -68,7 +70,18 @@ function ScoreBar({ cloud, score, label, findings }: { cloud: 'aws' | 'azure'; s
         <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
           <div className={`h-full rounded-full bg-gradient-to-r ${grad} transition-all duration-700`} style={{ width: `${score}%` }} />
         </div>
-        <span className="w-10 text-right text-xl font-bold tabular-nums text-slate-800">{score}</span>
+        <span className="flex w-16 items-center justify-end gap-1">
+          {delta !== 0 && (
+            <span
+              className={`animate-pulse rounded-md px-1 py-0.5 text-[11px] font-bold tabular-nums ${
+                delta > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+              }`}
+            >
+              {delta > 0 ? `+${delta}` : delta}
+            </span>
+          )}
+          <span className="text-xl font-bold tabular-nums text-slate-800">{score}</span>
+        </span>
       </div>
       <ScoreExplainTooltip cloud={cloud} score={score} findings={findings} />
     </div>
@@ -100,9 +113,34 @@ function PillarBreakdown({ findings }: { findings: Finding[] }) {
 }
 
 export default function Dashboard() {
+  const qc = useQueryClient()
   const scores = useScores()
   const paths = useAttackPaths()
   const all = useFindings({ sort: 'priority' })
+
+  // 점수 변화 델타 — 이전 대비 +N/-N을 6초간 강조(조치→점수↑, 스캐너 켬→점수↓가 눈에 띄게).
+  const prevScores = useRef<{ aws: number; azure: number } | null>(null)
+  const [delta, setDelta] = useState<{ aws: number; azure: number }>({ aws: 0, azure: 0 })
+  useEffect(() => {
+    if (!scores.data) return
+    const cur = { aws: scores.data.aws.secure_score, azure: scores.data.azure.secure_score }
+    const prev = prevScores.current
+    prevScores.current = cur
+    if (prev && (cur.aws !== prev.aws || cur.azure !== prev.azure)) {
+      setDelta({ aws: cur.aws - prev.aws, azure: cur.azure - prev.azure })
+      const t = setTimeout(() => setDelta({ aws: 0, azure: 0 }), 6000)
+      return () => clearTimeout(t)
+    }
+  }, [scores.data])
+
+  // 수동 새로고침 — 45초 폴링을 기다리지 않고 findings·scores·attack-paths를 즉시 다시 가져온다
+  // (데모 중 Security Hub/Macie를 켜서 새 finding이 들어왔을 때 바로 반영).
+  const [refreshing, setRefreshing] = useState(false)
+  function refreshAll() {
+    setRefreshing(true)
+    void qc.invalidateQueries()
+    setTimeout(() => setRefreshing(false), 900)
+  }
 
   const findings = all.data ?? []
   const open = findings.filter((f) => f.status === 'open')
@@ -117,9 +155,18 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">보안 대시보드</h1>
           <p className="mt-0.5 text-sm text-slate-500">멀티클라우드(AWS · Azure) 자산의 위험을 한눈에</p>
         </div>
-        <span className="hidden items-center gap-1.5 rounded-full border border-slate-200/70 bg-white px-3 py-1.5 text-xs text-slate-500 shadow-card sm:flex">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> 실시간 폴링
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="hidden items-center gap-1.5 rounded-full border border-slate-200/70 bg-white px-3 py-1.5 text-xs text-slate-500 shadow-card sm:flex">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> 45초 폴링
+          </span>
+          <button
+            onClick={refreshAll}
+            className="flex items-center gap-1.5 rounded-full border border-slate-200/70 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-card transition hover:border-brand-300 hover:text-brand-700"
+            title="findings·점수·공격 경로를 즉시 다시 가져오기"
+          >
+            <span className={refreshing ? 'inline-block animate-spin' : 'inline-block'}>⟳</span> 새로고침
+          </button>
+        </div>
       </div>
 
       {/* KPI */}
@@ -149,8 +196,8 @@ export default function Dashboard() {
             <ErrorNote />
           ) : scores.data ? (
             <div className="space-y-4">
-              <ScoreBar cloud="aws" score={scores.data.aws.secure_score} label={scores.data.aws.label} findings={findings} />
-              <ScoreBar cloud="azure" score={scores.data.azure.secure_score} label={scores.data.azure.label} findings={findings} />
+              <ScoreBar cloud="aws" score={scores.data.aws.secure_score} label={scores.data.aws.label} findings={findings} delta={delta.aws} />
+              <ScoreBar cloud="azure" score={scores.data.azure.secure_score} label={scores.data.azure.label} findings={findings} delta={delta.azure} />
             </div>
           ) : (
             <Skeleton className="h-16 w-full" />

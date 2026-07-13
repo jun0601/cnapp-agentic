@@ -114,15 +114,24 @@ export function useReanalyze(id: string | undefined) {
 }
 
 // 조치 승인/거부(UC4, HITL) — approver만. 승인 시 백엔드가 remediation SFn StartExecution.
-// 성공하면 findings 캐시를 무효화(승인된 finding은 remediated로 소멸 → 목록 갱신).
+// ⚠️ 조치는 비동기 체인: 승인 → SFn → remediation Lambda(finding=remediated) → correlation 재계산(경로 소멸).
+// HTTP 응답은 StartExecution만이라 즉시 끝나지만, 실제 효과(점수↑·경로↓)는 수초~수십초 뒤 RDS에 반영된다.
+// 그래서 findings뿐 아니라 scores·attack-paths까지, 즉시 + 지연(4·10·20·40초)으로 반복 무효화해
+// "승인 클릭 → 대시보드가 스스로 점수 오르고 경로 사라짐"이 데모에서 자동으로 보이게 한다.
 export function useRemediationDecision() {
   const qc = useQueryClient()
+  const refreshDemoState = () => {
+    void qc.invalidateQueries({ queryKey: ['findings'] })
+    void qc.invalidateQueries({ queryKey: ['scores'] })
+    void qc.invalidateQueries({ queryKey: ['attack-paths'] })
+    void qc.invalidateQueries({ queryKey: ['audit'] })
+  }
   return useMutation({
     mutationFn: ({ id, action }: { id: string; action: 'approve' | 'reject' }) =>
       apiPost<{ ok: boolean; execution_arn?: string }>(`/remediations/${id}/${action}`),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['findings'] })
-      void qc.invalidateQueries({ queryKey: ['audit'] })
+      refreshDemoState() // 즉시(거부·빠른 반영분)
+      for (const delay of [4_000, 10_000, 20_000, 40_000]) setTimeout(refreshDemoState, delay)
     },
   })
 }
