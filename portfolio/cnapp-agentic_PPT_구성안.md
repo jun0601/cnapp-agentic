@@ -193,7 +193,7 @@
 | 인증·SSO | Cognito 허브·콘솔 SSO·로그인 감사 | Entra 테넌트·App Registration·SAML IdP |
 | 조치·거버넌스 | 조치(Remediation·SFn·감사)·하드닝(WAF·JWT·TLS) | CloudTrail 감사·키리스 인증(Entra OIDC) |
 
-[하단 문구] 9개 영역을 반씩 나눴지만 사일로 없이 — 각자 자기 파트만 아는 게 아니라 상대 영역까지 이해해, 둘 다 전체 시스템을 설명할 수 있습니다.
+[하단 문구] 영역은 반씩 나눴지만 사일로는 없다 — 서로의 영역까지 이해해 두 사람 모두 전체 시스템을 설명할 수 있다.
 
 [협업 방식 배지 스트립 — 칩 4개 한 줄] 계약 JSON 7종 · INTERNAL Control 15종 · CI Validate 게이트(4-assert) · mock=False 한 줄 스왑
 
@@ -302,15 +302,15 @@
 
 **[상단 3카드 = 쇼케이스 화면 — 각 화면이 뒤 슬라이드의 미리보기(스포/목차 역할)]**
 
-- **[카드 1] 📊 위험을 한눈에 — 탐지·현황**
+- **[카드 1] 📊 탐지·현황**
   - 대시보드: Secure Score·심각도별 KPI·크로스클라우드 attack-path 배너를 한 화면에 요약 → 상세 수치 19p(성과)
   - Findings 목록: 스캐너가 올린 finding을 필터·정렬하고 AI 조사 상태를 컬럼으로 표시 → 12p(실 탐지 현황)
 
-- **[카드 2] 🤖 AI가 일하는 화면 — 조사·설명 (이 제품의 차별점)**
+- **[카드 2] 🤖 AI 자율 조사·설명 (이 제품의 차별점)**
   - Evidence(능동조사) 탭: AI가 실제로 호출한 read-only API와 판정 근거를 타임라인으로 표시 → 10p(Bedrock 실증)
   - AI 어시스턴트(/chat): pgvector 근거 검색 기반 보안 Q&A 챗봇 → 11p(RAG)
 
-- **[카드 3] 🕸 공격 경로·운영 — 시각화·관측**
+- **[카드 3] 🕸 공격 경로·시각화·관측**
   - Attack-path 그래프: 6번의 공격 경로를 AWS/Azure 레인으로 시각화, 크로스클라우드 엣지는 빨강으로 구분 → 6p(공격 경로)
   - System 뷰: Bedrock 24h 사용량·데이터 파이프라인 건강 등 운영 지표 → 17p(운영 관측)
 
@@ -330,25 +330,25 @@
 
 [제목] 관제 앱 소개 — 전체 화면 + 기능별 상세 포인터
 
-[중제목] 취약 앱을 감시하는 관제 콘솔은 이 프로젝트의 모든 기능이 하나로 모이는 화면이다 — 스캔·정규화·AI 조사·설명이 전부 이 안에서 사용자에게 보인다.
+[중제목] 스캔·정규화·AI 조사·설명 — 프로젝트의 모든 기능이 하나로 모이는 관제 콘솔
 
 [구현 개요 캡션] React SPA(Vite+TS, S3+CloudFront 정적 호스팅) ↔ ALB → TypeScript Lambda → RDS pgvector(실 데이터) · Cognito SSO(Entra SAML 페더레이션, viewer/approver RBAC) · 커스텀 도메인 운영 · 9개 화면
 
 [왼쪽 = 대시보드 스크린샷 1장] assets/shot-console-dashboard.png
 
-[카드 1 — 📊 위험을 한눈에 · 탐지·현황]
+[카드 1 — 📊 탐지·현황]
 · 대시보드: Secure Score·심각도별 KPI·크로스클라우드 attack-path 배너를 한 화면에 요약 → 19p
 · Findings 목록: 스캐너가 올린 finding을 필터·정렬하고 AI 조사 상태를 컬럼으로 표시 → 12p
 
-[카드 2 — 🤖 AI가 일하는 화면 · 조사·설명 (차별점)]
+[카드 2 — 🤖 AI 자율 조사·설명 (차별점)]
 · Evidence(능동조사) 탭: AI가 실제로 호출한 read-only API와 판정 근거를 타임라인으로 표시 → 10p
 · AI 어시스턴트(/chat): pgvector 근거 검색 기반 보안 Q&A 챗봇 → 11p
 
-[카드 3 — 🕸 공격 경로·운영 · 시각화·관측]
+[카드 3 — 🕸 공격 경로·시각화·관측]
 · Attack-path 그래프: 여러 공격 경로를 위험도순으로, AWS/Azure 레인으로 시각화(크로스클라우드 엣지 빨강) → 6p
 · System 뷰: Bedrock 24h 사용량·데이터 파이프라인 건강 등 운영 지표 → 17p
 
-[카드 4 — 📋 그 외 실무 화면 (톤 낮춰)]
+[카드 4 — 📋 그 외 실무 화면]
 · 컴플라이언스: ISMS-P 프레임워크 ↔ control 매핑, 통제별 충족률·PDF 리포트
 · 조치(Remediation): approver가 승인하면 Step Functions로 실제 조치 실행(HITL) → 13p
 · 감사(Audit): 스캔·판정·조치 이벤트를 시간순 불변 로그로(S3 Object Lock) → 13p
@@ -509,7 +509,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 [제목] 보안 거버넌스 & 플랫폼 자기방어
 
-[중제목] 남의 클라우드 취약점을 찾아주는 도구가 정작 자기 자신은 허술하면 안 된다 — 이 플랫폼도 스스로 보안 원칙을 지켰다.
+[중제목] 취약점을 찾는 보안 도구일수록 자기 자신부터 안전해야 한다 — 이 플랫폼도 동일한 보안 원칙을 스스로 적용했다.
 
 [카드 1 — Read-only First] 에이전트는 기본적으로 조회만. Evidence의 allowlist가 스키마·실행 2중으로 강제해 변경/쓰기 API는 원천 차단.
 
@@ -536,7 +536,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 2. **VPC 설계** — `10.20.0.0/16`, 2 AZ(ap-northeast-2a/2c), public/private 서브넷 분리. **NAT Gateway($32/월) 대신 NAT Instance**(`t4g.micro`, fck-nat AMI arm64, IMDSv2 강제) + **S3/DynamoDB Gateway Endpoint**(NAT 우회로 데이터 전송 비용 절감).
 3. **컴퓨트·데이터** — **EKS 1.34**(관리형 노드그룹 spot `t3.small`, scale 0~2) + **Karpenter**(spot 우선·on-demand 폴백, 프리티어 제약으로 `t3.small`/`t3.micro`만) + HPA. **RDS PostgreSQL 16 `t3.micro` + pgvector**(private subnet, Secrets Manager로 자격증명). Lambda는 VPC 내부 배치(RDS 접근).
 4. **키리스(D4)** — CI는 **GitHub OIDC → IAM Role**, 파드는 **IRSA**(역할별 `:aud`·`:sub` 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
-- 강조 문구: "레이어드 IaC로 apply→destroy를 안전하게 반복 — 필요할 때만 리소스, 잊지 않고 되돌리기"
+- 강조 문구: "레이어드 IaC로 apply→destroy를 안전하게 반복 — 필요할 때만 리소스를 생성하고, 검증 후 회수"
 - 🎨 **시각자료(둘 중 택1)**: ⓐ **VPC 서브넷 배치도**(public/private·NAT Instance·EKS·RDS) — 전부 AWS 서비스라 **draw.io AWS 아이콘 적합**, 또는 ⓑ **레이어 의존 다이어그램**(`shared → karpenter → target·backend·console` 화살표) — 이건 terraform 레이어라 서비스 아이콘이 없으니 **박스+화살표**. 스크린샷 없이 도식만으로 성립하는 슬라이드라 다이어그램이 주인공.
 
 **▶ 캔바에 그대로 넣을 카피:**
@@ -553,7 +553,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 [축 4 — 키리스 (D4)] CI는 GitHub OIDC → IAM Role, 파드는 IRSA(역할별 aud·sub 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
 
-[강조 문구] 레이어드 IaC로 apply→destroy를 안전하게 반복 — 필요할 때만 리소스, 잊지 않고 되돌리기
+[강조 문구] 레이어드 IaC로 apply→destroy를 안전하게 반복 — 필요할 때만 리소스를 생성하고, 검증 후 회수
 
 ---
 
