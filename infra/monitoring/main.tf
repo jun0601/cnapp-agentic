@@ -92,7 +92,7 @@ locals {
   remediation_sfn_arn = data.terraform_remote_state.backend.outputs.remediation_state_machine_arn
   audit_bucket_name   = data.terraform_remote_state.backend.outputs.audit_bucket
 
-  # Lambda 6종(2026-07-02 조치 실행기 추가로 5→6). 새 Lambda 추가 시 여기만 늘리면
+  # Lambda 7종(2026-07-10 teams_notifier 자체 감시 추가로 6→7). 새 Lambda 추가 시 여기만 늘리면
   # 대시보드 위젯·에러 알람(for_each) 둘 다 자동 반영됨(스켈레톤 목적).
   lambda_names = [
     "${var.project}-ingest",
@@ -101,6 +101,12 @@ locals {
     "${var.project}-orchestrator",
     "${var.project}-console-backend",
     "${var.project}-remediation",
+    # teams_notifier 본인 — 지금까지 6종 어디에도 없어 "얘가 죽으면 알려줄 알람이 없는" 갭이었음.
+    # ⚠️ 잔여 한계: 이 알람도 같은 alerts SNS 토픽→teams_notifier로 발행되므로, 웹훅 자체가
+    # 완전히 죽은 경우(시크릿 오류·엔드포인트 불통)는 이 알람도 전달 안 됨(순환 구조).
+    # 그래도 "특정 알람 payload만 파싱 실패" 같은 코드 레벨 부분 장애는 이 알람의 SNS 메시지
+    # 내용이 원래 실패 메시지와 달라 정상 처리될 가능성이 높아 실질적 커버리지가 있음.
+    aws_lambda_function.teams_notifier.function_name,
   ]
 
   # Bedrock 모델별 위젯용. Reasoning/Hypothesis/RAG가 아직 mock이라 지금은 Haiku만 실사용.
@@ -702,7 +708,16 @@ resource "aws_secretsmanager_secret" "teams_webhook_login" {
   recovery_window_in_days = 0
 }
 
-resource "aws_sns_topic" "alerts" {
+# 2026-07-10: SNS 토픽 자체를 resource가 아니라 data 소스로 참조 — Route53 호스팅 영역(manual-infra
+# §2)과 동일한 이유로 이 레이어(infra/monitoring)의 destroy/재apply 수명주기 밖에 영구히 둔다.
+# Teams(webhook)가 완전히 죽어도(시크릿 오류·Power Automate 흐름 삭제 등) 살아있는 독립 백업 경로로
+# 이메일 구독(개인 주소 — 공개 레포라 여기 안 남김, 계정 소유자만 알고 있음)을 이 토픽에 붙여뒀는데, resource로 관리했다면
+# `infra/monitoring` destroy마다 토픽이 삭제→재생성되면서 구독도 매번 날아가 확인 메일을 다시
+# 눌러야 했음 — data 소스로 바꿔 토픽·구독 둘 다 레이어 수명주기와 완전히 분리했다.
+# ⚠️ 영구 리소스 — `terraform destroy`로 안 지워짐(의도됨). 생성/구독은 CLI로 1회만 수행:
+#   aws sns create-topic --name cnapp-agentic-monitoring-alerts --region ap-northeast-2
+#   aws sns subscribe --topic-arn <ARN> --protocol email --notification-endpoint <이메일>
+data "aws_sns_topic" "alerts" {
   name = "${var.project}-monitoring-alerts"
 }
 
@@ -765,11 +780,11 @@ resource "aws_lambda_permission" "sns_invoke_teams_notifier" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.teams_notifier.function_name
   principal     = "sns.amazonaws.com"
-  source_arn    = aws_sns_topic.alerts.arn
+  source_arn    = data.aws_sns_topic.alerts.arn
 }
 
 resource "aws_sns_topic_subscription" "teams_notifier" {
-  topic_arn = aws_sns_topic.alerts.arn
+  topic_arn = data.aws_sns_topic.alerts.arn
   protocol  = "lambda"
   endpoint  = aws_lambda_function.teams_notifier.arn
 }
@@ -944,8 +959,8 @@ resource "aws_cloudwatch_metric_alarm" "sqs_dlq" {
   dimensions          = { QueueName = local.sqs_ingest_dlq }
   statistic           = "Maximum"
   alarm_description   = "정규화 실패 finding 존재(DLQ 적재) = 데이터 유실 위험"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-  ok_actions          = [aws_sns_topic.alerts.arn]
+  alarm_actions       = [data.aws_sns_topic.alerts.arn]
+  ok_actions          = [data.aws_sns_topic.alerts.arn]
   treat_missing_data  = "notBreaching"
 }
 
@@ -962,8 +977,8 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
   dimensions          = { FunctionName = each.value }
   statistic           = "Sum"
   alarm_description   = "Lambda 에러 발생(${each.value}) — 파이프라인 끊김 가능성"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-  ok_actions          = [aws_sns_topic.alerts.arn]
+  alarm_actions       = [data.aws_sns_topic.alerts.arn]
+  ok_actions          = [data.aws_sns_topic.alerts.arn]
   treat_missing_data  = "notBreaching"
 }
 
@@ -978,8 +993,8 @@ resource "aws_cloudwatch_metric_alarm" "sfn_failed" {
   dimensions          = { StateMachineArn = local.remediation_sfn_arn }
   statistic           = "Sum"
   alarm_description   = "HITL 조치 실행 실패 — 승인 흐름이 실패했는데 아무도 모르는 상황 방지"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-  ok_actions          = [aws_sns_topic.alerts.arn]
+  alarm_actions       = [data.aws_sns_topic.alerts.arn]
+  ok_actions          = [data.aws_sns_topic.alerts.arn]
   treat_missing_data  = "notBreaching"
 }
 
@@ -989,8 +1004,8 @@ resource "aws_cloudwatch_metric_alarm" "bedrock_errors" {
   evaluation_periods  = 1
   threshold           = 0
   alarm_description   = "AI 조사(Bedrock 호출) 에러 — 엔진 조사 자체가 멈췄다는 신호"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-  ok_actions          = [aws_sns_topic.alerts.arn]
+  alarm_actions       = [data.aws_sns_topic.alerts.arn]
+  ok_actions          = [data.aws_sns_topic.alerts.arn]
   treat_missing_data  = "notBreaching"
 
   metric_query {
@@ -1032,8 +1047,8 @@ resource "aws_cloudwatch_metric_alarm" "bedrock_cost_high" {
   evaluation_periods  = 1
   threshold           = var.bedrock_hourly_cost_alarm_usd
   alarm_description   = "Bedrock 추정 비용이 시간당 임계값 초과 — 무한루프·비정상 다량 tool-use 조기 감지(가드레일, 정밀 청구액 아님)"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-  ok_actions          = [aws_sns_topic.alerts.arn]
+  alarm_actions       = [data.aws_sns_topic.alerts.arn]
+  ok_actions          = [data.aws_sns_topic.alerts.arn]
   treat_missing_data  = "notBreaching"
 
   metric_query {
@@ -1075,8 +1090,8 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections" {
   dimensions          = { DBInstanceIdentifier = local.rds_identifier }
   statistic           = "Average"
   alarm_description   = "RDS 연결 포화 — 조용히 장애로 번지기 전에"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-  ok_actions          = [aws_sns_topic.alerts.arn]
+  alarm_actions       = [data.aws_sns_topic.alerts.arn]
+  ok_actions          = [data.aws_sns_topic.alerts.arn]
   treat_missing_data  = "notBreaching"
 }
 
@@ -1093,8 +1108,8 @@ resource "aws_cloudwatch_metric_alarm" "triage_escalate_rate_zero" {
   evaluation_periods  = 3
   threshold           = 0
   alarm_description   = "트리아지 게이트가 findings는 들어오는데 승급을 계속 0건으로 거르는 회귀 감지. ⚠️ orchestrator.py EMF 계측 전까진 INSUFFICIENT_DATA(정상)."
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-  ok_actions          = [aws_sns_topic.alerts.arn]
+  alarm_actions       = [data.aws_sns_topic.alerts.arn]
+  ok_actions          = [data.aws_sns_topic.alerts.arn]
   treat_missing_data  = "notBreaching"
 
   metric_query {
