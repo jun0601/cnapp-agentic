@@ -85,11 +85,30 @@ async function notifyTeams(actor: string, role: string): Promise<void> {
   const text =
     `<b>\u{1F510} 관제 콘솔</b> 로그인 감지<br><br>` +
     `사용자: <b>${actor}</b><br>역할: ${role}<br>시각(KST): ${when}`
-  await fetch(webhook, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
-  })
+  await postWithRetry(webhook, text)
+}
+
+// 2026-07-10: cnapp-alerts(SNS 경유, 재시도 보장)와 달리 이 채널은 SNS 없이 직접 POST해
+// 재시도 안전망이 없었다 — 웹훅이 순간적으로 실패하면 로그인 알림이 조용히 누락됨.
+// 짧은 재시도 3회(1s/2s 대기)로 일시적 네트워크/웹훅 오류를 흡수(호출부는 이미 fail-open이라
+// 여기서 다 실패해도 로그인은 막지 않음 — 알림 신뢰성만 개선).
+async function postWithRetry(webhook: string, text: string): Promise<void> {
+  let lastErr: unknown
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      if (!res.ok) throw new Error(`webhook POST ${res.status}`)
+      return
+    } catch (e) {
+      lastErr = e
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
+    }
+  }
+  throw lastErr
 }
 
 export async function handler(event: CognitoPostAuthEvent): Promise<CognitoPostAuthEvent> {

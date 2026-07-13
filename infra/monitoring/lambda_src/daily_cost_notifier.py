@@ -3,6 +3,8 @@
 import datetime
 import json
 import os
+import time
+import urllib.error
 import urllib.request
 
 import boto3
@@ -22,15 +24,27 @@ def _get_webhook_url() -> str:
 
 
 def _post_to_teams(text: str) -> None:
+    # 2026-07-10: cnapp-alerts(SNS 경유, 재시도 보장)와 달리 이 채널은 SNS 없이 Lambda가 직접
+    # POST해 재시도 안전망이 없었다 — 웹훅이 순간적으로 실패하면 그날 비용 알림이 조용히 누락됨.
+    # 짧은 재시도 3회(1s/2s 대기)로 일시적 네트워크/웹훅 오류를 흡수(영구 장애면 결국 예외 전파).
     body = json.dumps({"text": text}).encode("utf-8")
-    req = urllib.request.Request(
-        _get_webhook_url(),
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        resp.read()
+    last_err = None
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(
+                _get_webhook_url(),
+                data=body,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                resp.read()
+            return
+        except (urllib.error.URLError, TimeoutError) as e:
+            last_err = e
+            if attempt < 2:
+                time.sleep(1 + attempt)
+    raise RuntimeError(f"Teams 웹훅 POST 3회 재시도 후 실패: {last_err}")
 
 
 def handler(event: dict, context) -> dict:
