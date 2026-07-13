@@ -145,6 +145,8 @@
 ### 4. 역할 분담 (협업 구조)
 > 이 프로젝트는 **김진우·이준형 2인 협업**이다. 각 영역을 반으로 나눠 서로의 영역까지 완전히 이해하는 방식으로 진행했다. (README §5 원본 표를 포폴용으로 재구성 — 빈 칸 없이 양쪽 다 채워지도록 앱을 토대로 합치고, 인증·SSO / 조치·거버넌스 행을 추가했다.)
 
+**제목 아래 리드 1줄:** "9개 영역을 반씩 나누되, 서로의 영역까지 이해하며 진행 — 계약(Contract) 기반 병렬 개발" (대안 B: "사일로 없는 2인 분담 · 계약이 두 사람의 작업을 분리해 병렬화")
+
 2열 표(준형 | 진우) — **양쪽을 대칭으로 표시**(어느 한쪽만 강조하지 않음, 9개 영역을 나눠 각자 상대 영역까지 이해하며 진행했다는 걸 보여주는 게 목적):
 
 | 영역 | 준형 | 진우 |
@@ -159,7 +161,8 @@
 | 인증·SSO | Cognito 허브·콘솔 SSO·로그인 감사 | Entra 테넌트·App Registration·SAML IdP |
 | 조치·거버넌스 | 조치(Remediation·SFn·감사)·하드닝(WAF·JWT·TLS) | CloudTrail 감사·키리스 인증(Entra OIDC) |
 
-- 하단 문구: "각 영역을 반으로 나누되, 서로의 영역까지 완전히 이해하는 방식으로 진행했습니다. **이 페이지가 누가 무엇을 했는지 보여주는 유일한 곳**이며, 이후 02 구현은 '우리가 만든 제품'으로 함께 설명합니다."
+- 하단 문구: "9개 영역을 반씩 나눴지만 **사일로 없이** — 각자 자기 파트만 아는 게 아니라 상대 영역까지 이해해 **둘 다 전체 시스템을 설명할 수 있습니다.** 이 페이지가 누가 무엇을 했는지 보여주는 유일한 곳이며, 이후 02 구현은 '우리가 만든 제품'으로 함께 설명합니다."
+  - 포인트(디자인·발표 의도): "일을 나눴다"가 아니라 **"나누되 둘 다 전체를 안다"**가 셀링 — 면접관이 어느 파트를 물어도 답할 수 있다는 신호.
 - ★ 배지·개인 구분은 **이 슬라이드 한 곳에만**(설계 원칙 5). 준형/진우 구분은 표의 **열 색상으로**: 준형 열=옅은 네이비, 진우 열=옅은 시안 (두 열을 대칭 색상으로 구분해 "반반 협업" 인상). 셀마다 ★를 붙이진 않는다(표 전체가 곧 역할 구분). 02 구현 등 본문 슬라이드엔 배지 없음.
 - **폴백(표가 세로로 넘칠 때)**: 9행이 세로로 길어 하단 배지 스트립과 겹치거나 잘리면, 표를 **좌우 2열로 분할**(예: 왼쪽 5행 / 오른쪽 4행)해 세로 길이를 줄이고 하단 배지 공간을 확보한다. 캔바 실배치에서 세로가 넘치는지 보고 판단.
 
@@ -170,12 +173,71 @@
 - 캡션 1줄(핵심 — 배지만으론 "협업"이 안 와닿으니 이 문장이 의미를 부여): "컴포넌트 이음새를 JSON 계약으로 **먼저** 고정 → 2인이 직렬 의존 없이 **병렬 개발**(한 명이 끝나길 기다릴 필요 없음)"
 - 디자인 팁: 표보다 눈에 덜 띄게 — 아이콘+짧은 라벨만 있는 작은 칩 4개를 한 줄에, 표 하단에 옅은 구분선을 긋고 그 아래 배치.
 
+**▶ 캔바에 그대로 넣을 카피:**
+
+[제목] 역할 분담 (협업 구조)
+
+[중제목] 9개 영역을 반씩 나누되, 서로의 영역까지 이해하며 진행 — 계약(Contract) 기반 병렬 개발
+
+[2열 표 — 영역 / 이준형 / 김진우]
+
+| 영역 | 이준형 | 김진우 |
+|---|---|---|
+| 토대 | 앱(타깃+관제)·CI/CD·Shift-Left·공유인프라 | 모니터링·관측(Grafana·X-Ray) |
+| 스캐너 CSPM | Config·Prowler·Security Hub·Macie | 워크로드(Trivy·kube-bench) |
+| 스캐너 CIEM | IAM Access Analyzer(AWS) | Entra ID(Azure) |
+| 수집·정규화 | 수집부(EventBridge→SQS) | 정규화부(Lambda→OCSF-lite) |
+| 엔진(Bedrock) | Evidence(tool use)·Triage | Hypothesis·Reasoning·Orchestrator |
+| RAG | 코퍼스·임베딩·pgvector 적재 | 검색·LLM 답변 생성 |
+| attack-path | 그래프 데이터 모델 | 상관 로직(5규칙 체인)·내러티브 |
+| 인증·SSO | Cognito 허브·콘솔 SSO·로그인 감사 | Entra 테넌트·App Registration·SAML IdP |
+| 조치·거버넌스 | 조치(Remediation·SFn·감사)·하드닝(WAF·JWT·TLS) | CloudTrail 감사·키리스 인증(Entra OIDC) |
+
+[하단 문구] 9개 영역을 반씩 나눴지만 사일로 없이 — 각자 자기 파트만 아는 게 아니라 상대 영역까지 이해해, 둘 다 전체 시스템을 설명할 수 있습니다.
+
+[협업 방식 배지 스트립 — 칩 4개 한 줄] 계약 JSON 7종 · INTERNAL Control 15종 · CI Validate 게이트(4-assert) · mock=False 한 줄 스왑
+
+[배지 캡션] 컴포넌트 이음새를 JSON 계약으로 먼저 고정 → 2인이 직렬 의존 없이 병렬 개발
+
+---
+
 ### 5. 전체 아키텍처
 **상단 리드 문장(제목 아래 1줄):** "AWS는 워크로드(EKS·컨테이너·데이터)의 주인, Azure는 신원(Entra ID)의 주인 — 두 클라우드에 흩어진 보안 신호를 스캐너가 read-only로 모으고, 파이프라인이 정규화하며, AI 엔진이 조사하고, 관제 콘솔이 보여주는 단일 흐름으로 엮었다."
+  - 짧은 대안(제목 아래에 더 간결히 넣고 싶을 때): "흩어진 멀티클라우드 보안 신호를 **스캔 → 정규화 → AI 조사 → 관제**까지 하나의 흐름으로 — AWS는 워크로드, Azure는 신원의 주인."
 
 - 다이어그램을 6개 존으로 읽는 가이드(리드 아래, 작게): ① 스캐너(CNAPP 6기둥) → ② 수집·정규화 파이프라인 → ③ 데이터 계층(RDS pgvector) → ④ 에이전틱 AI(Bedrock+RAG) → ⑤ 관제 콘솔 → ⑥ Azure(Entra 신원). 크로스클라우드 공격선(빨강)이 AWS 워크로드에서 Azure 신원으로 넘어가는 게 이 그림의 핵심.
+- **강조 포인트(다이어그램 위/옆에 작게 2개):** ⓐ 타깃 앱 ↔ 관제 앱은 **직접 통신 안 함**(agentless — 스캐너가 계정을 read-only로 스캔한 결과를 관제가 *읽기만* 함) · ⓑ **빨간 점선 = 크로스클라우드 공격 경로**(AWS 워크로드 침해 → 평문 시크릿의 Azure 자격증명 → Entra 신원 장악). 이 두 개가 "이 그림에서 뭘 봐야 하나"를 짚어줌.
 - 시각자료: **다이어그램 필수** — `portfolio/cnapp-architecture-overview.drawio`를 PNG로 내보내 삽입(한 페이지 꽉 차게, 글씨 안 뭉개지도록 고해상도)
-- 보조 문구(다이어그램 하단): "AWS = 워크로드의 주인 · Azure = 신원(Entra ID)의 주인 · read-only first + HITL"
+- 보조 문구(다이어그램 하단): "AWS = 워크로드의 주인 · Azure = 신원(Entra ID)의 주인 · read-only first + HITL · 키리스(OIDC/IRSA) · 단일 계정·단일 리전(서울)"
+
+**▶ 캔바에 그대로 넣을 카피:**
+
+[제목] 전체 아키텍처
+
+[중제목] AWS는 워크로드(EKS·컨테이너·데이터)의 주인, Azure는 신원(Entra ID)의 주인
+
+[중앙 = 다이어그램] portfolio/cnapp-architecture-overview.drawio PNG(고해상도, 한 페이지 꽉)
+
+[오른쪽 세로 패널 — 소제목 3개 × 불릿]
+
+소제목 ① 처리 흐름 4단계
+· 스캔 — CNAPP 6기둥 계정 read-only 수집
+· 정규화 — 이질 포맷 → OCSF-lite 통일
+· AI 조사 — Bedrock tool-use + RAG 설명
+· 관제 — 단일 콘솔(SSO·RBAC)
+
+소제목 ② 아키텍처 핵심 포인트
+· 빨간 점선 = 크로스클라우드 공격 경로 (AWS 워크로드 침해 → 평문 Azure 자격증명 → Entra 신원 장악)
+· agentless — 타깃 앱과 관제 앱은 직접 통신하지 않음 (스캐너의 read-only 스캔 결과만 관제가 조회)
+
+소제목 ③ 설계 원칙
+· read-only first + HITL
+· 키리스(OIDC/IRSA)
+· 단일 계정·단일 리전(서울)
+
+[다이어그램 하단 보조 문구] AWS = 워크로드의 주인 · Azure = 신원(Entra ID)의 주인 · read-only first + HITL · 키리스(OIDC/IRSA) · 단일 계정·단일 리전(서울)
+
+---
 
 ### 6. 크로스클라우드 공격 경로
 > 제목을 "골든 시나리오"(팀 내부 용어라 외부 리뷰어에게 안 통함)에서 **"크로스클라우드 공격 경로"**로 변경 — 리뷰어가 제목만 봐도 "AWS→Azure 넘어가는 공격 얘기"임이 바로 전달되고, 이 프로젝트의 핵심 차별점(크로스클라우드)을 제목에서부터 강조한다. 또 이 슬라이드에 타깃 앱 설계 얘기까지 들어가므로 "골든 시나리오"보다 이 제목이 내용을 더 잘 담는다.
@@ -196,6 +258,32 @@
 > - 결함: AWSGoat 미사용, TerraGoat·CloudGoat·EKS Goat 취약 패턴을 참고해 IaC에 직접 8종(f1~f8) 심음
 > - 원칙: **앱 코드 버그가 아니라 인프라/설정 결함** — 기능은 최소, 결함 다양성은 최대(CNAPP=클라우드 설정 보안이라는 정체성과 정합)
 - 디자인 팁: 타임라인 아래 옅은 박스로, "공격 시나리오(위)"와 "그 무대를 어떻게 설계했나(아래)"가 한 슬라이드에서 같이 읽히게. 박스 상단에 브릿지 한 줄("이 결함 8종이 위 타임라인처럼 하나의 공격 체인으로 엮인다")로 박스와 타임라인을 연결.
+
+**▶ 캔바에 그대로 넣을 카피:**
+
+[제목] 크로스클라우드 공격 경로
+
+[중제목] AWS 워크로드 침해가 Azure 신원 장악으로 번지는 크로스클라우드 공격 체인
+
+[4단계 타임라인 — 가로, 왼→오]
+① [AWS] 워크로드 침투 — product 취약 이미지(KEV) → 컨테이너 장악, privileged로 측면이동
+② [AWS] 자격증명 발견 — order 과도 IRSA + 평문 Azure SP 자격증명 획득
+③ [AWS] 데이터 탈취 — member 공개 S3에서 PII 탈취(Macie가 미리 탐지한 미끼)
+④ [Azure] 신원 장악 — 탈취 자격증명으로 Entra 과도권한 앱 장악 → 디렉터리 전체 통제
+
+[강조 문구 — ③→④ 화살표 옆] ③→④ 구간 = 크로스클라우드 경계(credential_theft) — 단일 클라우드 도구는 이 경계 횡단을 볼 수 없다
+
+[타깃 앱 설계 의도 박스 — 하단]
+타깃 앱 — 의도적으로 설계한 취약 환경
+· 기능: AWS retail-store-sample-app 포크(catalog·orders) + 커스텀 member 서비스
+· 결함: TerraGoat·CloudGoat·EKS Goat 취약 패턴을 참고해 IaC에 직접 8종(f1~f8) 심음
+· 원칙: 앱 코드 버그가 아니라 인프라/설정 결함 — 기능은 최소, 결함 다양성은 최대
+
+[박스 상단 브릿지 1줄] 이 결함 8종이 위 타임라인처럼 하나의 공격 체인으로 엮인다
+
+[정직성 캡션 — 작게] 실제 자동 익스플로잇이 아니라, 이런 독성 조합을 탐지·상관분석·시각화한 것(MVP)
+
+---
 
 ### 7. 관제 앱 소개 — 전체 화면 + 기능별 상세 포인터
 > (재설계) 관제 콘솔은 "우리가 만든 모든 기능이 모이는 얼굴"이라 온전한 슬라이드 값어치가 있다. 골든 시나리오(6번) 다음에 배치해, 앞서 본 공격 스토리가 "실제 제품에 이렇게 구현됐다"는 증거물로 읽히게 한다.
@@ -237,6 +325,37 @@
 - 강조 문구: "앞에서 본 공격 스토리(6번)가 실제 제품에 살아있다 — 각 카드 = 뒤 기술 슬라이드의 미리보기 + 완성도 증거"
 - 시각자료: **스크린샷 필수** — 콘솔 대시보드 화면 1장(`assets/shot-console-dashboard.png` 등 화질 좋은 것)
 - 디자인 팁: 카드 4개를 2×2 그리드로 배치(스크린샷이 왼쪽이면 오른쪽에 2×2). 카드 2(AI)는 이 제품의 핵심 차별점이라 테두리·아이콘을 살짝 강조. 카드 4는 톤을 약간 낮춰(보조 완성도) 카드 1~3과 위계를 준다.
+
+**▶ 캔바에 그대로 넣을 카피:**
+
+[제목] 관제 앱 소개 — 전체 화면 + 기능별 상세 포인터
+
+[중제목] 취약 앱을 감시하는 관제 콘솔은 이 프로젝트의 모든 기능이 하나로 모이는 화면이다 — 스캔·정규화·AI 조사·설명이 전부 이 안에서 사용자에게 보인다.
+
+[구현 개요 캡션] React SPA(Vite+TS, S3+CloudFront 정적 호스팅) ↔ ALB → TypeScript Lambda → RDS pgvector(실 데이터) · Cognito SSO(Entra SAML 페더레이션, viewer/approver RBAC) · 커스텀 도메인 운영 · 9개 화면
+
+[왼쪽 = 대시보드 스크린샷 1장] assets/shot-console-dashboard.png
+
+[카드 1 — 📊 위험을 한눈에 · 탐지·현황]
+· 대시보드: Secure Score·심각도별 KPI·크로스클라우드 attack-path 배너를 한 화면에 요약 → 19p
+· Findings 목록: 스캐너가 올린 finding을 필터·정렬하고 AI 조사 상태를 컬럼으로 표시 → 12p
+
+[카드 2 — 🤖 AI가 일하는 화면 · 조사·설명 (차별점)]
+· Evidence(능동조사) 탭: AI가 실제로 호출한 read-only API와 판정 근거를 타임라인으로 표시 → 10p
+· AI 어시스턴트(/chat): pgvector 근거 검색 기반 보안 Q&A 챗봇 → 11p
+
+[카드 3 — 🕸 공격 경로·운영 · 시각화·관측]
+· Attack-path 그래프: 여러 공격 경로를 위험도순으로, AWS/Azure 레인으로 시각화(크로스클라우드 엣지 빨강) → 6p
+· System 뷰: Bedrock 24h 사용량·데이터 파이프라인 건강 등 운영 지표 → 17p
+
+[카드 4 — 📋 그 외 실무 화면 (톤 낮춰)]
+· 컴플라이언스: ISMS-P 프레임워크 ↔ control 매핑, 통제별 충족률·PDF 리포트
+· 조치(Remediation): approver가 승인하면 Step Functions로 실제 조치 실행(HITL) → 13p
+· 감사(Audit): 스캔·판정·조치 이벤트를 시간순 불변 로그로(S3 Object Lock) → 13p
+
+[완성도 문구] 총 9개 화면 — 상단 6개는 뒤 슬라이드로 연결되는 쇼케이스, 하단 3개(컴플라이언스·조치·감사)는 실무 완성도. 대시보드부터 컴플라이언스·감사까지 갖춘 완성형 관제 앱.
+
+---
 
 ### 8. 수집·정규화 파이프라인 — 파편화된 신호를 하나로
 > (신설) 기획 배경의 **문제 1(보안 신호 파편화 → OCSF-lite 정규화)을 실제로 증명하는** 슬라이드. 실 탐지 현황(12번)이 "무슨 스캐너가 뭘 찾았나"라면, 이 슬라이드는 "그 다른 포맷들을 어떻게 하나로 합쳤나"를 보여준다.
@@ -281,6 +400,31 @@
 - 강조 배지: "✔ 챗봇 탈출의 단일 기준 — 규칙이 정한 API가 아니라 LLM이 스스로 선택·호출"
 - 🎨 **시각자료(박스 다이어그램 — 캔바 직접 제작)**: 5단계 루프(Orchestrator→Triage→Hypothesis→Evidence→Reasoning)를 가로 흐름으로, **Evidence 단계에서 AWS read-only API로 나갔다 돌아오는 왕복 화살표(①스스로 호출 ②증거→판정)**를 강조. ⚠️ 이 단계들은 AWS 서비스가 아니라 **우리 로직 단계라 서비스 아이콘이 없다** → draw.io가 아니라 **박스+화살표로 직접**(캔바에서 만들거나 전체 drawio의 "에이전틱 AI 조사 루프" 블록을 크롭). Bedrock·AWS API 부분만 아이콘 사용. 이 왕복 화살표가 "챗봇 탈출"의 시각적 증거라 반드시 그림으로.
 
+**▶ 캔바에 그대로 넣을 카피:**
+
+[제목] 에이전틱 엔진 — 5단계 능동 조사 루프
+
+[중제목] 기존 'AI 보안'은 이미 수집된 데이터를 요약하는 챗봇에 머문다. 이 엔진은 Bedrock이 스스로 read-only API를 골라 호출해 실제 클라우드 상태를 조사하고, 그 응답을 근거로 위험을 판정한다.
+
+[5단계 루프 — 가로 흐름]
+① Orchestrator — 전체 루프 지휘. Triage→Hypothesis→Evidence→Reasoning을 순서대로 호출하고 케이스(계약⑦)를 조립해 RDS에 저장
+② Triage (비용 통제 게이트) — Bedrock 부르기 전 규칙으로 선별. 게이트 = severity_id ≤ 2 OR attack_path_id ≠ null. 승급된 소수만 통과 (실측: 20건 → 12건)
+③ Hypothesis (가설 생성) — 승급 finding·attack-path로 검증 가능한 공격 가설 생성. Converse toolChoice로 구조화 출력 강제
+④ Evidence (tool-use 루프, 핵심 단계) — LLM이 검증할 read-only API를 스스로 골라 호출. 응답을 toolResult로 되먹임(최대 6회), 충분하면 스스로 종료
+⑤ Reasoning (판정·내러티브) — confirmed/inconclusive/refuted 판정 + 한국어 내러티브(risk_level·권고는 결정론 로직)
+
+[allowlist 2중 강제 박스]
+① 스키마 레벨: toolConfig의 api enum = 계약④ allowlist(AWS 9종 + Azure MS Graph read 3종) → LLM이 애초에 그 밖의 API를 못 고름
+② 실행 직전: executor._check()가 호출 직전 한 번 더 검증 → 변경/쓰기/삭제 API는 어느 경로로도 호출 불가
+
+[조사용 AWS read-only API 9종] s3:GetBucketPolicy · GetBucketAcl · GetPublicAccessBlock · iam:GetRolePolicy · ListAttachedRolePolicies · SimulatePrincipalPolicy · macie2:GetFindings · ec2:DescribeSecurityGroups · accessanalyzer:ListFindings
+
+[모델 캡션] Bedrock Claude Haiku 4.5 (서울 global inference profile · 고빈도 tool 라우팅이라 저가 티어)
+
+[강조 배지] ✔ 챗봇 탈출의 단일 기준 — 규칙이 정한 API가 아니라 LLM이 스스로 선택·호출
+
+---
+
 ### 10. 실증: Bedrock 능동조사 증거 (목업이 아니라 실제로 돌았다)
 > 9번이 "설계상 이렇게 동작한다"라면, 10번은 "실제 AWS·실제 Bedrock으로 돌려서 증명했다"는 실측 슬라이드. Phase1 vertical slice(`infra/slice` apply → `python -m engine.run_real` → `terraform destroy`)로 검증.
 
@@ -293,6 +437,30 @@
 - 방어 심층화: 실 API 오류(NoSuchBucket 등)는 크래시 대신 error `toolResult`로 강등해 LLM이 다른 도구로 조정하게 함(2026-07-04 라이브 실측 반영).
 - 강조 문구: "규칙 플래너가 정해준 게 아니라, LLM이 finding을 읽고 조사 도구를 스스로 선택·호출했다 = tool use 실증"
 - 시각자료: **스크린샷 필수** — Finding 상세의 능동조사(Evidence) 탭(tool 호출 타임라인 stepper)
+
+**▶ 캔바에 그대로 넣을 카피:**
+
+[제목] 실증 — Bedrock 능동조사 증거 (목업이 아니라 실제로 돌았다)
+
+[중제목] 설계 설명이 아니라 실제 AWS·실제 Bedrock으로 관통 검증한 결과 (Phase1 vertical slice)
+
+[왼쪽 빅넘버 3개]
+100% — 판정 신뢰도(CONFIRMED)
+수 센트 — 1회 검증 비용(Haiku 토큰 + read-only API 몇 회)
+E2E — 배포→조사→판정→정리 전 구간 관통
+
+[실제로 일어난 일 — 단계별]
+1. LLM이 공개 S3 finding을 받고 스스로 s3:GetBucketPolicy·s3:GetPublicAccessBlock 호출을 결정(canned 응답이 아님)
+2. 실 API 응답: 버킷 정책에 Principal:"*" 공개 statement 존재 + BlockPublicAcls=false 등 PAB 미설정 확인
+3. 그 증거를 근거로 CONFIRMED(신뢰도 100%) 판정 → 케이스에 tool 호출 타임라인·판정·model_trace(토큰) 기록
+
+[방어 심층화 캡션] 실 API 오류(NoSuchBucket 등)는 크래시 대신 error toolResult로 강등해 LLM이 다른 도구로 조정하게 함(2026-07-04 라이브 실측)
+
+[강조 문구] 규칙 플래너가 정해준 게 아니라, LLM이 finding을 읽고 조사 도구를 스스로 선택·호출했다 = tool use 실증
+
+[시각자료] Finding 상세의 능동조사(Evidence) 탭 스크린샷 — tool 호출 타임라인 stepper
+
+---
 
 ### 11. RAG — 지식베이스 기반 설명·챗봇
 > Evidence(10번)가 "능동 조사(판정)"라면 RAG는 "근거 기반 설명·질의응답"으로, 둘 다 Bedrock을 쓰지만 서로 다른 별개 파이프라인임을 명확히 한다.
@@ -337,6 +505,26 @@
 - **SSO 페더레이션** — Entra SAML IdP → Cognito(OIDC/PKCE) → 그룹 GUID 클레임으로 viewer/approver RBAC. console-backend는 `aws-jwt-verify`로 JWKS 서명·issuer·audience·exp 검증(fail-closed).
 - 이 슬라이드는 "우리는"·"이 프로젝트는" 톤(제품 전체 성과).
 
+**▶ 캔바에 그대로 넣을 카피:**
+
+[제목] 보안 거버넌스 & 플랫폼 자기방어
+
+[중제목] 남의 클라우드 취약점을 찾아주는 도구가 정작 자기 자신은 허술하면 안 된다 — 이 플랫폼도 스스로 보안 원칙을 지켰다.
+
+[카드 1 — Read-only First] 에이전트는 기본적으로 조회만. Evidence의 allowlist가 스키마·실행 2중으로 강제해 변경/쓰기 API는 원천 차단.
+
+[카드 2 — HITL 승인 경로 (실증 완료)] 실제 변경(조치)은 사람 승인 후에만. approver가 콘솔에서 승인 → remediation_requests INSERT → Step Functions StartExecution → finding remediated → Secure Score 상승. terraform drift 0(재apply 시 안 꼬이는 조치만 데모 — S3 SSE·ECR scan).
+
+[카드 3 — 불변 감사로그 (S3 Object Lock)] 모든 조치를 Object Lock(GOVERNANCE 모드) 버킷에 기록 → 나중에 삭제·변조 불가.
+
+[카드 4 — 키리스 인증] 장기 키/비밀번호 미사용. CI는 GitHub OIDC→IAM Role, 파드는 IRSA로 임시 자격증명만. Azure도 prowler-sp Federated Credential로 키리스.
+
+[카드 5 — CloudFront WAF (플랫폼 자체 보호)] WAFv2 WebACL(AWS 관리규칙 CommonRuleSet·KnownBadInputs + IP당 5분 2000 Rate limit). 실검증: XSS 페이로드가 CrossSiteScripting_QUERYARGUMENTS로 실제 차단(CloudWatch 지표 확인).
+
+[카드 6 — SSO 페더레이션] Entra SAML IdP → Cognito(OIDC/PKCE) → 그룹 GUID 클레임으로 viewer/approver RBAC. console-backend는 aws-jwt-verify로 JWKS 서명·issuer·audience·exp 검증(fail-closed).
+
+---
+
 ### 14. 인프라 설계
 > 5번 전체 아키텍처가 "무엇이 있는가"라면, 이 슬라이드는 "AWS 인프라를 어떻게 설계했는가"를 파고든다.
 
@@ -350,6 +538,24 @@
 4. **키리스(D4)** — CI는 **GitHub OIDC → IAM Role**, 파드는 **IRSA**(역할별 `:aud`·`:sub` 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
 - 강조 문구: "레이어드 IaC로 apply→destroy를 안전하게 반복 — 필요할 때만 리소스, 잊지 않고 되돌리기"
 - 🎨 **시각자료(둘 중 택1)**: ⓐ **VPC 서브넷 배치도**(public/private·NAT Instance·EKS·RDS) — 전부 AWS 서비스라 **draw.io AWS 아이콘 적합**, 또는 ⓑ **레이어 의존 다이어그램**(`shared → karpenter → target·backend·console` 화살표) — 이건 terraform 레이어라 서비스 아이콘이 없으니 **박스+화살표**. 스크린샷 없이 도식만으로 성립하는 슬라이드라 다이어그램이 주인공.
+
+**▶ 캔바에 그대로 넣을 카피:**
+
+[제목] 인프라 설계
+
+[중제목] 종량제 리소스를 상시 방치하지 않으려면 apply→destroy를 안전하게 반복할 수 있어야 한다 — 그래서 인프라를 레이어드 Terraform으로 짜고, 순서를 코드로 강제했다.
+
+[축 1 — 레이어드 Terraform] shared → karpenter → target·backend·console(monitoring 별도) 5레이어. 하위가 상위를 terraform_remote_state로 참조. deploy.ps1이 apply는 정방향, destroy는 역방향으로 순회하며 실패 시 즉시 중단(상태 보호). + Karpenter destroy 후 고아 스팟노드 자동 종료 스윕.
+
+[축 2 — VPC 설계] 10.20.0.0/16, 2 AZ(ap-northeast-2a/2c), public/private 서브넷 분리. NAT Gateway 대신 NAT Instance(t4g.micro, fck-nat AMI, IMDSv2 강제) + S3/DynamoDB Gateway Endpoint(NAT 우회 데이터 전송 절감).
+
+[축 3 — 컴퓨트·데이터] EKS 1.34(관리형 노드그룹 spot t3.small, scale 0~2) + Karpenter(spot 우선·on-demand 폴백) + HPA. RDS PostgreSQL 16 t3.micro + pgvector(private subnet, Secrets Manager). Lambda는 VPC 내부 배치.
+
+[축 4 — 키리스 (D4)] CI는 GitHub OIDC → IAM Role, 파드는 IRSA(역할별 aud·sub 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
+
+[강조 문구] 레이어드 IaC로 apply→destroy를 안전하게 반복 — 필요할 때만 리소스, 잊지 않고 되돌리기
+
+---
 
 ### 15. FinOps — 비용을 설계 원칙으로 (전략 + 실측 합본)
 > **v8에서 옛 15번(FinOps 전략)과 옛 20번(비용 실측)을 한 슬라이드로 합쳤다.** 이유: ① 두 슬라이드가 같은 NAT 얘기를 두 번 하는 중복이 있었고(중복 피하려 전략에서 숫자를 억지로 빼야 했음 = 원래 한 몸이라는 신호), ② PDF 포폴은 스킴하므로 "이 선택(전략) → 그래서 이만큼 아낌(실측)"이 **한 페이지에 나란히** 있어야 즉시 설득된다(따로 두면 5장 넘어가서 다시 연결해야 함). 14번 인프라 설계의 "그 인프라를 어떻게 싸게 굴렸나" 짝 슬라이드.
@@ -367,6 +573,27 @@
 - 하단 대표 숫자(강조): **NAT 월 ~$32 → ~$3 (약 90%↓)** — 측정 가능한 실제 절감(NAT Gateway 대신 NAT Instance 선택의 효과).
 - 핵심 원칙: "비용을 나중에 줄이는 게 아니라 **설계 단계에서 통제**한다 — 종량제·구독형 보안 서비스(Config·Security Hub·Inspector·Macie 등)는 상시 켜지 않고 **검증 세션에서만 켜고 destroy**해 상시 비용을 시간 비용으로 전환."
 
+**▶ 캔바에 그대로 넣을 카피:**
+
+[제목] FinOps — 비용을 설계 원칙으로
+
+[중제목] 비용은 나중에 줄이는 게 아니라 설계 단계에서 통제한다.
+
+[표 — 전략 / 왜 골랐나(트레이드오프) / 효과]
+
+| 전략 | 왜 골랐나(트레이드오프) | 효과 |
+|---|---|---|
+| 경량 대체(NAT Instance·RDS t3.micro+pgvector) | 관리형 편의보다 비용 — 데모 규모엔 경량이 합리적 | NAT 월 ~$32 → ~$3 (약 90%↓) |
+| Mock-first 개발 | 인프라 없이 2인 병렬 개발 | 빌드 기간 클라우드 인프라 미가동 |
+| Apply → Test → Destroy | 상시 가용성 포기, 월 과금 → 시간 과금 | 종량제·구독형 서비스 상시 방치 안 함 |
+| 모델 티어링 + Triage 게이트 | Haiku(저가)/Sonnet(고품질) 분리 + 승급된 것만 조사 | 토큰 비용을 소수 케이스로 한정 |
+
+[하단 대표 숫자 — 강조] NAT 월 ~$32 → ~$3 (약 90%↓)
+
+[핵심 원칙] 종량제·구독형 보안 서비스(Config·Security Hub·Inspector·Macie 등)는 상시 켜지 않고 검증 세션에서만 켜고 destroy — 상시 비용을 시간 비용으로 전환.
+
+---
+
 ### 16. CI/CD
 > 16·17번은 각각 5블록씩 내용이 충실하고 성격도 다르므로(16=코드→배포 자동화 / 17=운영 중 관측) **분리 유지**한다(합치면 10블록이 한 장에 몰려 빽빽).
 
@@ -377,6 +604,26 @@
 - **이미지 빌드** — `build-images.yml`(OIDC 키리스)로 **ECR ×4**(product·order·member·console-backend) build→push.
 - **오토스케일** — Karpenter(spot·consolidation) + HPA. cron 스캔 자동화(`prowler-scan.yml`·`access-analyzer-scan.yml`).
 - 강조 문구: "커밋 하나가 회귀 10종 통과해야 병합 — CI→ECR→ArgoCD→EKS 완전 관통 증명"
+
+**▶ 캔바에 그대로 넣을 카피:**
+
+[제목] CI/CD
+
+[중제목] 커밋 하나가 회귀 게이트를 통과해야만 병합되고, 병합된 이미지는 ArgoCD가 자동으로 클러스터에 동기화한다 — 코드 품질과 배포를 파이프라인이 강제한다.
+
+[블록 1 — CI (GitHub Actions ci.yml)] 매 push·PR에 하드 게이트: 회귀 10종(영역별 run_demo 9개 + run_e2e) + contracts/validate.py(계약 4-assert)가 전부 exit 0이어야 통과. + Shift-Left(report): Trivy(config·이미지)·Checkov(IaC).
+
+[블록 2 — CD (ArgoCD GitOps)] Application shop-target이 Git을 pull-sync(self-heal·prune·CreateNamespace). Git = 단일 진실, 클러스터가 거기로 수렴.
+
+[블록 3 — 이미지 빌드] build-images.yml(OIDC 키리스)로 ECR ×4(product·order·member·console-backend) build→push.
+
+[블록 4 — 오토스케일] Karpenter(spot·consolidation) + HPA.
+
+[블록 5 — cron 자동화] prowler-scan.yml · access-analyzer-scan.yml(정기 스캔 자동 합류).
+
+[강조 문구] 커밋 하나가 회귀 10종 통과해야 병합 — CI→ECR→ArgoCD→EKS 완전 관통 증명
+
+---
 
 ### 17. 운영 관측
 **리드 문장:** "AI 에이전트가 실제로 호출한 API 하나까지 X-Ray 트레이스로 따라갈 수 있고, 4개 데이터소스를 Grafana 한 곳에서 본다."
@@ -394,6 +641,20 @@
 1. **Prowler 실계정 연동 시 포맷 불일치 발견 (2026-07-03)** — CLI는 OCSF 형식으로 스캔을 실행하면서, 코드는 다른 포맷("prowler-json")으로 태깅해 정규화 파이프라인에 전달하는 불일치를 발견. mock 기반 회귀 테스트는 포맷을 직접 지정해 우회했던 탓에 안 드러났던 문제 — 실계정 연동 직전 전체 코드 재검증 과정에서 스캐너와 정규화 로직을 나란히 대조해 찾아내고 수정.
 2. **Grafana 대시보드 "No data" — 3중 원인 규명 (2026-07-06)** — CloudWatch 패널이 계속 데이터를 못 불러오는 증상을, Grafana API로 쿼리를 직접 재현 실행해가며 3개 층위의 원인을 순서대로 특정: ① 쿼리 모드 판별 필드 누락으로 프론트가 자동실행을 안 함 ② 비용 계산(metric math) 쿼리는 반드시 Code 모드여야 함(Builder 모드는 400 에러) ③ Cognito 로그인 지표명이 문서상 이름과 실제 발행 이름이 달라 발생 — `list-metrics`로 실측 확인 후 3건 모두 수정.
 3. **X-Ray 분산추적의 자기 회귀 발견·수정 (2026-07-07)** — 전날 직접 구현한 X-Ray 계측 코드가 Lambda의 읽기전용 세그먼트를 직접 변경하려다 예외(`FacadeSegmentMutationException`)를 던져, **정규화 이후 2-pass 파이프라인 트리거가 매번 조용히 실패**하고 있던 것을 실 CloudWatch 로그로 직접 찾아내 수정. 같은 검증 과정에서 "EventBridge는 트레이스가 자동 전파 안 된다"던 전날 자신의 설계 가정이 실측과 반대임을 확인하고 문서까지 정정.
+
+**▶ 캔바에 그대로 넣을 카피 (준형 개인판 — 교체 가능):**
+
+[제목] 트러블슈팅 — 내가 직접 부딪힌 문제 3건
+
+[중제목] 실제 라이브 운영에서 직접 부딪혀 해결한 문제만
+
+[사례 1 — 실데이터에서만 터진 콘솔 크래시 2건 (2026-07-07)] 목업(계약 JSON)엔 안 나던 버그가 실 RDS 모드에서만 드러났다. Finding 상세가 통째로 크래시(백엔드 실쿼리가 sources 컬럼을 빠뜨려 프론트에서 undefined.join()) + Evidence 탭이 반쪽(case의 triage·hypotheses·model_trace 컬럼 누락). 원인은 mock(전 필드) vs real(선택 컬럼) 2경로 — 프론트가 쓰는 필드와 실쿼리 SELECT를 전수 대조해 봉합. 교훈: "목업 통과 ≠ 실데이터 통과", 두 경로를 항상 필드 단위로 맞춰야 한다.
+
+[사례 2 — Karpenter 고아노드로 destroy가 막힘 → 코드로 재발 방지 (2026-07-03)] apply→destroy 사이클에서 destroy가 반복 실패. 원인은 Karpenter가 노드를 회수하기 전에 컨트롤러가 먼저 지워져 고아 스팟노드가 남고, 그 파드 ENI가 노드 SG를 붙잡아 shared destroy를 막던 것. aws CLI로 실제 리소스 상태를 직접 확인해 규명 → deploy.ps1에 "karpenter destroy 직후 karpenter.sh/nodepool 태그 인스턴스 자동 종료 스윕"을 넣어 재발 자체를 코드로 차단.
+
+[사례 3 — 실 Bedrock tool-use가 실계정에서만 크래시 (2026-07-04)] 엔진 능동조사를 실 AWS·실 Bedrock으로 처음 관통시키자, LLM이 조사하려던 S3 버킷이 없을 때(NoSuchBucket) 조사 전체가 예외로 죽었다(목업 executor에선 안 나던 것). tools.py의 S3 핸들러가 예외를 안 잡아 조사 루프가 통째로 중단. 예외를 error toolResult로 강등하도록 방어(+ 플래너에 광역 except) → LLM이 실패를 인지하고 다른 도구로 조정. "실 tool-use는 라이브에서만 드러나는 버그가 있다"를 실증.
+
+---
 
 ### 19. 성과 — 핵심 임팩트
 > 표지에서 성과 숫자를 미리 노출했으므로(설계 원칙 3), 이 슬라이드는 그 숫자들을 **한자리에 모아 근거와 함께 상세히** 보여주는 역할이다(표지=티저, 여기=상세).
