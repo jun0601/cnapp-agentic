@@ -86,6 +86,28 @@ async function notifyTeams(actor: string, role: string): Promise<void> {
     `<b>\u{1F510} 관제 콘솔</b> 로그인 감지<br><br>` +
     `사용자: <b>${actor}</b><br>역할: ${role}<br>시각(KST): ${when}`
   await postWithRetry(webhook, text)
+  await publishEmailBackup(actor, role, when)
+}
+
+// 2026-07-13: Teams 웹훅이 완전히 죽어도 살아있는 백업 채널(이메일) — infra/monitoring의
+// login_notifier(AWS/Azure 로그인)와 같은 토픽에 발행해 cnapp-login 채널 전체를 이중화.
+async function publishEmailBackup(actor: string, role: string, when: string): Promise<void> {
+  const topicArn = process.env.LOGIN_ALERT_TOPIC_ARN
+  if (!topicArn) return
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns')
+    const sns = new SNSClient({})
+    await sns.send(
+      new PublishCommand({
+        TopicArn: topicArn,
+        Subject: '로그인 알림',
+        Message: `관제 콘솔 로그인 감지\n\n사용자: ${actor}\n역할: ${role}\n시각(KST): ${when}`,
+      }),
+    )
+  } catch (e) {
+    console.error('login-trigger: sns email backup failed (login proceeds regardless):', e)
+  }
 }
 
 // 2026-07-10: cnapp-alerts(SNS 경유, 재시도 보장)와 달리 이 채널은 SNS 없이 직접 POST해

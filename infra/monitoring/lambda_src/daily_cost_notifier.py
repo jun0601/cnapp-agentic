@@ -12,7 +12,25 @@ import boto3
 # Cost Explorer API 엔드포인트는 계정 리전과 무관하게 us-east-1 고정(AWS 제약) — Lambda 자체는 서울에서 실행.
 _ce = boto3.client("ce", region_name="us-east-1")
 _secrets = boto3.client("secretsmanager")
+_sns = boto3.client("sns")
 _webhook_url_cache = None
+
+
+def _strip_html(text: str) -> str:
+    # SNS 이메일은 평문(HTML 태그를 그대로 보여줌) — Teams용 <b>/<br> 서식을 이메일 가독성 있게 변환.
+    return text.replace("<br><br>", "\n\n").replace("<br>", "\n").replace("<b>", "").replace("</b>", "")
+
+
+def _publish_to_sns(text: str) -> None:
+    # 2026-07-13: cnapp-cost는 원래 SNS를 안 거치고 Teams로만 직접 POST했는데, Teams 웹훅이
+    # 완전히 죽어도 살아있는 백업 채널(이메일)을 두기 위해 추가 — Teams 발송과 독립된 별도 경로.
+    topic_arn = os.environ.get("COST_ALERT_TOPIC_ARN")
+    if not topic_arn:
+        return
+    try:
+        _sns.publish(TopicArn=topic_arn, Subject="AWS 비용 알림", Message=_strip_html(text))
+    except Exception:  # noqa: BLE001 — 이메일 백업 발송 실패가 본 알림(Teams)을 막으면 안 됨
+        pass
 
 
 def _get_webhook_url() -> str:
@@ -87,4 +105,5 @@ def handler(event: dict, context) -> dict:
         f"- 순액(실청구): <b>{net:.4f} {currency}</b>"
     )
     _post_to_teams(text)
+    _publish_to_sns(text)
     return {"ok": True, "date": yesterday.isoformat(), "usage": usage, "credit": credit, "net": net}

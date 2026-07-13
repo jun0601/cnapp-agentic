@@ -609,6 +609,16 @@ data "aws_iam_policy_document" "login_trigger" {
     actions   = ["secretsmanager:GetSecretValue"]
     resources = ["arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project}/teams/webhook-login-*"]
   }
+  statement {
+    # 2026-07-13: cnapp-login 채널의 두 번째 발행자(AWS/Azure 로그인=infra/monitoring의
+    # login_notifier, 콘솔 SSO 로그인=이 Lambda) — 이메일 백업도 둘 다 같은 토픽에 발행해야
+    # 완전한 커버리지. 토픽은 infra/monitoring이 CLI로 영구 생성(data 소스, main.tf 참고)한
+    # 것을 ARN 패턴으로 직접 참조(레이어 간 remote_state 불필요 — SNS 토픽 ARN은
+    # 계정+리전+이름으로 완전히 결정적).
+    sid       = "PublishLoginEmailBackup"
+    actions   = ["sns:Publish"]
+    resources = ["arn:aws:sns:${var.region}:${local.account_id}:${var.project}-monitoring-login-alerts"]
+  }
 }
 resource "aws_iam_role_policy" "login_trigger" {
   name   = "login-trigger"
@@ -639,6 +649,7 @@ resource "aws_lambda_function" "login_trigger" {
       DB_HOST                 = local.rds_endpoint
       DB_SECRET_ARN           = local.rds_secret_arn
       TEAMS_WEBHOOK_SECRET_ID = "${var.project}/teams/webhook-login"
+      LOGIN_ALERT_TOPIC_ARN   = "arn:aws:sns:${var.region}:${local.account_id}:${var.project}-monitoring-login-alerts"
     }
   }
   depends_on = [aws_cloudwatch_log_group.login_trigger, aws_iam_role_policy_attachment.login_trigger_vpc]

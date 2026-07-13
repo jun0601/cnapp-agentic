@@ -14,7 +14,24 @@ import boto3
 _KST = datetime.timezone(datetime.timedelta(hours=9))
 
 _secrets = boto3.client("secretsmanager")
+_sns = boto3.client("sns")
 _webhook_url_cache = None
+
+
+def _strip_html(text: str) -> str:
+    # SNS 이메일은 평문(HTML 태그를 그대로 보여줌) — Teams용 <b>/<br> 서식을 이메일 가독성 있게 변환.
+    return text.replace("<br><br>", "\n\n").replace("<br>", "\n").replace("<b>", "").replace("</b>", "")
+
+
+def _publish_to_sns(text: str) -> None:
+    # 2026-07-13: Teams 웹훅이 완전히 죽어도 살아있는 백업 채널(이메일)로 로그인 알림을 이중화.
+    topic_arn = os.environ.get("LOGIN_ALERT_TOPIC_ARN")
+    if not topic_arn:
+        return
+    try:
+        _sns.publish(TopicArn=topic_arn, Subject="로그인 알림", Message=_strip_html(text))
+    except Exception:  # noqa: BLE001 — 이메일 백업 발송 실패가 본 알림(Teams)을 막으면 안 됨
+        pass
 
 
 def _get_webhook_url() -> str:
@@ -78,6 +95,7 @@ def handler(event: dict, context) -> dict:
             f"사용자: <b>{user}</b><br>결과: {emoji} {result}<br>IP: {ip}<br>시각(KST): {when}"
         )
         _post_to_teams(text)
+        _publish_to_sns(text)
         sent += 1
 
     return {"ok": True, "sent": sent}

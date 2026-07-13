@@ -721,6 +721,21 @@ data "aws_sns_topic" "alerts" {
   name = "${var.project}-monitoring-alerts"
 }
 
+# 2026-07-13: cnapp-cost·cnapp-login도 같은 이유로 이메일 백업 경로를 추가 — 단, cnapp-alerts와
+# 같은 토픽을 재사용하면 안 됨(그 토픽은 teams_notifier Lambda가 구독 중이라, 발행하면 비용/로그인
+# 내용이 cnapp-alerts Teams 채널로도 잘못 새어나감 — README §5 "채널 분리 원칙" 위반). 채널별로
+# 완전히 독립된 토픽 2개를 같은 패턴(영구·data 소스)으로 둔다. 생성/구독은 CLI로 1회:
+#   aws sns create-topic --name cnapp-agentic-monitoring-cost-alerts --region ap-northeast-2
+#   aws sns create-topic --name cnapp-agentic-monitoring-login-alerts --region ap-northeast-2
+#   aws sns subscribe --topic-arn <ARN> --protocol email --notification-endpoint <이메일>
+data "aws_sns_topic" "cost_alerts" {
+  name = "${var.project}-monitoring-cost-alerts"
+}
+
+data "aws_sns_topic" "login_alerts" {
+  name = "${var.project}-monitoring-login-alerts"
+}
+
 resource "aws_cloudwatch_log_group" "teams_notifier" {
   name              = "/aws/lambda/${var.project}-monitoring-teams-notifier"
   retention_in_days = var.log_retention_days
@@ -821,6 +836,11 @@ data "aws_iam_policy_document" "daily_cost_notifier" {
     actions   = ["secretsmanager:GetSecretValue"]
     resources = [aws_secretsmanager_secret.teams_webhook_cost.arn]
   }
+  statement {
+    sid       = "PublishEmailBackup"
+    actions   = ["sns:Publish"]
+    resources = [data.aws_sns_topic.cost_alerts.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "daily_cost_notifier" {
@@ -846,7 +866,8 @@ resource "aws_lambda_function" "daily_cost_notifier" {
   memory_size      = 128
   environment {
     variables = {
-      WEBHOOK_SECRET_ARN = aws_secretsmanager_secret.teams_webhook_cost.arn
+      WEBHOOK_SECRET_ARN   = aws_secretsmanager_secret.teams_webhook_cost.arn
+      COST_ALERT_TOPIC_ARN = data.aws_sns_topic.cost_alerts.arn
     }
   }
   depends_on = [aws_cloudwatch_log_group.daily_cost_notifier]
@@ -898,6 +919,11 @@ data "aws_iam_policy_document" "login_notifier" {
     actions   = ["secretsmanager:GetSecretValue"]
     resources = [aws_secretsmanager_secret.teams_webhook_login.arn]
   }
+  statement {
+    sid       = "PublishEmailBackup"
+    actions   = ["sns:Publish"]
+    resources = [data.aws_sns_topic.login_alerts.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "login_notifier" {
@@ -923,7 +949,8 @@ resource "aws_lambda_function" "login_notifier" {
   memory_size      = 128
   environment {
     variables = {
-      WEBHOOK_SECRET_ARN = aws_secretsmanager_secret.teams_webhook_login.arn
+      WEBHOOK_SECRET_ARN    = aws_secretsmanager_secret.teams_webhook_login.arn
+      LOGIN_ALERT_TOPIC_ARN = data.aws_sns_topic.login_alerts.arn
     }
   }
   depends_on = [aws_cloudwatch_log_group.login_notifier]
