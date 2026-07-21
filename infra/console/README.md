@@ -7,7 +7,7 @@
 ```
 [프론트]  apps/console 빌드 → S3(비공개) + CloudFront(OAC)
 [인증]    Cognito User Pool ← Entra(SAML IdP) · custom:groups → viewer/approver(§7)
-[API]     ALB(authenticate-cognito, HTTPS) → Lambda(apps/console-backend)
+[API]     ALB(HTTPS, forward only — 인증 액션 없음) → Lambda(apps/console-backend, Bearer ID 토큰 검증)
 [데이터]  console-backend ↔ RDS pgvector(shared, VPC private subnet 배치)
 [조치]    approver 승인 → console-backend가 engine Step Functions StartExecution(트리거만)
 ```

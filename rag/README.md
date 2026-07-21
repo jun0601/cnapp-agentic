@@ -73,6 +73,7 @@ finding (계약①)
 ```
 rag/
 ├── corpus/               (준형 — 완료 ✅)
+│   ├── load_live.py  ★ 실적재 진입점(--emit-sql / --direct) — 재apply마다 실행
 │   ├── loader.py    ★ CorpusLoader — 청크 → 임베딩 → pgvector 적재
 │   └── run_demo.py    데모 실행 + 계약⑥ 검증 + 카탈로그 커버리지 확인
 └── retrieval/            (진우 — 완료 ✅)
@@ -193,7 +194,7 @@ out = generator.generate(finding, chunks, evidence=evidence_list)
 # }
 ```
 
-`rag_refs`는 사용된 청크의 `chunk_id` 목록 — 이걸 `case.reasoning.rag_refs`(계약⑦)에 채운다.
+`rag_refs`는 **경로에 따라 담는 값이 다르다** — UC1(`answer_gen`)은 `chunk_id`, **UC0(orchestrator)은 `control_id`**(콘솔 EvidenceTab이 작은 칩으로 렌더하므로 UUID보다 control_id가 읽힌다). 계약⑦ `case.reasoning.rag_refs`를 채우는 건 후자다.
 
 `evidence`를 넘기면 에이전트 조사 결과도 설명에 반영된다:
 ```
@@ -225,7 +226,9 @@ contracts/rag-chunk.schema.json
 
 **전제조건(실배포 전):**
 1. `PG_DSN` 환경변수 — RDS pgvector DSN
-2. `CorpusLoader(mock=False).load(mock_corpus.all_chunks(), dry_run=False)` 1회 실행 — Titan Embed v2로 26개 청크 벡터화 후 pgvector INSERT
+2. **`python -m rag.corpus.load_live --emit-sql rag_chunks.sql`** → 출력 안내대로 EKS psql 파드로 적용(RDS가 private이라 로컬 직결 불가). VPC 내부면 `PG_DSN=... --direct`.
+   - ⚠️ **재apply마다 필요** — `rag_chunks`는 RDS에 있어 destroy와 함께 사라진다. 안 하면 `/chat`이 근거 0건으로 검색해 **에러 없이 Bedrock 자체 지식으로 답한다**(2026-07-21 실제로 그 상태였음).
+   - 검증: `/api/system`의 `rag.chunks` ≠ 0(현재 26) · `/chat` 응답의 `refs`가 비어 있지 않음.
 3. Bedrock 모델 액세스 활성화 (서울 리전) — Sonnet inference profile ID **확정됨**: `global.anthropic.claude-sonnet-4-5-20250929-v1:0`(2026-07-03 `aws bedrock list-inference-profiles` 확인, answer_gen.py 반영). 기존 bare name은 404였음.
 
 **적재·검색 로직(loader.py·retriever.py·answer_gen.py)은 무변** — 생성자 인자(`mock=False`)만 바꾸면 실배포 전환 완료.

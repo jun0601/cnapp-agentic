@@ -34,4 +34,4 @@ npm run typecheck   # tsc --noEmit
 mock 모드 로컬 확인은 핸들러를 직접 호출(ALB 이벤트 형태 dict)하거나, 실배포 시 `dist/handler.handler`를 Lambda 핸들러로 지정.
 
 ## 실배포(EKS 세션 아님 — 서버리스)
-`infra/console`(ALB `authenticate-cognito` → Lambda 타깃, RDS 동일 VPC, S3+CloudFront 프론트)가 이 코드를 배포. 상세 = console-app-design §4·§12.
+`infra/console`(ALB → Lambda 타깃[인증 액션 없음 — 로그인은 SPA가 Cognito Hosted UI로 직접], RDS 동일 VPC, S3+CloudFront+WAF 프론트)가 이 코드를 배포. 상세 = console-app-design §4·§12.

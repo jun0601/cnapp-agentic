@@ -69,7 +69,7 @@
 
 ### 2.1 계약 정합 — validate.py가 강제 (완료)
 
-검증(json.load)이 못 잡던 의미 불일치 4건은 **수정 완료**(commit c463054). 이후 `contracts/validate.py` + `.github/workflows/contracts-validate.yml`(CI 게이트)가 4-assert로 회귀를 막는다:
+검증(json.load)이 못 잡던 의미 불일치 4건은 **수정 완료**(commit c463054). 이후 `contracts/validate.py` + `.github/workflows/contracts-validate.yml`(CI 게이트)가 7-assert(a~g)로 회귀를 막는다:
 - (a) finding.pillar == catalog[control_id].pillar
 - (b) resource_id 2번째 세그먼트 == resource_type
 - (c) 모든 attack-path node.resource_id에 그 path의 finding ≥1
@@ -259,6 +259,6 @@ infra/target/  Terraform(레이어드, infra/shared 출력 참조) — S3·SG·I
 
 *변경 요약(3): **§7 구현 계획(Implementation Plan) 신설** — 타깃 앱을 "어떻게" 만들지 청사진. 앱 소스 가져오기(retail-store fork + 커스텀 member), product 취약 이미지 재빌드(f1), **결함 f1~f9 ↔ IaC 산출물·변수 토글 매핑표**, apps/target·infra/target 폴더 구조, 배포(ArgoCD)·골든 회귀, 피드백 2건(member 스택·토글 입도).*
 
-*변경 요약(2): **기능 베이스 = retail-store-sample-app 확정**(§1.1, catalog·orders 2서비스 + 커스텀 member, AWSGoat 미사용). **정답지 = contracts/ 매핑표 신설**(§2.0, 골든 9건 ↔ 앱 리소스·control_id) + **계약 정합 체크리스트 4건**(§2.1 — f5 resource_id↔type, control 3종 신규, 검증기 4-assert CI 게이트). §6 구현 메모 첫 줄을 retail-store 베이스로 교체.*
+*변경 요약(2): **기능 베이스 = retail-store-sample-app 확정**(§1.1, catalog·orders 2서비스 + 커스텀 member, AWSGoat 미사용). **정답지 = contracts/ 매핑표 신설**(§2.0, 골든 9건 ↔ 앱 리소스·control_id) + **계약 정합 체크리스트 4건**(§2.1 — f5 resource_id↔type, control 3종 신규, 검증기 7-assert(a~g) CI 게이트). §6 구현 메모 첫 줄을 retail-store 베이스로 교체.*
 
 *변경 요약: **Azure 종착지를 데이터(Blob)→신원(Entra ID)으로 전환.** Azure 결함을 과도권한 App Registration·위험한 consent·권한상승·SP 자격증명 노출로 교체, order에 "평문 시크릿 속 Azure 자격증명" 결함 추가. 골든 attack-path를 크로스클라우드 신원 탈취 경로([4] Entra 신원 장악)로 갱신, 결함 분포표도 동기화. 데이터(PII)는 AWS S3 전용·Macie도 S3 전용 명시. MVP는 분석·시각화 수준/횡단 동작은 보너스. 문서 식별 헤더 추가.*

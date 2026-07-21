@@ -302,7 +302,7 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 2) 그 위 영역별 terraform (영역 주인이 apply, 의존성 순서대로):
      infra/karpenter  준형   동적 노드 오토스케일러(컨트롤러 helm·IRSA·spot SQS·NodePool·EC2NodeClass) — shared 직후, 라이브 EKS 필요  ✅ 코드 (2026-07-03 shared에서 분리)
      infra/target     준형   취약 워크로드+의도적 결함 (휘발성 — 토글하며 apply/destroy 잦음, 격리)  ✅ 코드
-     infra/console    준형   ALB(authenticate-cognito)·Cognito SAML·console Lambda·CloudFront (ACM 없으면 HTTP로 apply·count 가드)  ✅ 코드
+     infra/console    준형   ALB(API 전용)·Cognito SAML+SPA client(PKCE)·console Lambda·CloudFront+WAF·커스텀도메인 (ACM 없으면 HTTP로 apply·count 가드)  ✅ 코드
      infra/scanners   각 주인  스캔 IAM 역할·서비스 활성화(Config/SecurityHub/Inspector…)  (미구현)
      infra/backend    각 주인  수집·정규화(SQS·ingest/normalize) + 상관·오케스트레이터 Lambda(2-pass) + 조치 SFn·감사 S3 Object Lock  ✅ 코드 (구 pipeline+engine 병합 2026-07-03)
      infra/monitoring 진우    Grafana IRSA·대시보드24·CloudTrail→Logs 배관·Teams 알림  ✅ 코드 (shared+backend+console 다음, 마지막)
@@ -489,7 +489,7 @@ CSPM(S3·SG·IAM·암호화) · CIEM(AWS 과도 권한 + **Azure Entra 과도권
 
 ```
 사용자 → 관제 앱 접속
-  → ALB(authenticate-cognito)가 미인증이면 Cognito로 리다이렉트
+  → SPA가 미인증이면 /login → Cognito Hosted UI로 리다이렉트(옵션 B, PKCE)
   → Cognito가 Entra ID로 페더레이션 (Entra = IdP)
   → Entra 로그인 성공 → Cognito 토큰 발급 → 관제 앱 진입
 ```
@@ -497,7 +497,7 @@ CSPM(S3·SG·IAM·암호화) · CIEM(AWS 과도 권한 + **Azure Entra 과도권
 - **역할:** Entra ID = IdP(신원), Cognito = SP/허브(AWS), 관제 앱 = Cognito 신뢰.
 - **무료 가능 근거:** 기본 SAML SSO는 Entra 전 티어 무료(커스텀 앱 포함, 앱 1개 = 무료 10개 한도 내). 조건부 액세스·그룹 프로비저닝 등 P1/P2 기능 미사용. SP-initiated 흐름이라 보안 권장 방식과도 일치.
 - **검증:** Week 1에 실제 테넌트로 SSO 우선 검증(이론상 무료지만 테넌트 상태 직접 확인).
-- **구현:** ALB `authenticate-cognito` 액션(Cognito 전용, 클라이언트 시크릿 불필요)으로 앱 코드에 인증 로직 최소화.
+- **구현(2026-07-03 옵션 B로 전환):** ~~ALB `authenticate-cognito` 액션~~ → **SPA가 Cognito Hosted UI로 직접 OIDC/PKCE**(`apps/console/src/lib/oidc.ts`, 외부 라이브러리 없이 Web Crypto). `/callback`에서 code↔토큰 교환 → ID 토큰의 `custom:groups`(GUID)로 viewer/approver 판정. **ALB는 인증 액션 없이 API 백엔드로만** forward하고, 역할 강제는 console-backend가 `aws-jwt-verify`로 JWKS 서명·issuer·audience·exp를 검증해 수행(fail-closed).
 
 ---
 
@@ -565,7 +565,7 @@ CSPM(S3·SG·IAM·암호화) · CIEM(AWS 과도 권한 + **Azure Entra 과도권
 [관제 앱]  posture 점수(AWS+Azure) + findings + attack-path + AI 설명/조치 (React, S3+CloudFront)
 [타깃 앱]  AWS 커머스(EKS, 회원 PII는 S3) + Azure Entra ID(신원·과도권한 앱) ← findings 소스
 [CI 게이트] GitHub Actions(OIDC) → Checkov/Trivy → (cosign*) → ECR → ArgoCD → EKS
-[인증]     Entra ID ─SAML─▶ Cognito ─OIDC─▶ ALB(authenticate-cognito) → 관제 앱
+[인증]     Entra ID ─SAML─▶ Cognito ─OIDC/PKCE─▶ 관제 앱 SPA (ALB는 API 전용)
 [관측]     kube-prometheus-stack + 로그 파이프라인
 ```
 

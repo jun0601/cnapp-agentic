@@ -53,7 +53,7 @@ https://cnapp-agentic.cloud 접속
 첫 화면. 위에서 아래로:
 - **KPI 카드 4개**: 전체 finding · Open · Critical(severity 1) · 공격 경로 수.
 - **Secure Score**: AWS(주·크게) + Azure Entra/Defender(보조) 점수 막대. 멀티클라우드 80/20 비중.
-- **기둥별 Open**: 6기둥(CSPM·CIEM·취약점·KSPM·데이터) 중 어디에 open이 몰렸는지 막대.
+- **기둥별 Open**: 6기둥(CSPM·CIEM·취약점·KSPM·데이터·attack-path) 중 어디에 open이 몰렸는지 막대.
 - **🛑 크로스클라우드 Attack-path 배너**: 상관된 공격 경로 요약(노드·엣지 수 + "AWS → Azure" 태그). **클릭하면 그래프 화면으로.**
 - **우선순위 상위 finding**: AI 우선순위 상위 5건. 클릭 → 상세.
 
@@ -142,7 +142,7 @@ Orchestrator
   → Reasoning(증거 기반 판정 + 내러티브 + 지식베이스 근거)
 ```
 - **"챗봇 탈출"의 단일 기준 = LLM이 스스로 tool(API)을 호출해 증거를 모으는가.** Finding 상세의 Evidence 탭이 이 장면.
-- Evidence가 부르는 API는 **allowlist(계약④)로 2중 강제** — LLM이 그 밖의 API를 못 고른다. 전부 **read-only**(조회만).
+- Evidence가 부르는 API는 **2층으로 강제** — ① LLM에 노출되는 목록 자체가 **실제 구현된 핸들러**(`executable_apis()`, AWS 9종)로 좁혀지고 ② 실행 직전 `_check()`가 계약④ allowlist로 재검증한다. 변경/쓰기 API는 어느 쪽으로도 불가. 전부 **read-only**(조회만).
 
 ### 3.2 RAG(지식베이스)
 - 보안 지식을 control 단위 청크로 → **Titan v2 임베딩(1024차원)** → pgvector 적재.
@@ -189,7 +189,7 @@ Orchestrator
 | Evidence 판정이 refuted | 오류 아님 — 실 Bedrock이 실제 증거로 조사한 결과. 타깃 결함 토글이 off면 정직하게 refuted. |
 | AI 재조사 버튼이 안 보임 | viewer 역할. approver만 가능(Bedrock 비용 액션). |
 | finding은 있는데 AI 설명이 비어 있음 | 그 finding이 조사 case에 안 묶였거나 `ai_status`≠done. escalate된 것만 조사됨(비용 통제). |
-| /chat 답변에 근거가 없음 | RAG 코퍼스(rag_chunks) 미적재. `/system`에서 청크 수 확인 → 코퍼스 로드 필요. |
+| /chat 답변에 근거가 없음 | RAG 코퍼스(rag_chunks) 미적재. `/system`에서 청크 수 확인 → **`python -m rag.corpus.load_live --emit-sql rag_chunks.sql`** 후 안내대로 EKS psql 파드로 적용(VPC 안이면 `--direct`). ⚠️ **재apply 때마다 필요**(rag_chunks는 RDS에 있어 destroy와 함께 사라짐). |
 | 화면이 순백(빈 화면) | (이 윈도우 머신 한정) SPA 배포 시 `.js` MIME가 text/plain으로 태깅되는 함정 → terraform apply 또는 `aws s3 cp --content-type`으로 배포. |
 
 ---

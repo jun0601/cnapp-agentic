@@ -43,7 +43,9 @@ scanners/
 │   ├── kube_bench.py  ★ KubeBenchScanner — CIS Kubernetes 벤치마크(KSPM) → 계약⑤ envelope
 │   └── run_demo.py    데모 + 골든 정합 검증(Trivy·kube-bench 둘 다)
 └── ciem/                   (진우 — 신원·권한 — 완료 ✅)
-    ├── entra.py      ★ EntraCIEMScanner — Prowler entra_id_* 결과 → 계약⑤ envelope
+    ├── entra.py                   ★ EntraCIEMScanner — Prowler entra_* 결과 → 계약⑤ envelope
+    ├── aws_access_analyzer.py     ★ AccessAnalyzerScanner — 외부 신원 접근 탐지(AWS CIEM)
+    ├── publish_access_analyzer.py   스캔 결과를 EventBridge(cnapp.scanner)로 발행 → ingest
     └── run_demo.py   데모 + 골든 정합 검증 (f8·f9·f16·f17 4종)
 ```
 
@@ -170,7 +172,7 @@ Trivy·CSPM과 동일하게 "봉투화까지만" — envelope→finding 변환�
 
 ```python
 scanner = EntraCIEMScanner()
-envelopes = scanner.scan_prowler(checks="entra_id_*")
+envelopes = scanner.scan_prowler(checks="entra_*")
 ```
 
 subprocess 실행 로직은 `scanners/cspm/cspm.py`의 `CSPMScanner.scan_prowler(provider="azure", ...)`를 그대로 재사용(중복 방지) — `EntraCIEMScanner.scan_prowler()`는 CIEM 도메인에 맞는 진입점만 노출하는 얇은 래퍼다. 인증은 manual-infra §3.6.3 Prowler SP(GitHub Federated Credential, 키리스).
@@ -185,7 +187,7 @@ subprocess 실행 로직은 `scanners/cspm/cspm.py`의 `CSPMScanner.scan_prowler
   "cloud_hint": "azure",
   "scan_batch_id": "prowler-azure-entra-20260702-100000",
   "ingested_at": "2026-07-02T10:00:00Z",
-  "raw_inline": { "checkID": "entra_id_sp_credential_no_expiry", "service": "entraid", "resourceId": "azure:service_principal:...", ... }
+  "raw_inline": { "checkID": "entra_app_registration_credential_not_expired", "service": "entraid", "resourceId": "azure:service_principal:...", ... }
 }
 ```
 
@@ -195,9 +197,9 @@ subprocess 실행 로직은 `scanners/cspm/cspm.py`의 `CSPMScanner.scan_prowler
 
 | checkID (예) | control_id | pillar |
 |---|---|---|
-| `entra_id_app_registration_overprivileged` | `INTERNAL-ENTRA-OVERPRIV-APP-001` | ciem |
-| `entra_id_admin_consent_unverified_app` | `INTERNAL-ENTRA-RISKY-CONSENT-001` | ciem |
-| `entra_id_sp_credential_no_expiry` | `INTERNAL-ENTRA-SP-CRED-001` | ciem |
+| `entra_app_registration_no_unused_privileged_permissions` | `INTERNAL-ENTRA-OVERPRIV-APP-001` | ciem |
+| `entra_policy_restricts_user_consent_for_apps` | `INTERNAL-ENTRA-RISKY-CONSENT-001` | ciem |
+| `entra_app_registration_credential_not_expired` | `INTERNAL-ENTRA-SP-CRED-001` | ciem |
 | `entra_id_app_redirect_uri_insecure` | `INTERNAL-ENTRA-INSECURE-CFG-001` | cspm (Defender secure-score 축) |
 
 ---
@@ -208,7 +210,7 @@ subprocess 실행 로직은 `scanners/cspm/cspm.py`의 `CSPMScanner.scan_prowler
 |---|---|---|
 | `scan_from_json(mock_trivy_json)` | `scan_image("ECR이미지:tag")` | workload/trivy.py |
 | `scan_from_json(mock_kube_bench_json, target)` | `scan_cluster(target)` | workload/kube_bench.py |
-| `scan_from_json(mock_prowler_check)` | `scan_prowler(checks="entra_id_*")` | ciem/entra.py |
+| `scan_from_json(mock_prowler_check)` | `scan_prowler(checks="entra_*")` | ciem/entra.py |
 | run_demo 직접 실행 | ECR push 이벤트(EventBridge) → Lambda → `scan_image()` → SQS | infra/target |
 | run_demo 직접 실행 | CronJob/EventBridge Scheduler → `scan_cluster()` → SQS(EKS apply 후) | infra/target |
 | run_demo 직접 실행 | GitHub Actions cron(Prowler SP OIDC) → `scan_prowler()` → SQS | manual-infra §3.6.3 |
@@ -245,7 +247,7 @@ subprocess 실행 로직은 `scanners/cspm/cspm.py`의 `CSPMScanner.scan_prowler
 | Security Hub (ASFF) | cspm | AWS | 준형 | ✅ 완료(`scan_securityhub`) |
 | Prowler (AWS) | cspm·ciem | AWS | 준형 | ✅ 완료(`scan_prowler(provider="aws")`) |
 | Macie (S3 PII) | cspm(data) | AWS | 준형 | ✅ 완료(Security Hub ASFF 경유) |
-| IAM Access Analyzer | ciem | AWS | 준형 | Prowler AWS 체크로 커버(별도 API 미구현) |
+| IAM Access Analyzer | ciem | AWS | 준형 | ✅ **구현 완료** — `scanners/ciem/aws_access_analyzer.py`(`scan_from_json`+실 `scan_access_analyzer`) + `publish_access_analyzer.py`(EventBridge 발행) + `.github/workflows/access-analyzer-scan.yml`(OIDC 키리스 cron). 수신부 = `normalizer._parse_access_analyzer` |
 | Prowler entra_id_* | ciem | Azure | 진우 | ✅ 완료(`scanners/ciem/`) |
 | kube-bench (CIS 벤치마크) | kspm | AWS/EKS | 진우 | ✅ 완료(`scanners/workload/kube_bench.py`, mock 검증. 실 경로는 EKS apply 후 검증) |
 | Inspector | vuln | AWS | 진우 | 별도 코드 불필요 — `scan_securityhub()`가 이미 커버, 계정에서 서비스만 켜면 됨 |

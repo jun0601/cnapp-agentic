@@ -89,12 +89,18 @@ escalate = status == "open" and (sev <= 2 or on_path)
 **(a) 계획 — "어떤 툴을 부를까"를 스스로 정함**
 ```python
 PLAN_BY_CONTROL = {
-  "INTERNAL-S3-PUBLIC-001":        ["s3:GetBucketPolicy", "s3:GetPublicAccessBlock"],
+  "INTERNAL-S3-PUBLIC-001":        ["s3:GetBucketPolicy", "s3:GetBucketPublicAccessBlock"],
   "INTERNAL-DATA-PII-EXPOSED-001": ["macie2:GetFindings"],
   "INTERNAL-IAM-OVERPRIV-001":     ["iam:SimulatePrincipalPolicy"],
+  "INTERNAL-SG-OPEN-INGRESS-001":  ["ec2:DescribeSecurityGroups"],
+  "INTERNAL-SECRET-PLAINTEXT-001": [],   # 매니페스트 스캔으로 충분 — '툴 조사 불필요' 예시
 }
 ```
-finding의 `control_id` → 확인에 필요한 read-only 툴 매핑. **실배포에선 이 규칙 플래너가 Bedrock LLM으로 교체**(LLM이 finding 읽고 스스로 툴 선택 = 진짜 tool use). 지금은 규칙이라 결정적 → 데모 재현성.
+finding의 `control_id` → 확인에 필요한 read-only 툴 매핑. 규칙이라 결정적 → 데모 재현성.
+
+✅ **실배포에선 이 규칙 플래너 대신 LLM 플래너가 주입된다**(`engine/evidence/bedrock_planner.py` — LLM이 finding을 읽고 스스로 툴 선택 = 진짜 tool use). `engine/handler.py`의 `REAL_TOOLS` **기본값이 `1`** 이라 Lambda 경로는 기본이 실이고, `REAL_TOOLS=0`으로 목업을 강제한다.
+
+> ⚠️ **allowlist(허용 경계) ≠ LLM에 주는 목록**(2026-07-21 분리). 계약④ allowlist엔 `azure_ms_graph` 3종이 있지만 그건 **Graph 권한 스코프**이지 호출 가능한 API가 아니고 실행기 핸들러도 없다. 그래서 LLM tool enum은 실행기가 신고한 `executable_apis()`(= allowlist ∩ 구현된 핸들러 = **AWS 9종**)로 만든다. 경계는 안 넓어진다 — `enum ⊆ allowlist`이고 실행 직전 `_check()`가 여전히 allowlist를 강제한다. (이 분리 전에는 LLM이 `Application.Read.All`을 골라 `NotImplementedError`로 턴만 낭비했다.)
 
 **(b) 실행 — 스스로 호출**
 ```python
@@ -105,11 +111,26 @@ for tool, resource_id in plan:
 
 ### 📝 ④ Reasoning — [reasoning/reasoning.py](reasoning/reasoning.py)
 
-verdict(`confirmed`) + confidence(1.0) → `_risk_level` → **CRITICAL**. 증거를 사람이 읽는 한국어 내러티브로 엮고, `control_id`별 권고(S3 차단·IRSA 최소화 등)를 낸다. 실배포선 내러티브 생성이 Sonnet LLM으로 교체.
+verdict(`confirmed`) + confidence(1.0) → `_risk_level` → **CRITICAL**. 증거를 사람이 읽는 한국어 내러티브로 엮고, `control_id`별 권고(S3 차단·IRSA 최소화 등)를 낸다.
+
+✅ 실배포에선 `engine/reasoning/bedrock_reasoning.py`가 주입돼 **내러티브만 LLM으로** 생성한다(risk_level·권고는 결정론 로직 유지 = 일관성). 설계는 Sonnet이었으나 이 계정이 Sonnet 미승인이라 **실제 구동 모델은 Haiku**다(`BEDROCK_MODEL_ID` env로 무코드 스왑 대기).
+
+✅ **RAG 근거 부착(2026-07-21 배선)** — `Orchestrator(rag_retriever=...)`를 주입하면 `_retrieve_rag_refs()`가 조사한 finding들의 지식베이스 `control_id`를 모아 `case.reasoning.rag_refs`에 넣는다(콘솔 Evidence 탭이 칩으로 렌더). 미주입이면 `[]`라 CI·목업은 무영향. **그 전엔 배선 자체가 없어 계약⑦ `rag_refs`가 항상 비어 있었다.**
+> ⚠️ 배선이 있어도 `rag_chunks`가 비어 있으면 빈 배열이 나온다 — 그건 정상이 아니라 **적재 누락 신호**다(`python -m rag.corpus.load_live`).
 
 ### ✅ ⑤ 검증 — [run_demo.py](run_demo.py)
 
 `case`가 계약⑦ 스키마에 맞나 + **골든 정합**(툴 4회·confirmed·stage=reasoning) assert. 초록불이면 "심장 장면"이 의도대로 재현된 것.
+
+### 🧾 ⑥ 조사 커버리지 — 경로 case + 잔여 배치 case ([handler.py](handler.py))
+
+Lambda 진입점은 **attack-path 경로마다 case를 하나씩** 만든 뒤(`c0000000-…` 대역), **그 case들이 조사하지 않은 escalated finding 전부**를 3건씩 묶어 배치 case로 추가 조사한다(`b0000000-…` 대역).
+
+왜 필요했나 — 트리아지 게이트는 `severity_id≤2 OR attack_path_id!=null`인데 경로 case는 두 겹으로 걸러낸다: ① 경로 소속만 보고 ② 그중에서도 `_INVESTIGATION_ORDER`(hero 전용 control 3종)에 있는 것만. 그래서 **게이트를 통과하고도 영원히 `pending`으로 남는 finding**이 생겼다(2026-07-21 라이브 실측: 통과 19건 중 **13건 미조사**).
+
+- 상한: `MAX_OFFPATH_CASES` env(기본 6 case = 18건) — 스캐너 대량 유입 시 Bedrock 비용 폭주 방지.
+- 잘린 건 응답의 `offpath_dropped`로 노출한다(**조용한 절단 금지**).
+- 실측 결과: 미조사 13 → **0건**, 조사완료 8 → 21건.
 
 ---
 
@@ -127,11 +148,11 @@ def _check(self, tool):
 
 ## 🔄 6. 목업 → 실배포 스왑 (딱 두 군데)
 
-전부 목업이지만 실AWS 전환 시 바꾸는 건 2곳뿐, 나머지 로직은 무변:
+기본 경로는 **실**(REAL_TOOLS=1)이고 목업은 `run_demo`용이지만 실AWS 전환 시 바꾸는 건 2곳뿐, 나머지 로직은 무변:
 
 | 지금 (목업) | 실배포 | 파일 |
 |---|---|---|
-| `MockToolExecutor` (canned 응답) | `RealToolExecutor` (boto3 / MS Graph, 단일 read-only 역할) | core/tools.py |
+| `MockToolExecutor` (canned 응답) | `RealToolExecutor` (boto3 — **AWS 9종만**. Azure MS Graph는 의도적 미구현: Lambda에서 Graph를 부르려면 Entra 자격증명이 필요해 키리스 원칙 D4와 충돌 → Azure는 finding 소스로만) | core/tools.py |
 | `PLAN_BY_CONTROL` 규칙 플래너 | Bedrock LLM이 tool 선택 | evidence/evidence.py |
 | `contracts.load_findings()` (mock JSON) | 정규화부가 RDS에 넣은 findings 조회 | core/contracts.py |
 

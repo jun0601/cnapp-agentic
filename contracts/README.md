@@ -22,12 +22,12 @@
 | 파일 | 내용 |
 |---|---|
 | [mock-findings.json](mock-findings.json) | 골든 시나리오 핵심 + 잔결함 filler 20건(open/remediated/suppressed 혼합). 골든 10건은 `attack_path_id`로 묶임(attack-path 노드 전부 대응) |
-| [mock-attack-paths.json](mock-attack-paths.json) | 골든 1경로 그래프 — 4개 엣지 type 전부, `cross_cloud:true`로 AWS→Azure 횡단 |
+| [mock-attack-paths.json](mock-attack-paths.json) | 골든 **3경로** 그래프(hero 크로스클라우드 5노드 · AWS 단독 3노드 · Azure 단독 2노드) — 4개 엣지 type 전부, `cross_cloud:true`로 AWS→Azure 횡단 |
 | [mock-cases.json](mock-cases.json) | 엔진 능동조사 한 장면(UC0) — Evidence가 read-only API 4회 호출 → Reasoning 판정. "챗봇 탈출" 시연용 |
 
 ## 검증 (CI 게이트)
 
-`python contracts/validate.py` — JSON 유효성 + 의미 정합 4-assert(target-app-design §2.1). `contracts/*` 바뀌는 PR·push에서 [.github/workflows/contracts-validate.yml](../.github/workflows/contracts-validate.yml)이 자동 실행, 실패 시 머지 차단.
+`python contracts/validate.py` — JSON 유효성 + 의미 정합 **7-assert(a~g)**(target-app-design §2.1) — (a)pillar (b)resource_id↔type (c)노드 grounding (d)dedup_key (e)control 존재 (f)mock-cases finding_ids·allowlist (g)**임베딩 모델 상수가 Python·TypeScript 구현 양쪽에서 계약⑥ const와 일치**(폴리글랏 드리프트 = 조용한 실패 차단). `contracts/*` 바뀌는 PR·push에서 [.github/workflows/ci.yml](../.github/workflows/ci.yml)의 `contracts 정합` 스텝이 자동 실행, 실패 시 머지 차단.
 - (a) finding.pillar == catalog[control_id].pillar · (b) resource_id 2번째 세그먼트 == resource_type · (c) attack-path 노드마다 해당 path finding ≥1 · (d) dedup_key == resource_id|control_id.
 
 ## 핵심 규칙 (자주 틀리는 것)

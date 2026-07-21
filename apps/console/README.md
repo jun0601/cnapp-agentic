@@ -50,7 +50,7 @@ src/
 | Findings 목록·상세 | `mock-findings.json` (20건) |
 | Finding 상세 — Evidence 탭 | `mock-cases.json` (finding_id∈case.finding_ids 조인, UC0 능동조사) |
 | Finding 상세 — AI 설명 | finding당 파생 explanation (`ai_status`≠done이면 placeholder) |
-| Attack-path 그래프 | `mock-attack-paths.json` (골든 1경로, cross_cloud 강조) |
+| Attack-path 그래프 | `mock-attack-paths.json` (**3경로** — hero 크로스클라우드 + AWS 단독 + Azure 단독, cross_cloud 강조) |
 | 대시보드 점수 | 목업 상수 |
 
 > **데모 심장(§15.6):** 대시보드 → Findings(우선순위) → Finding 상세 **Evidence 탭(AI가 read-only API 4회 호출)** → Attack-path(AWS→Azure 횡단) → 조치 승인.

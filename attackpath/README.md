@@ -65,13 +65,28 @@ python -m attackpath.run_demo
 
 > 윈도우 콘솔(cp949)에서도 그냥 실행 — run_demo.py가 stdout을 UTF-8로 강제.
 
-**출력:** 상관 결과 요약(20건 → attack-path 1건) → 공격 경로 그래프(노드·엣지) → 2-pass backfill(8건 역주입) → 골든 정합 검증(5노드·4엣지·cross_cloud·backfill) → exit=0.
+**출력:** 상관 결과 요약(20건 → **attack-path 3건**) → 경로별 그래프(노드·엣지) → 2-pass backfill(**10건 역주입**) → 골든 정합 검증 → exit=0.
+> ⚠️ `run_demo`의 골든 검증은 **`paths[0]`(hero 경로) 한정**이다(5노드·4엣지·cross_cloud). 나머지 2경로는 생성 여부만 확인한다.
 
 ---
 
-## 🧩 4. 상관 규칙 R1~R5 — [correlation/correlation.py](correlation/correlation.py)
+## 🧭 4. 경로 3종 — 독립 발화 (2026-07-10 멀티경로 전환)
 
-골든 체인은 5개 규칙이 **전부** 발화해야 성립한다(하나라도 없으면 `None`):
+`correlate()`는 **빌더 3종을 각각 시도해 발화한 것만 모아 위험도순으로 반환**한다(`List[dict]`). 처음엔 골든 1경로 all-or-nothing이었는데, "간판인 attack-path가 항상 1개(실은 1 or 0)라 하드코딩처럼 보인다"는 약점 때문에 독립 빌더로 리팩터했다.
+
+| 경로 | ID 접미 | 구성 | 발화 조건 |
+|---|---|---|---|
+| **hero** (크로스클라우드) | `…0001` | 5노드·4엣지 (AWS 3 + Azure 2) | R1~R5 **전부** 필요 — 하나라도 없으면 이 경로만 안 생김 |
+| **AWS 단독 데이터 탈취** | `…0002` | 3노드·2엣지 (SG 유무로 4노드 변형) | 과도 IRSA + 공개 S3/PII — hero가 안 서도 독립 발화 |
+| **Azure 단독 신원 탈취** | `…0003` | 2노드·1엣지 | 장기 유효 SP 자격증명 + 과도권한 App — AWS를 안 거쳐도 성립 |
+
+> **경로끼리 finding 공유를 허용**한다(한 미스컨피그가 여러 경로에 참여 — 현실적). 단 `attack_path_id`는 단일값이라 `_backfill_multi()`가 **가장 위험도 높은 경로 하나에만 귀속**시키고, 어느 경로에도 안 속하게 되면 `None`으로 지운다(stale ID를 되쓰면 FK 위반).
+>
+> **조치→경로 소멸이 데모 핵심**: finding이 remediated되면 `engine/remediation.py`가 correlation을 재호출 → 그 finding을 쓰던 경로가 사라진다(실측: 공개 S3 조치 승인 → 3경로 → 1경로).
+
+## 🧩 4.1 상관 규칙 R1~R5
+
+hero 경로는 아래 5개가 **전부** 발화해야 성립한다(나머지 2경로는 부분 조건으로 독립 발화):
 
 | 규칙 | 트리거 control_id | 의미 |
 |---|---|---|
@@ -118,7 +133,7 @@ engine ③ Evidence: AI가 그 경로의 위험을 read-only API로 확증
 
 즉 **attackpath가 "여기 위험한 조합이 있다"고 먼저 찾아주면 → 엔진이 "그게 진짜인지" 파고드는** 협업 구조다. 2-pass backfill(§1)이 바로 이 연결의 핵심 — 1차 상관이 찍은 `attack_path_id`가 엔진 Triage 게이트의 승급 조건이 된다.
 
-지금은 두 데모(`attackpath.run_demo` · `engine.run_demo`)가 **따로** 돌지만, 실배포에선 상관 완료 시 발행되는 `cnapp.attackpath.correlation.completed` 이벤트가 엔진 Triage를 기동시켜 이 순서가 자동으로 이어진다(project-draft §4.4).
+레포 루트의 **`python -m run_e2e`가 이미 스캐너→정규화→상관→엔진→RAG를 한 줄로 관통**한다(무비용 Mock 경로, CI 하드 게이트). 실배포에선 상관 완료 시 발행되는 `cnapp.attackpath.correlation.completed` 이벤트가 엔진 Triage를 기동시켜 이 순서가 자동으로 이어진다(project-draft §4.4).
 
 ---
 
@@ -127,7 +142,7 @@ engine ③ Evidence: AI가 그 경로의 위험을 read-only API로 확증
 | 지금 (목업) | 실배포 | 파일 |
 |---|---|---|
 | `correlate(mock_findings)` | `correlate(rds_findings)` (정규화부가 넣은 finding 조회) | correlation.py |
-| `_backfill()` (dict in-place) | `RDS UPDATE ... SET attack_path_id` | correlation.py |
+| `_backfill_multi()` (dict in-place) | `RDS UPDATE ... SET attack_path_id` | correlation.py |
 | R1 "같은 컨텍스트=인접" 가정 | 파드→ENI→SG 매핑으로 실제 부착 확인 | correlation.py |
 
 → **그래프 모델(model/)은 무변** — 형태는 데이터 소스와 독립. `correlate()` 인터페이스도 동일.
@@ -138,10 +153,12 @@ engine ③ Evidence: AI가 그 경로의 위험을 read-only API로 확증
 
 ## ✅ 8. 골든 정합 (run_demo 검증 항목)
 
+> ⚠️ 아래는 **hero 경로(`paths[0]`) 한정** 검증이다 — 나머지 2경로는 생성 여부만 본다.
+
 - `attack_path_id` = `a0000000-...0001` (mock-attack-paths.json과 일치)
 - 노드 5개(AWS 3 + Azure 2) · 엣지 4개
 - 엣지 4종 전부 발화(lateral_move·data_exfil·credential_theft·identity_takeover)
 - **cross_cloud 엣지 = credential_theft** (AWS→Azure 경계 횡단 강조)
-- 2-pass backfill ≥5건 (실제 8건)
+- 2-pass backfill ≥5건 (실제 **10건** — 3경로 합산)
 
 이 검증이 초록불이면 콘솔 AttackPath 화면이 렌더할 골든 그래프가 계약③대로 재현된 것.
