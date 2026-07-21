@@ -642,10 +642,11 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 - **CI (GitHub Actions `ci.yml`)** — **PR(→main)** 에 하드 게이트: `contracts/validate.py`(계약 4-assert) + **회귀 10종**(영역별 `run_demo` 9개 + `run_e2e`)이 전부 exit 0이어야 통과. + Shift-Left(report): **Trivy**(IaC·Dockerfile 미스컨피그) · **Checkov**(Terraform). 회귀는 순수 stdlib라 클라우드 인프라 없이 러너에서 실행(비용 0).
   - ⓐ Shift-Left가 왜 report(soft-fail)인가 — 이 레포는 **의도적 취약 타깃**(`infra/target`·`apps/target`)을 품고 있어 하드 게이트로 걸면 CI가 영구히 빨갛다. 실서비스 파이프라인이면 hard-gate가 정석이라는 점을 함께 적으면 "몰라서가 아니라 알고 고른 것"이 드러난다.
-- **CD (ArgoCD GitOps)** — Application `shop-target`이 **Git을 pull-sync**(self-heal·prune·CreateNamespace). **CI에 클러스터 자격증명을 넣지 않는 pull 기반**이 핵심 — push 기반 CD와 달리 CI가 클러스터 권한을 들고 있지 않다.
+- **CD (ArgoCD GitOps)** — Application `shop-target`이 **Git을 pull-sync**(기본 180초 주기·self-heal·prune·CreateNamespace). **CI에 클러스터 자격증명을 넣지 않는 pull 기반**이 핵심 — push 기반 CD와 달리 CI가 클러스터 권한을 들고 있지 않다.
+  - ⚠️ **카피에 "Git이 단일 진실" 같은 표현을 쓰지 말 것**(v9 수정) — GitOps 홍보 문구라 읽는 사람에게 아무 정보가 없다. **그 말이 실제로 뭘 하는지**로 바꿔 쓴다: `self-heal` = kubectl로 직접 바꾼 값을 Git 상태로 되돌림 / `prune` = Git에서 지운 리소스를 클러스터에서도 삭제. 같은 이유로 "파이프라인에 자동 합류"도 금지 → "S3→ingest Lambda를 거쳐 findings로 들어옴"처럼 **경로를 적는다**.
   - ⚠️ 정확히: ArgoCD가 Git에서 당겨오는 건 **매니페스트**이고, **이미지는 EKS가 ECR에서 pull** 한다. 도식에서 이 둘을 별개 화살표로 그린다(옛 카피의 "병합된 이미지를 ArgoCD가 동기화"는 부정확).
 - **키리스 이미지 빌드** — `build-images.yml`: **GitHub OIDC → IAM Role**(AssumeRoleWithWebIdentity)로 장기 액세스 키 없이 인증 → **ECR ×3**(member·product·order) build→push.
-- **자동 운영** — Karpenter(spot·consolidation) + HPA로 노드·파드 자동 확장. 정기 스캔도 워크플로로 자동화(`prowler-scan.yml`·`access-analyzer-scan.yml`) → 스캔 결과가 파이프라인에 자동 합류.
+- **자동 운영** — HPA는 **CPU 70%** 초과 시 파드를 **2→최대 4**로 늘리고, Karpenter는 **스케줄 못 한 파드가 생기면 스팟 노드를 띄우고 비면 회수**(consolidation). 정기 스캔은 `prowler-scan.yml`(매일 **02:00 KST**)·`access-analyzer-scan.yml`(**02:30**)이 돌아 결과를 S3에 떨구면 **ingest Lambda가 집어 findings로** 넣는다.
 - 강조 문구: "커밋 → CI 게이트 → ECR → ArgoCD → EKS, 전 구간 실배포로 관통 검증"
 
 **[시각자료] 세로 CI/CD 파이프라인 도식 (draw.io, AWS 아이콘 — 전체 아키텍처 drawio에서 CI/CD 부분을 빼와 상세화):**
@@ -706,9 +707,9 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 [카드 1 — CI: 병합 전 하드 게이트] PR(→main)에서 contracts 계약 4-assert + 회귀 10종(영역별 run_demo 9개 + run_e2e)이 전부 exit 0이어야 병합 가능 · 함께 도는 Shift-Left 스캔은 Trivy(IaC·Dockerfile)·Checkov(Terraform) · 의도적 취약 타깃을 품은 레포라 report 모드(실서비스라면 하드 게이트가 정석)
 
-[카드 2 — CD: pull 기반 GitOps] ArgoCD Application shop-target이 Git 매니페스트를 pull-sync(self-heal·prune) · CI에 클러스터 자격증명을 넣지 않는 구조 · Git이 원하는 상태의 단일 진실
+[카드 2 — CD: pull 기반 GitOps] ArgoCD가 3분 주기로 Git 매니페스트를 당겨 클러스터 상태와 비교 · self-heal은 kubectl로 직접 바꾼 값을 Git 상태로 되돌리고, prune은 Git에서 지운 리소스를 클러스터에서도 삭제 · CI엔 kubeconfig·클러스터 토큰이 없음 — 클러스터를 바꾸는 건 클러스터 안의 ArgoCD뿐
 
-[카드 3 — 키리스 빌드 & 자동 운영] GitHub OIDC → IAM Role로 장기 키 없이 ECR ×3(member·product·order) 빌드·푸시 · Karpenter(spot)+HPA 자동 확장 · 정기 스캔 워크플로가 결과를 파이프라인에 자동 합류
+[카드 3 — 키리스 빌드 & 자동 운영] GitHub OIDC → IAM Role(AssumeRoleWithWebIdentity)로 장기 키 없이 ECR ×3(member·product·order) 빌드·푸시 · HPA는 CPU 70% 초과 시 파드를 2→최대 4로, Karpenter는 스케줄 못 한 파드가 생기면 스팟 노드를 띄우고 비면 회수 · prowler-scan(매일 02:00 KST)·access-analyzer-scan(02:30) 결과가 S3→ingest Lambda를 거쳐 findings로 들어옴
 
 [스크린샷 2장 — 카드 아래 가로 나란히] ⓐ GitHub Actions ci.yml run 성공(job 2개 초록) / ⓑ ArgoCD shop-target Synced·Healthy + 리소스 트리
 
