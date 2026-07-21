@@ -8,6 +8,7 @@ Evidence 에이전트가 '스스로 호출'하는 read-only API. 핵심 = 챗봇
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
@@ -269,8 +270,18 @@ class RealToolExecutor(ToolExecutor):
         return ToolResult(tool, resource_id, summary, bool(public_grants),
                           {"Grants": resp.get("Grants", [])}, self._now())
 
+    _SG_ID_RE = re.compile(r"^sg-[0-9a-f]{8}([0-9a-f]{9})?$")
+
     def _describe_security_groups(self, tool: str, resource_id: str) -> ToolResult:
         sg_id = self._native(resource_id, "security_group")
+        if not self._SG_ID_RE.match(sg_id):
+            # 형식 자체가 실 AWS SG ID(16진수 8자리 또는 17자리)가 아니면 API 호출 자체를
+            # 스킵 — 어차피 InvalidGroupId.Malformed로 실패할 게 확실하고, X-Ray는 HTTP 4xx
+            # 응답이 오는 순간 그 서브세그먼트를 자동으로 Error 표시해서(내 코드가 예외를
+            # 나중에 잡아도 안 지워짐) 호출 자체를 안 해야 깨끗하게 관측됨(2026-07-21).
+            return ToolResult(tool, resource_id,
+                              "'%s'는 실 AWS 보안그룹 ID 형식이 아님(합성/골든시드 값) — 조회 생략" % sg_id,
+                              False, {}, self._now())
         try:
             resp = self._client("ec2").describe_security_groups(GroupIds=[sg_id])
         except self._ClientError as e:
