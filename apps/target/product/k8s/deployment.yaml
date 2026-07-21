@@ -27,10 +27,12 @@ spec:
         - name: product
           # f1: KEV 취약 이미지(product/Dockerfile로 빌드, build-images.yml이 push)
           image: "066107819776.dkr.ecr.ap-northeast-2.amazonaws.com/cnapp-agentic/product:latest"
-          # placeholder 파드 keep-alive. (product는 스캔 대상 이미지가 목적이지 기능 서비스가 아님)
-          # 현재 ECR 이미지는 Dockerfile exec-form 함정으로 CMD가 깨져 있어(수정 커밋됨, 재빌드 전)
-          # 명시적 command로 우회. 이미지 재빌드 후엔 이 줄 없어도 동작.
-          command: ["sleep", "infinity"]
+          # keep-alive는 이미지 CMD(`CMD ["sleep", "infinity"]`)가 담당한다.
+          #   (product는 '스캔 대상 취약 이미지'가 목적이지 기능 서비스가 아니라 placeholder로 떠 있음)
+          # 2026-07-06~07-21 사이엔 여기 `command: ["sleep","infinity"]` 오버라이드가 있었다 —
+          # 당시 ECR 이미지가 Dockerfile exec-form 함정(JSON 배열 뒤 인라인 주석 → shell-form 폴백)으로
+          # CMD가 깨져 있어서 매니페스트에서 우회한 것. Dockerfile은 그때 고쳤고 이미지도 재빌드됐으므로
+          # (build-images.yml), 오버라이드는 역할이 끝나 제거한다. 동작은 동일(둘 다 sleep infinity).
           ports: [{ containerPort: 8080 }]
           # HPA가 CPU 사용률(%)을 계산하려면 requests가 필요(없으면 product HPA가 스케일 못 함).
           resources:
