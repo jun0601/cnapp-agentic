@@ -99,14 +99,36 @@ def handler(event: dict, context=None) -> dict:
     if not paths:
         return {"skipped": "no attack paths"}
 
-    case, _escalated, _case_findings = _orchestrator().run(findings, paths)
-    _upsert_case(case)
-    _upsert_explanations(case)
-    return {
-        "case": case["case_id"],
-        # verdict/confidence는 case["evidence_meta"](set_evidence 기록). reasoning엔 narrative·risk_level만.
-        "verdict": (case.get("evidence_meta") or {}).get("verdict"),
-    }
+    # Orchestrator.run()은 paths[0]만 본다(골든 경로 하니스) — 여러 경로를 다 조사하려면
+    # 경로마다 [단일 경로]로 나눠 호출하고, 경로별로 독립된 case_id를 줘야 한다(2026-07-21).
+    # 안 그러면 correlation이 만든 attack_path 2·3번은 영원히 조사 대상에서 빠진다.
+    orch = _orchestrator()
+    results = []
+    for path in paths:
+        case_id = _case_id_for_path(path["attack_path_id"])
+        try:
+            case, _escalated, _case_findings = orch.run(findings, [path], case_id=case_id)
+        except ValueError:
+            continue  # 이 경로엔 조사 가능한(escalate+control 매칭) finding이 없음 — 스킵
+        _upsert_case(case)
+        _upsert_explanations(case)
+        results.append({
+            "case": case["case_id"],
+            "attack_path_id": path["attack_path_id"],
+            # verdict/confidence는 case["evidence_meta"](set_evidence 기록). reasoning엔 narrative·risk_level만.
+            "verdict": (case.get("evidence_meta") or {}).get("verdict"),
+        })
+    return {"cases": results}
+
+
+def _case_id_for_path(attack_path_id: str) -> str:
+    """attack_path_id(a0000...000N) -> case_id(c0000...000N) 결정적 매핑.
+
+    correlation.py의 3개 경로 ID(_HERO_PATH_ID 등)가 접두사 'a'만 다른 고정 상수라,
+    같은 자리에 'c'를 넣으면 경로별로 유일하고 재현 가능한 case_id가 나온다
+    (uuid4 랜덤 생성 대신 — 재실행해도 같은 경로는 같은 case를 upsert해서 중복 케이스 안 쌓임).
+    """
+    return "c" + attack_path_id[1:]
 
 
 def _orchestrator() -> Orchestrator:

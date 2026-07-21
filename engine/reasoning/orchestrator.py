@@ -163,6 +163,14 @@ class Orchestrator:
             candidate.sort(
                 key=lambda f: _INVESTIGATION_ORDER.index(f["control_id"])
             )
+            if not candidate:
+                # _INVESTIGATION_ORDER는 hero 경로(크로스클라우드) 전용 조사 순서다 — 다른 경로
+                # (aws_data_exfil·azure_identity)의 control은 여기 없어 위 필터가 항상 0건이 된다.
+                # 순서를 강제할 이유가 없는(대개 1~2건) 경로이므로, 이 경로 소속 escalated
+                # finding을 순서 없이 그대로 조사 대상으로 삼는다(2026-07-21).
+                candidate = [
+                    f for f in escalated if f.get("attack_path_id") == golden_path_id
+                ]
         else:
             candidate = escalated[:3]  # fallback: 상위 3건
 
