@@ -515,7 +515,7 @@ data "aws_iam_policy_document" "evidence_readonly" {
     actions = [
       "s3:GetBucketPolicy",
       "s3:GetBucketAcl",
-      "s3:GetPublicAccessBlock",
+      "s3:GetBucketPublicAccessBlock", # API 오퍼레이션명(GetPublicAccessBlock)과 IAM 액션명이 다름(2026-07-21 실AWS AccessDenied로 발견)
       "iam:GetRolePolicy",
       "iam:ListAttachedRolePolicies",
       "iam:SimulatePrincipalPolicy",

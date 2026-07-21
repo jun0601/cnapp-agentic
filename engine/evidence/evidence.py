@@ -15,7 +15,7 @@ from engine.core.tools import ToolExecutor, ToolResult
 
 # control_id → 조사에 쓸 read-only 툴(계약④ allowlist 내). 실배포선 LLM이 이 선택을 대체.
 PLAN_BY_CONTROL: Dict[str, List[str]] = {
-    "INTERNAL-S3-PUBLIC-001": ["s3:GetBucketPolicy", "s3:GetPublicAccessBlock"],
+    "INTERNAL-S3-PUBLIC-001": ["s3:GetBucketPolicy", "s3:GetBucketPublicAccessBlock"],
     "INTERNAL-DATA-PII-EXPOSED-001": ["macie2:GetFindings"],
     "INTERNAL-IAM-OVERPRIV-001": ["iam:SimulatePrincipalPolicy"],
     "INTERNAL-SG-OPEN-INGRESS-001": ["ec2:DescribeSecurityGroups"],

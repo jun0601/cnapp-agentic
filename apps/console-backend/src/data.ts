@@ -650,7 +650,7 @@ async function pgFindingDetail(id: string): Promise<FindingDetail | null> {
     e && e.ai_status === 'done'
       ? {
           finding_id: id,
-          summary: e.ai_summary,
+          summary: `${finding.title} — control ${finding.control_id} 위반(${finding.pillar}).`,
           why: caseObj?.reasoning?.narrative ?? e.ai_summary,
           how: '조치 카탈로그(§14) 참조 — 승인 경로(HITL)로만 적용.',
           ai_status: 'done',

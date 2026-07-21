@@ -1,7 +1,7 @@
 """엔진 실 tool-use vertical slice 진입점 — RealToolExecutor + BedrockEvidenceAgent.
 
 이 스크립트가 프로젝트의 심장을 '실제로' 증명한다:
-  LLM(Bedrock)이 스스로 read-only API(s3:GetBucketPolicy·GetPublicAccessBlock)를 골라
+  LLM(Bedrock)이 스스로 read-only API(s3:GetBucketPolicy·GetBucketPublicAccessBlock)를 골라
   실제 AWS 버킷을 조사하고, 응답에 근거해 위험을 판정한다(목업 canned 응답이 아님).
 
 ⚠️ 실행 전제 (반드시 준형과 함께 — 비용·격리):

@@ -16,7 +16,7 @@
       ],
       "evidence": [
         { "tool": "s3:GetBucketPolicy", "resource_id": "aws:s3_bucket:member-pii-prod", "result_summary": "Principal:\"*\" 허용 statement 확인 — 공개 버킷", "raw": {}, "ts": "2026-06-30T02:03:10Z" },
-        { "tool": "s3:GetPublicAccessBlock", "resource_id": "aws:s3_bucket:member-pii-prod", "result_summary": "BlockPublicAcls=false, RestrictPublicBuckets=false — public access block 미설정", "raw": {}, "ts": "2026-06-30T02:03:12Z" },
+        { "tool": "s3:GetBucketPublicAccessBlock", "resource_id": "aws:s3_bucket:member-pii-prod", "result_summary": "BlockPublicAcls=false, RestrictPublicBuckets=false — public access block 미설정", "raw": {}, "ts": "2026-06-30T02:03:12Z" },
         { "tool": "macie2:GetFindings", "resource_id": "aws:s3_bucket:member-pii-prod", "result_summary": "SensitiveData:PII 분류 결과 존재(이름·주민등록번호 패턴 다수)", "raw": {}, "ts": "2026-06-30T02:03:15Z" },
         { "tool": "iam:SimulatePrincipalPolicy", "resource_id": "aws:iam_role:order-irsa", "result_summary": "order-irsa가 s3:GetObject on arn:aws:s3:::member-pii-prod/* 허용 — 측면이동 경로 확인", "raw": {}, "ts": "2026-06-30T02:03:18Z" }
       ],

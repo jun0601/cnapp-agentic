@@ -64,7 +64,7 @@ _CANNED: Dict[Tuple[str, str], Tuple[str, bool, dict]] = {
         True,
         {"Statement": [{"Effect": "Allow", "Principal": "*", "Action": "s3:GetObject"}]},
     ),
-    ("s3:GetPublicAccessBlock", "aws:s3_bucket:member-pii-prod"): (
+    ("s3:GetBucketPublicAccessBlock", "aws:s3_bucket:member-pii-prod"): (
         "BlockPublicAcls=false, RestrictPublicBuckets=false — public access block 미설정",
         True,
         {"BlockPublicAcls": False, "RestrictPublicBuckets": False},
@@ -137,7 +137,7 @@ class RealToolExecutor(ToolExecutor):
     read-only first 거버넌스가 실 호출에도 그대로 적용.
 
     구현 범위(2026-07-04 allowlist AWS 전종으로 확장 — 골든 경로 f3·f4·f6·f7 실조사 가능):
-      s3:GetBucketPolicy · GetBucketAcl · GetPublicAccessBlock  (f6 공개 S3)
+      s3:GetBucketPolicy · GetBucketAcl · GetBucketPublicAccessBlock  (f6 공개 S3)
       ec2:DescribeSecurityGroups                                 (f3 개방 SG)
       iam:SimulatePrincipalPolicy · ListAttachedRolePolicies · GetRolePolicy  (f4 과도 IRSA)
       macie2:GetFindings · accessanalyzer:ListFindings           (f7 PII·외부접근 — 서비스 미활성이면
@@ -188,7 +188,7 @@ class RealToolExecutor(ToolExecutor):
         handler = {
             "s3:GetBucketPolicy": self._get_bucket_policy,
             "s3:GetBucketAcl": self._get_bucket_acl,
-            "s3:GetPublicAccessBlock": self._get_public_access_block,
+            "s3:GetBucketPublicAccessBlock": self._get_public_access_block,
             "ec2:DescribeSecurityGroups": self._describe_security_groups,
             "iam:SimulatePrincipalPolicy": self._simulate_principal_policy,
             "iam:ListAttachedRolePolicies": self._list_attached_role_policies,
