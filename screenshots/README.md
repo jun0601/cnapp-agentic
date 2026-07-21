@@ -11,13 +11,27 @@
 | `console/console-attack-path.png` | 멀티경로 3개(위험도순) · AWS/Azure 레인 분리 · 크로스클라우드 엣지(빨강) · 공격 서사 | ✅ |
 | `console/console-findings.png` | findings 목록(실 RDS) | ✅ |
 | `console/console-system.png` | AI·시스템 뷰 — 모델·RAG 지식베이스·Bedrock 사용량 | ✅ |
-| `console/console-chat.png` | RAG 챗 — Titan 임베딩 → pgvector 검색 → Bedrock 실 답변 | ✅ |
+| `console/console-chat.png` | RAG 챗 — Titan 임베딩 → pgvector 검색 → Bedrock 답변 + **근거 4건(control_id 칩)** | ✅ |
+| `console/console-evidence-tab.png` | AI 능동조사 — **confirmed** 판정 · 트리아지 게이트 사유 · 가설 · 실 read-only API 호출 증거(`BlockPublicAcls=False` 등) | ✅ |
 | `console/console-login.png` | 커스텀 도메인(`cnapp-agentic.cloud`) HTTPS + SSO 진입점 | ✅ |
 | `argocd/argocd-shop-target-tree.png` | GitOps 실동작 — `shop-target` Synced/Healthy + 리소스 트리(파드 6개 running 1/1) | ✅ |
 | `argocd/argocd-applications-list.png` | Application 4개 전부 Synced/Healthy(타깃 앱뿐 아니라 플랫폼 전체가 GitOps 관리) | ✅ |
 | `ci/*.png` | GitHub Actions `ci.yml` 회귀 게이트 통과 | ❌ (인프라 무관) |
 
 > ⚠️ `apps/console/screenshots/`의 옛 이미지는 **쓰지 말 것** — MSW 목업 모드 배지 · 옛 하드코딩 점수(62/74) · 옛 6화면 내비 · 단일 공격경로 상태다. 위 `console/`이 대체본이다.
+
+## ⚠️ 찍기 전에 — 지식베이스 적재 확인 (재apply 직후엔 반드시)
+
+`rag_chunks`는 RDS에 있으므로 **인프라를 destroy→재apply하면 비어 있다.** 비어 있으면
+`/chat`이 검색 결과 0건으로 답해서 **근거 없는 답변**이 나오고("RAG · 실 지식베이스" 배지가
+사실이 아니게 됨), Evidence 탭의 `rag_refs` 칩도 안 뜬다. 캡처 전에 반드시:
+
+```bash
+curl -s https://cnapp-agentic.cloud/api/system   # rag.chunks 가 0이면 아래 적재
+python -m rag.corpus.load_live --emit-sql rag_chunks.sql   # 절차는 스크립트가 출력
+```
+
+2026-07-21에 실제로 이 상태로 스크린샷을 찍었다가 폐기했다 — 답변은 그럴듯했지만 근거가 0건이었다.
 
 ## 다시 찍는 법
 

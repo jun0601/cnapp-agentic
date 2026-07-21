@@ -8,6 +8,10 @@
 
 ### 🖥️ 실행 화면
 
+![관제 콘솔 — AI 능동조사(Evidence) 탭](screenshots/console/console-evidence-tab.png)
+
+> **이 프로젝트의 핵심 장면.** Bedrock이 `s3:GetBucketPublicAccessBlock` 등 **read-only API를 스스로 골라 5회 호출**해 실제 버킷 상태(`BlockPublicAcls=False, RestrictPublicBuckets=False`)를 확인하고 **confirmed** 판정을 냈다. 위에서부터 트리아지 게이트(승급 사유) → 가설 → 실 API 호출 증거 순으로, **판정에 이른 경로가 전부 남는다.** 규칙이 정한 API를 실행한 게 아니라 LLM이 조사 도구를 선택했다는 점이 "챗봇 탈출"의 기준.
+
 ![관제 콘솔 — 크로스클라우드 attack-path](screenshots/console/console-attack-path.png)
 
 > 관제 콘솔의 attack-path 화면. 현재 posture에서 발견된 **독립 공격 경로 3개**를 위험도순으로 세우고, 선택한 경로를 AWS(워크로드)·Azure(신원) 레인으로 나눠 그린다. **빨간 점선이 클라우드 경계를 넘는 엣지** — `order` 파드의 평문 시크릿에서 얻은 Azure 자격증명으로 Entra ID를 장악하는 구간이다. 개별로는 중간 위험인 finding들이 묶여 Critical 경로가 되는 지점이 CNAPP의 핵심.
@@ -192,7 +196,7 @@ cnapp-agentic/
 | 🧠 **에이전틱 엔진 (`engine/`)** | ✅ **실 Bedrock 능동조사** — Evidence가 실 Claude Haiku로 read-only API를 스스로 호출해 실 S3 조사 → CONFIRMED(100%). Hypothesis·Reasoning도 실 Bedrock 스왑 구현·검증(2026-07-10). allowlist 2중 강제(스키마 enum + 실행 직전 재확인) |
 | 🔍 **스캐너 (`scanners/`)** | ✅ **실 계정 라이브 관통** — kube-bench(CIS 4.1.1 실탐지)·Trivy(실 CVE 205)·**Prowler AWS+Azure**(GitHub Actions 자동스캔→S3→ingest)·IAM Access Analyzer(외부신원 특정). Security Hub·Macie는 계정 구독제약이라 데모 직전 활성 |
 | 📥 **수집 · 정규화 (`pipeline/`)** | ✅ **라이브 관통** — EventBridge→SQS→ingest→normalize Lambda→RDS. ASFF/OCSF/trivy-json/custom → OCSF-lite(resource_id 캐논·dedup). 2-pass 이벤트 구동 |
-| 📚 **RAG (`rag/`)** | ✅ **라이브** — Titan Embed v2(1024-dim) 적재 → pgvector cosine(HNSW) 검색 → Bedrock 답변. finding 설명 탭·`/chat` 실동작 |
+| 📚 **RAG (`rag/`)** | ✅ **라이브** — Titan Embed v2(1024-dim) **26청크·15 control 적재** → pgvector cosine(HNSW) → Bedrock 답변. `/chat`이 근거 청크(control_id)를 함께 반환하고, 엔진 판정에도 `rag_refs`가 실린다. 적재는 `python -m rag.corpus.load_live`(**재apply 때마다 필요** — `rag_chunks`는 RDS에 있어 destroy와 함께 사라짐) |
 | 🕸️ **attack-path (`attackpath/`)** | ✅ R1~R5 상관 + 그래프 모델 · 2-pass backfill. 실 RDS 기준 재계산(골든 5노드 크로스클라우드 체인) |
 | ⚡ **조치 (Remediation)** | ✅ **HITL 실증** — approver 승인 → `remediation_requests` INSERT → Step Functions `StartExecution` → finding remediated → Secure Score 상승. S3 Object Lock 불변 감사. terraform drift 0 |
 | 🏗️ **인프라 (`infra/`)** | ✅ **라이브 풀사이클** — 레이어드 **6층 · 리소스 207개** apply→검증→destroy 반복 실증(`deploy.ps1`이 순서 강제, 잔존 0). VPC(NAT Instance)·EKS 1.34(Karpenter spot)·RDS PG16+pgvector(7테이블)·Lambda VPC 배치. 키리스(GitHub OIDC·IRSA) |

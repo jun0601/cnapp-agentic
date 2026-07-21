@@ -35,9 +35,12 @@ variable "github_repo" {
 
 # --- NAT instance ---
 variable "nat_ami_owner" {
-  description = "fck-nat 공개 AMI 퍼블리셔 계정 ID. apply 전 검증 필수(틀리면 AMI 조회 실패)."
+  description = "fck-nat 공개 AMI 퍼블리셔 계정 ID(공식 문서 대조 완료). 서드파티 AMI라 owner 고정은 공급망 방어의 일부."
   type        = string
-  default     = "568608671756" # TODO: fck-nat 공식 계정 ID 검증
+  # ✅ 2026-07-21 검증 — 공식 문서(https://fck-nat.dev/stable/deploying/)의 CDK·Terraform 예제와
+  #    수동 배포 안내가 모두 이 계정을 지목. 실 계정에서도 이 owner가 fck-nat-al2023-* AMI를 게시 중임을 확인.
+  #    ⚠️ owner를 비우거나 넓히지 말 것 — AMI '이름'은 누구나 흉내 낼 수 있으므로 신뢰 기준은 owner 계정이다.
+  default = "568608671756"
 }
 
 # --- EKS ---
