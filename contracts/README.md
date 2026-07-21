@@ -41,7 +41,7 @@
 
 ## 졸업 상태
 
-- [x] 계약 7종 스키마 + control-catalog(INTERNAL control 14종)
+- [x] 계약 7종 스키마 + control-catalog(INTERNAL control 15종)
 - [x] mock 데이터(findings·attack-paths·cases) — 골든 시나리오
 - [x] **계약 정합 4건 수정(target-app-design §2.1)** — f5 resource_id 캐논(`secret_plaintext`), control 3종 신규(ECR-SCAN·ENTRA-SP-CRED·ENTRA-INSECURE-CFG), validate.py 4-assert + CI 게이트
 - [ ] `embedding` 벡터는 mock에 미포함(1024 float) — rag 적재 시 Titan v2로 실제 생성

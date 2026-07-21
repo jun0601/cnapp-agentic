@@ -200,7 +200,7 @@
 **이 표 바로 아래, 작은 배지 스트립(표 밑에 작은 칩 4개 한 줄)으로 "어떻게 안 부딪히고 반씩 나눴나 = 협업 방식"을 압축해 붙인다** (원래 별도 슬라이드였던 "계약 기반 설계"를 페이지 수 유지를 위해 이 슬라이드에 접어 넣음 — 표가 "무엇을 나눴는지"라면 이 스트립은 "어떻게 안 부딪혔는지"라 바로 아래 붙는 게 논리적으로 자연스럽다):
 - 가로 4칸 소형 배지 스트립(수치 검증 완료 2026-07-10): `계약 JSON 7종` · `INTERNAL Control 15종` · `CI Validate 게이트(4-assert)` · `mock=False 한 줄 스왑`
   - ⚠️ 표현 주의: "JSON Schema"가 아니라 **"계약 JSON 7종"** — 7개 파일 중 5개만 `*.schema.json`이고 2개는 카탈로그/allowlist라 "스키마"로 뭉뚱그리면 파일 열어본 리뷰어가 어색해함(실제 7개: attack-path·case·finding·ingest-envelope·rag-chunk 스키마 5 + control-catalog·evidence-allowlist 2).
-  - ⚠️ Control은 **15종**(옛 문서 14종은 stale — 나중에 `INTERNAL-KSPM-CLUSTERADMIN-001` 추가로 15로 늘어남. CLAUDE.md에도 14로 남은 곳 있으니 별개로 정정 필요).
+  - Control은 **15종**(2026-07-06 `INTERNAL-KSPM-CLUSTERADMIN-001` 추가로 14→15). ✅ 2026-07-21 전 md 일괄 정정 완료 — 단 CLAUDE.md·troubleshooting.md의 **변경 로그는 당시 사실 기록이라 14로 남겨둔다**(고치면 이력이 왜곡됨).
 - 캡션 1줄(핵심 — 배지만으론 "협업"이 안 와닿으니 이 문장이 의미를 부여): "컴포넌트 이음새를 JSON 계약으로 **먼저** 고정 → 2인이 직렬 의존 없이 **병렬 개발**(한 명이 끝나길 기다릴 필요 없음)"
 - 디자인 팁: 표보다 눈에 덜 띄게 — 아이콘+짧은 라벨만 있는 작은 칩 4개를 한 줄에, 표 하단에 옅은 구분선을 긋고 그 아래 배치.
 
@@ -536,7 +536,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 **핵심 기술 포인트:**
 - **적재·검색 동일 모델 강제** — 코퍼스 적재(`CorpusLoader`)와 쿼리 임베딩이 반드시 같은 Titan Embed v2여야 벡터 공간이 맞음(계약⑥ `embedding_model` 상수로 고정).
-- **코퍼스 규모** — 14개 INTERNAL control · 24개 청크(한국어). control_id 기반 인덱스(`idx_rag_control`)로 finding→설명 직접 매핑도 가능.
+- **코퍼스 규모** — 15개 INTERNAL control · 26개 청크(한국어). control_id 기반 인덱스(`idx_rag_control`)로 finding→설명 직접 매핑도 가능.
 - **2가지 실사용처**: ① Finding 상세의 "설명" 탭(control_id 기반 자동 근거 설명, `finding_explanations` 테이블) ② `/chat` AI 어시스턴트(자유 질의응답).
 - 강조 문구: "Evidence(조사 루프)와는 별개 파이프라인 — 같은 Bedrock, 다른 목적(판정 vs 설명·검색)"
 - 🎨 **시각자료(박스+아이콘 혼합)**: ① RAG 파이프라인 흐름(질문→Titan Embed→pgvector cosine 검색→Bedrock 답변)을 **박스+화살표로 제작** — Titan·Bedrock은 서비스 아이콘 있음, pgvector 검색은 개념 박스(아이콘 없음)라 혼합. draw.io/캔바 어느 쪽이든 무방. + ② `/chat` 화면 또는 finding 설명 탭 **스크린샷**(근거 chunk가 control_id로 인용되는 부분). 다이어그램 + 스크린샷 조합이면 "구조 + 실동작"이 같이 보임.

@@ -90,8 +90,9 @@ cd apps/console-backend && npm ci && npm run build   # ⚠️ console archive_fi
 # shared: terraform init -reconfigure → plan → 리뷰 → apply
 ```
 - Bedrock 모델 액세스 ✅(manual-infra §4) · fck-nat AMI owner `568608671756` 검증 ✅(2026-07-02) · EKS 1.34·RDS 16.9 = 표준지원/가용(2026-07-02 확인, apply 지연 시 재확인).
-- **Lambda 실코드 스왑**: 현재 Lambda들은 배포 가능한 스텁 — 실코드(각 `handler.py`·`engine/remediation.py`)+psycopg2 레이어로 교체는 CI 빌드 스텝(각 레이어 README).
+- ✅ **Lambda 실코드**: 스텁 스왑 완료(2026-07-03). `infra/backend/build_lambdas.py`가 각 패키지 + `contracts/*.json`을 zip 루트에 나란히 배치하고 psycopg2·X-Ray 레이어를 만든다(`deploy.ps1`이 backend apply/plan 전 자동 실행). ⚠️ engine 번들은 **engine+rag** 두 패키지 — `engine/handler.py`가 RAG 검색기를 주입하기 때문(빠지면 ImportError가 except에 먹혀 `rag_refs`가 조용히 빈 채로 남는다). `mock-*.json`은 프로덕션 미사용이라 번들에서 제외.
 - **RDS 스키마**: shared apply 후 VPC 내부에서 `psql -f shared/db/schema.sql` 1회(멱등) — [shared README](shared/README.md).
+- ⚠️ **RAG 코퍼스 적재(재apply마다 필수)**: `rag_chunks`는 RDS에 있어 destroy와 함께 사라진다. 안 넣으면 `/chat`이 근거 0건으로 검색해 **에러 없이 Bedrock 자체 지식으로 답한다**(2026-07-21 실제로 그 상태였음). `python -m rag.corpus.load_live --emit-sql rag_chunks.sql` 후 안내대로 psql 적용 → `curl .../api/system`의 `rag.chunks`가 0이 아닌지 확인.
 - **console SSO(apply 후 2건)**: ① Entra 앱 식별자를 `urn:amazon:cognito:sp:<user_pool_id>`로 갱신(placeholder면 로그인 실패, manual-infra §3.6.5) ② ACM 인증서 없으면 HTTP로 apply(count 가드) — **cert 없는 HTTP 모드는 무인증 노출**이라 ALB SG를 운영자 IP로 좁히기.
 
 ## 💰 5. 비용 근거

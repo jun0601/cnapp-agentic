@@ -2,7 +2,7 @@
 
 > **레이어드 terraform의 0번 — 가장 먼저 apply.** 모든 영역(target·console·scanners·pipeline·engine)이 이 출력을 참조한다(project-draft 4.6). 준형이 최초 apply.
 >
-> ⚠️ **현재 상태 = 스캐폴드.** apply 전 아래 사전작업 + `TODO` 마커를 채우고 리뷰해야 한다. 비용 발생(EKS·RDS·NAT) — 데모 기간만 켜고 `destroy`.
+> ✅ **현재 상태 = 라이브 검증 완료.** 아래 사전작업·`TODO` 마커는 전부 해소됐고, apply→검증→destroy 풀사이클을 여러 차례 실증했다(최근 2026-07-21 Bedrock IAM 축소 apply 포함). 비용 발생(EKS·RDS·NAT) — 데모 기간만 켜고 `destroy`.
 
 ## 무엇이 들어있나
 
@@ -27,9 +27,11 @@ psql "$PG_DSN" -f db/schema.sql   # CREATE EXTENSION vector + 6개 테이블(IF 
 
 1. **state 버킷 부트스트랩** — manual-infra.md 2번. S3 버킷 1개(버저닝·SSE·public 차단). 만든 뒤:
    - `backend.tf`의 `bucket` 값 교체, 또는 `terraform init -backend-config="bucket=..."`.
-2. **Bedrock 모델 액세스** — 콘솔에서 서울(ap-northeast-2) 리전에 Claude Haiku/Sonnet·Titan Embed v2 **모델 액세스 요청**(승인까지 시간 소요 가능). 가용성 실측 후 `iam-engine.tf`·`variables.tf`의 모델 ARN 좁히기.
-3. **TODO 마커 채우기** — `cluster_admin_principal_arns`(jh_lee·jw_kim ARN), `github_repo`, NAT/모델 ARN 등.
-4. **fck-nat 모듈 변수 검증** — 고정 버전(`~> 1.3`) 문서로 변수명 확인.
+2. ✅ **Bedrock 모델 액세스** — 완료. '모델 액세스' 페이지는 폐지(retired)됐고 서버리스 모델은 첫 호출 시 자동 활성, Anthropic만 최초 1회 use-case 제출이 필요했다(manual-infra §4). 사용 모델은 Titan Embed v2 + Claude Haiku 4.5(**global inference profile**).
+   - ✅ **모델 ARN 좁히기도 완료(2026-07-21)** — `bedrock_invoke` 정책이 `"*"` → 실사용 계열로 축소. ⚠️ **global inference profile은 여러 리전으로 라우팅하므로 파운데이션 모델 ARN에 리전 와일드카드가 필수**다(리전을 고정하면 라우팅된 호출이 AccessDenied). 실호출로 검증함.
+3. ✅ **TODO 마커** — 전부 해소. `cluster_admin_principal_arns`(jh_lee·jw_kim), `github_repo` 확정. `nat_ami_owner`(`568608671756`)는 fck-nat 공식 문서와 대조 검증 완료(2026-07-21).
+   - ⚠️ 남은 의도적 트레이드오프: **RDS SG를 소스 SG로 못 좁힘** — RDS SG는 이 레이어 소유인데 접속 주체 Lambda SG는 `infra/backend`가 만들어 **레이어 순환**이다. backend에서 규칙을 주입하면 풀리지만 apply 순서 중 DB 연결이 끊긴다. 완화: private subnet 전용 + Secrets Manager + `sslmode=require`.
+4. ✅ **fck-nat 모듈 변수 검증** — 완료(라이브 apply로 실증).
 
 ## apply 순서
 

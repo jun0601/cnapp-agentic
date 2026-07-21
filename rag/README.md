@@ -76,7 +76,7 @@ rag/
 │   ├── loader.py    ★ CorpusLoader — 청크 → 임베딩 → pgvector 적재
 │   └── run_demo.py    데모 실행 + 계약⑥ 검증 + 카탈로그 커버리지 확인
 └── retrieval/            (진우 — 완료 ✅)
-    ├── mock_corpus.py  ★ 14 INTERNAL control × 한국어 청크 24개
+    ├── mock_corpus.py  ★ 15 INTERNAL control × 한국어 청크 26개
     ├── retriever.py      RAGRetriever — 청크 검색
     ├── answer_gen.py     RAGAnswerGenerator — 한국어 설명 생성
     └── run_demo.py       데모 실행 + 골든 정합 검증 (6개 체크)
@@ -97,12 +97,12 @@ python -m rag.retrieval.run_demo
 2. `CorpusLoader.load(dry_run=True)` — mock 임베딩(결정적 1024-dim)으로 계약⑥ 청크 완성
 3. 계약⑥ 검증(embedding[1024]·model/dim const·metadata.control_id) 전 청크 OK
 4. 같은 텍스트 → 같은 벡터(결정성) 확인
-5. control-catalog(14종) 커버리지 확인 → 전체 OK ✅
+5. control-catalog(15종) 커버리지 확인 → 전체 OK ✅
 
 **출력 요약(retrieval):**
 1. mock finding 3건(KEV·S3공개·Entra과도권한) → 청크 검색 → 설명 생성
 2. `search_multi` 일괄 검색 확인
-3. 코퍼스 커버리지 확인 (14개 control 전부 커버)
+3. 코퍼스 커버리지 확인 (15개 control 전부 커버)
 4. 골든 정합 6개 체크 → 전부 OK ✅
 
 ---
@@ -111,7 +111,7 @@ python -m rag.retrieval.run_demo
 
 ### 📦 mock_corpus.py — 지식베이스 원천
 
-14개 INTERNAL control마다 한국어 청크 1~2개 = 총 24개 청크.
+15개 INTERNAL control마다 한국어 청크 1~2개 = 총 26개 청크.
 
 ```python
 "INTERNAL-VULN-KEV-001": [
@@ -157,7 +157,7 @@ chunk = loader.to_chunk(seed)
 # 여러 청크 일괄 적재. dry_run=True면 DB 없이 계약⑥ 청크만 생성(mock)
 result = loader.load(seed_chunks, dry_run=True)
 # result = {"loaded": 24, "dim": 1024, "model": "amazon.titan-embed-text-v2:0",
-#           "controls": [...14종...], "chunks": [...]}
+#           "controls": [...15종...], "chunks": [...]}
 ```
 
 real 모드(`mock=False, pg_dsn=...`): `embed()`가 Bedrock Titan Embed v2 `invoke_model`을 호출하고, `load(dry_run=False)`가 psycopg2로 `rag_chunks` 테이블에 UPSERT한다(둘 다 지연 import — mock 환경에서 boto3/psycopg2 미설치여도 무해).
@@ -225,7 +225,7 @@ contracts/rag-chunk.schema.json
 
 **전제조건(실배포 전):**
 1. `PG_DSN` 환경변수 — RDS pgvector DSN
-2. `CorpusLoader(mock=False).load(mock_corpus.all_chunks(), dry_run=False)` 1회 실행 — Titan Embed v2로 24개 청크 벡터화 후 pgvector INSERT
+2. `CorpusLoader(mock=False).load(mock_corpus.all_chunks(), dry_run=False)` 1회 실행 — Titan Embed v2로 26개 청크 벡터화 후 pgvector INSERT
 3. Bedrock 모델 액세스 활성화 (서울 리전) — Sonnet inference profile ID **확정됨**: `global.anthropic.claude-sonnet-4-5-20250929-v1:0`(2026-07-03 `aws bedrock list-inference-profiles` 확인, answer_gen.py 반영). 기존 bare name은 404였음.
 
 **적재·검색 로직(loader.py·retriever.py·answer_gen.py)은 무변** — 생성자 인자(`mock=False`)만 바꾸면 실배포 전환 완료.

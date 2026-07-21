@@ -15,12 +15,15 @@
 | `GET /findings/:id` | `{ finding, explanation, case }` (UC0·UC1 조인) |
 | `GET /attack-paths` · `GET /attack-paths/:id` | `AttackPath[]` · `AttackPath` |
 | `GET /scores` · `GET /audit` · `GET /compliance` | 대시보드 점수 · 감사 · ISMS-P |
-| `POST /remediations/:id/{approve,reject}` | **approver만**(HITL) → SFn StartExecution(스텁) |
-| `POST /findings/:id/reanalyze` · `POST /chat` | 재분석(202) · 자연어 질의(에코 스텁) |
+| `POST /remediations/:id/{approve,reject}` | **approver만**(HITL) → `remediation_requests` INSERT → **Step Functions StartExecution**(실 배선, 2026-07-08) |
+| `POST /findings/:id/reanalyze` | approver만 → orchestrator Lambda **비동기 invoke**(실 Bedrock 재조사) → 202 |
+| `POST /chat` | **실 RAG** — Titan Embed v2 → pgvector cosine top-4 → Bedrock converse. 응답에 근거 청크(`refs[].control`) 포함 |
+| `GET /system` | AI·시스템 관측 — 모델·RAG 지식베이스 통계·Bedrock 24h 사용량(CloudWatch) |
 
 ## mock ↔ real 스왑 (한 곳)
-- `data.ts`: `USE_MOCK=true`(기본) → `contracts/mock-*.json` 읽어 응답 / `USE_MOCK=false`(+`PG_DSN`) → pgvector 쿼리(`pg*` 함수 구현부, 콘솔 §5 스키마).
-- `auth.ts`: ALB가 넘긴 `x-amzn-oidc-data`(JWT)의 `custom:groups` → viewer/approver(§7). 로컬/미인증은 viewer.
+- `data.ts`: `USE_MOCK=true` → `contracts/mock-*.json` 읽어 응답 / `USE_MOCK=false` → pgvector 쿼리(`pg*` 함수 구현부, 콘솔 §5 스키마).
+  - ⚠️ **기본값이 환경에 따라 다르다**(2026-07-21): 로컬·CI는 `mock`(contracts가 있으니 안전), **Lambda는 `real`**. Lambda 번들엔 `contracts/`가 없어서 mock으로 폴백하면 `readFileSync`가 그대로 터지기 때문 — fail-safe 방향을 환경에 맞춘 것. terraform이 `USE_MOCK`을 명시 주입하지만 그게 유실돼도 살아남는다.
+- `auth.ts`: **Bearer ID 토큰**(SPA 직접 OIDC, 옵션 B) 또는 ALB `x-amzn-oidc-data`의 `custom:groups`(GUID) → viewer/approver(§7). `aws-jwt-verify`로 **JWKS 서명·issuer·audience·exp 검증**하고, 검증기 미구성·검증 실패 시 **fail-closed(viewer)**.
 
 ## 개발·검증
 ```

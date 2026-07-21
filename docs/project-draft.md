@@ -279,7 +279,7 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 | `INTERNAL-ECR-SCAN-DISABLED-001` | cspm | `securityhub:ECR.1` · `prowler:ecr_*_scan_*` (f12 — scan-on-push off) |
 | `INTERNAL-S3-LOGGING-DISABLED-001` | cspm | `config:s3-bucket-versioning-enabled` · `config:s3-bucket-logging-enabled` (f15) |
 
-> 위는 골든 경로(R1~R5)와 6기둥 발화에 필요한 최소 카탈로그(**14종** — `contracts/control-catalog.json`과 동수). **전체는 `contracts/control-catalog.json`으로 졸업**(ID→{pillar, severity_default, sources[], isms_p, remediable}). 새 스캐너 체크가 추가되면 여기에 매핑 한 줄 추가.
+> 위는 골든 경로(R1~R5)와 6기둥 발화에 필요한 최소 카탈로그(**15종** — `contracts/control-catalog.json`과 동수. 2026-07-06 `INTERNAL-KSPM-CLUSTERADMIN-001` 추가로 14→15). **전체는 `contracts/control-catalog.json`으로 졸업**(ID→{pillar, severity_default, sources[], isms_p, remediable}). 새 스캐너 체크가 추가되면 여기에 매핑 한 줄 추가.
 
 **(c) remediated 판정 스코프(스캐너별)** — 계약⑤ `scan_batch_id`는 **(source, 배치)** 쌍으로 본다. remediated 판정 = *"그 source가 커버하는 control 집합 안에서, 다음 동일 source 배치에 같은 `dedup_key`가 없으면 remediated"*. 예: Trivy 배치는 Config가 잡는 `INTERNAL-S3-*`를 건드리지 않으므로 S3 finding을 remediated로 만들지 않는다. **각 source의 control 커버리지 = (b) 매핑표의 역인덱스**(source → 그 source가 emit하는 INTERNAL control_id 집합). 드리프트(remediated→open 재발)도 같은 스코프로 판정.
 
