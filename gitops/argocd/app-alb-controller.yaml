@@ -22,7 +22,7 @@ spec:
         # 네임스페이스에서 IMDS 홉이 초과돼 "context deadline exceeded"로 컨트롤러가 크래시함
         # (hop-limit은 의도된 보안 설정이라 여기서 안 건드림 — infra/shared 소유).
         # shared 재apply로 VPC가 재생성되면 여기 값을 aws ec2 describe-vpcs로 갱신할 것.
-        vpcId: vpc-0858061ad2e0038b3
+        vpcId: vpc-00560bd356311656d
         serviceAccount:
           create: true
           name: aws-load-balancer-controller
