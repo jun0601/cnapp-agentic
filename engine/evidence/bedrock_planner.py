@@ -131,8 +131,15 @@ class BedrockEvidenceAgent:
         session = boto3.Session(profile_name=profile, region_name=region)
         self._client = session.client("bedrock-runtime")
         al = load_allowlist()
+        # allowlist = '허용 경계'(_check가 강제) / enum = '실제 호출 가능한 것'.
+        # 2026-07-21까지 둘을 같은 것으로 취급해 azure_ms_graph(=Graph 권한 스코프, API 이름이
+        # 아니고 핸들러도 없음)까지 enum에 넣고 있었다 → LLM이 그걸 고르면 NotImplementedError로
+        # 턴만 낭비. 실행기가 스스로 신고한 executable_apis()를 enum으로 쓴다.
+        # 경계는 안 넓어진다 — enum ⊆ allowlist이고 _check는 그대로 allowlist를 강제한다.
         self._allowlist = list(al["aws"]) + list(al["azure"])
-        self._tool_config = _tool_config(self._allowlist)
+        executable = getattr(executor, "executable_apis", None)
+        enum = list(executable()) if callable(executable) else list(self._allowlist)
+        self._tool_config = _tool_config(enum)
 
     def investigate(
         self, findings: List[dict], hypotheses: Optional[List[str]] = None

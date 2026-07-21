@@ -103,7 +103,54 @@ def main():
             if ev["tool"] not in allow:
                 errors.append(f"[f] case {c['case_id']}: evidence tool '{ev['tool']}' allowlist 외")
 
+    # (g) 임베딩 모델 상수가 구현 3곳에서 일치하는가 — 계약⑥ embedding_model const
+    assert_embedding_model_consistency()
+
     report()
+
+
+# 계약⑥ embedding_model을 실제로 참조하는 구현들(적재 1 + 검색 2).
+# ⚠️ RAG 검색은 폴리글랏 설계상 Python(엔진용)·TypeScript(콘솔 /chat용) 두 벌로 존재한다.
+#    둘이 다른 모델을 쓰면 벡터 공간이 달라져 **에러 없이 검색 결과만 엉뚱해진다**(조용한 실패).
+#    그래서 "같은 상수를 쓰는가"를 CI가 텍스트 수준에서라도 강제한다.
+_EMBED_MODEL_SITES = [
+    ("rag/corpus/loader.py", r'EMBEDDING_MODEL\s*=\s*"([^"]+)"'),          # 적재(Python)
+    ("apps/console-backend/src/data.ts", r"EMBED_MODEL\s*=\s*'([^']+)'"),  # 검색(TypeScript, /chat)
+]
+
+
+def assert_embedding_model_consistency() -> None:
+    """적재·검색 구현이 계약⑥의 embedding_model const와 같은 모델을 쓰는지 확인.
+
+    (검색 Python판 rag/retrieval/retriever.py는 자체 상수 없이 CorpusLoader.embed()에
+     위임하므로 loader.py 하나만 보면 된다 — 위임 구조가 깨지면 아래 import 검사에서 걸린다.)
+    """
+    import re
+
+    schema = load("rag-chunk.schema.json")
+    if not schema:
+        return
+    want = schema["properties"]["embedding_model"]["const"]
+    root = HERE.parent  # 레포 루트(contracts/의 상위)
+
+    for rel, pattern in _EMBED_MODEL_SITES:
+        path = root / rel
+        if not path.is_file():
+            errors.append(f"[g] 임베딩 모델 참조 파일 없음: {rel}")
+            continue
+        m = re.search(pattern, path.read_text(encoding="utf-8"))
+        if not m:
+            errors.append(f"[g] {rel}: 임베딩 모델 상수를 못 찾음(리팩터로 이름이 바뀌었나?)")
+        elif m.group(1) != want:
+            errors.append(
+                f"[g] {rel}: embedding_model '{m.group(1)}' != 계약⑥ const '{want}' "
+                f"— 적재·검색 벡터가 안 맞아 검색이 조용히 깨진다"
+            )
+
+    # Python 검색부가 적재부에 위임하는 구조 자체를 검사(자체 모델 상수를 새로 들이면 드리프트 시작).
+    retr = root / "rag/retrieval/retriever.py"
+    if retr.is_file() and "from rag.corpus.loader import CorpusLoader" not in retr.read_text(encoding="utf-8"):
+        errors.append("[g] rag/retrieval/retriever.py가 CorpusLoader에 임베딩을 위임하지 않음 — 모델 드리프트 위험")
 
 
 def report():

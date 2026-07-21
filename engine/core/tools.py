@@ -56,6 +56,18 @@ class ToolExecutor:
     def execute(self, tool: str, resource_id: str) -> ToolResult:
         raise NotImplementedError
 
+    def executable_apis(self) -> List[str]:
+        """이 실행기가 **실제로 호출할 수 있는** API 목록.
+
+        allowlist(계약④)는 '허용 경계'이지 '구현 목록'이 아니다 — 둘을 구분해야 한다.
+        계약④의 azure_ms_graph 항목은 API 이름이 아니라 **Graph 권한 스코프**
+        (Application.Read.All 등)이고 대응 핸들러도 없다. 그런데 LLM 플래너가
+        allowlist를 그대로 tool enum으로 넘기면 **LLM이 호출 불가능한 것을 고를 수 있고**,
+        매 시도가 실패로 낭비된다(2026-07-21 발견). 그래서 플래너는 allowlist가 아니라
+        이 목록을 enum으로 쓴다. allowlist 강제(_check)는 그대로 유지 — 경계는 안 넓어진다.
+        """
+        return sorted(self.allowlist)
+
 
 # 목업 canned 응답: (tool, resource_id) → (요약, confirms, raw)
 # 골든 시나리오(member 공개 S3·PII + order 과도 IRSA)를 재현. mock-cases.json과 정합.
@@ -184,9 +196,15 @@ class RealToolExecutor(ToolExecutor):
     def _now() -> str:
         return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    def execute(self, tool: str, resource_id: str) -> ToolResult:
-        self._check(tool)  # ★ allowlist 강제(base) — 변경/쓰기 API면 여기서 차단
-        handler = {
+    def _handlers(self) -> dict:
+        """실제 구현된 read-only 핸들러 — AWS 9종. Azure(MS Graph)는 미구현.
+
+        Azure를 안 넣은 이유(의도적 범위): 계약④의 azure_ms_graph는 API 이름이 아니라
+        **Graph 권한 스코프**이고, Lambda에서 Graph를 호출하려면 Entra 자격증명이 필요한데
+        그건 키리스 원칙(D4)과 충돌한다. 골든 데모의 조사 범위는 AWS(§9 UC0)이고
+        Azure는 finding 소스로만 쓴다 — 그 경계를 executable_apis()로 명시한다.
+        """
+        return {
             "s3:GetBucketPolicy": self._get_bucket_policy,
             "s3:GetBucketAcl": self._get_bucket_acl,
             "s3:GetBucketPublicAccessBlock": self._get_public_access_block,
@@ -196,7 +214,15 @@ class RealToolExecutor(ToolExecutor):
             "iam:GetRolePolicy": self._get_role_policy,
             "macie2:GetFindings": self._macie_get_findings,
             "accessanalyzer:ListFindings": self._accessanalyzer_list_findings,
-        }.get(tool)
+        }
+
+    def executable_apis(self) -> List[str]:
+        """LLM 플래너에 노출할 '실제로 호출 가능한' API — allowlist ∩ 구현된 핸들러."""
+        return sorted(set(self._handlers()) & self.allowlist)
+
+    def execute(self, tool: str, resource_id: str) -> ToolResult:
+        self._check(tool)  # ★ allowlist 강제(base) — 변경/쓰기 API면 여기서 차단
+        handler = self._handlers().get(tool)
         if handler is None:
             raise NotImplementedError(
                 "'%s'는 실 실행기 미구현(AWS allowlist 9종만) — 핸들러 추가로 확장." % tool
