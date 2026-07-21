@@ -6,6 +6,28 @@
 >
 > **현재 단계: 전 레이어 실배포·실검증 완료.** AWS+Azure 멀티클라우드에 실제로 배포해 — 스캐너(kube-bench·Trivy·Prowler AWS/Azure·IAM Access Analyzer)가 실 계정·실 클러스터를 read-only로 스캔하고, 에이전틱 엔진이 **실 Bedrock으로 read-only API를 스스로 호출해 능동 조사·판정**하며, 관제 콘솔이 커스텀 도메인(`cnapp-agentic.cloud`)에서 **SSO 실 로그인**으로 동작하고, HITL 조치가 **실 Step Functions로 실행**되는 것까지 검증했다. 비용 규율상 상시 가동이 아니라 **apply→검증→destroy 사이클**로 운영한다.
 
+### 📊 실측 검증 수치
+
+| 항목 | 실측값 |
+|---|---|
+| 인프라 풀사이클 | Terraform **6레이어 · 리소스 207개** apply → 검증 → destroy (잔존 비용 0) |
+| 실 취약점 탐지 | Trivy가 실 ECR 이미지에서 **CVE 205개** · kube-bench가 CIS 4.1.1(cluster-admin 과다바인딩) 실탐지 |
+| 에이전틱 능동조사 | Bedrock이 read-only API를 **스스로 선택·호출**해 공개 S3 조사 → **CONFIRMED (confidence 100%)** |
+| 조사 권한 경계 | **AWS 9종 + Azure MS Graph 3종** allowlist, 스키마 enum + 실행 직전 2겹 강제 |
+| 운영 관측 | CloudWatch **24위젯** · 알람 7종 · **X-Ray 5개 Lambda** 분산추적 · Grafana 4소스 통합 |
+| 회귀 게이트 | 계약 4-assert + 컴포넌트 **9종 `run_demo`** + `run_e2e` — 전부 통과해야 병합 |
+
+### ⚡ 30초 만에 직접 확인하기 (AWS 계정 불필요)
+
+핵심 주장은 **클라우드 자원 없이 로컬에서 바로 검증**할 수 있다. 계약 목업 데이터로 전 파이프라인이 실제로 도는지 확인하는 경로:
+
+```bash
+python contracts/validate.py   # 계약 정합 4-assert (스키마·control 카탈로그·case 교차검증)
+python run_e2e.py              # 스캐너 → 정규화 → 상관(attack-path) → 엔진 → RAG 전 구간 관통
+```
+
+둘 다 **순수 stdlib라 설치가 필요 없고**, 매 PR마다 GitHub Actions(`ci.yml`)가 이 둘 + 컴포넌트 9종 `run_demo`를 **하드 게이트**로 돌린다 — 하나라도 exit ≠ 0이면 병합이 막힌다.
+
 ### 📂 이 레포는 무엇인가 / docs 안내
 
 설계의 단일 진실 공급원(SSOT)은 `docs/` 폴더이며, 각 문서의 역할은 다음과 같다.
@@ -34,7 +56,7 @@
 ## ✨ 주요 기능
 
 - **6기둥 CNAPP 점검(실동작)** — CSPM(Config·Security Hub·Prowler·Macie)·CIEM(IAM Access Analyzer·Entra Prowler)·취약점(Trivy)·KSPM(kube-bench)·DSPM(Macie)·attack-path(커스텀 상관 엔진 R1~R5)를 실 계정·실 클러스터에서 스캔.
-- **에이전틱 AI 능동 조사** — Orchestrator→Triage→Hypothesis→Evidence→Reasoning 5단계 루프. Evidence 단계의 Bedrock이 계약으로 고정된 read-only allowlist(AWS 9종) 안에서 **스스로 도구를 골라 호출**해 `GetBucketPolicy`·`GetPublicAccessBlock` 등으로 실 S3를 조사하고 CONFIRMED 판정까지 실증.
+- **에이전틱 AI 능동 조사** — Orchestrator→Triage→Hypothesis→Evidence→Reasoning 5단계 루프. Evidence 단계의 Bedrock이 계약으로 고정된 read-only allowlist(**AWS 9종 + Azure MS Graph 3종**) 안에서 **스스로 도구를 골라 호출**해 `GetBucketPolicy`·`GetPublicAccessBlock` 등으로 실 S3를 조사하고 CONFIRMED 판정까지 실증. 변경 API는 allowlist에 아예 없고, 조치는 분리된 HITL 경로에서만 실행된다.
 - **크로스클라우드 attack-path** — "AWS 취약 워크로드 침투(product KEV 이미지) → 과도 IRSA 측면이동 + **평문 시크릿에서 Azure 자격증명 발견** → 공개 S3의 PII 탈취 → **탈취 자격증명으로 Entra ID 과도권한 앱 장악**"처럼, 개별로는 중간 위험인 finding들을 하나의 신원 탈취 경로로 엮는다. 3단계 이상 체인은 severity를 Critical로 자동 격상. *(MVP는 분석·시각화 수준, 실제 횡단 익스플로잇은 범위 밖.)*
 - **RAG 기반 설명·챗봇** — Titan Embed v2(1024-dim) → pgvector cosine 검색(HNSW) → Bedrock이 근거 청크로만 답변(할루시네이션 억제). finding 상세 설명 탭 + `/chat` AI 어시스턴트.
 - **HITL 자동 개선(실증)** — 에이전트는 기본 read-only. 변경(remediation)은 approver 승인 → **Step Functions 실행** → finding remediated → Secure Score 상승. 모든 조치는 **S3 Object Lock 불변 감사로그**로 기록(실측: terraform drift 0).
@@ -85,7 +107,7 @@
 | **관제 앱 (프론트)** | Vite + React + TypeScript, TanStack Query, Tailwind, React Flow(attack-path), Recharts, MSW(mock 하네스) |
 | **관제 앱 (백엔드)** | TypeScript Lambda(ALB→Lambda, 읽기 API) — *폴리글랏: console=TS / engine·pipeline=Python* |
 | **관측 / 호스팅** | S3 + CloudFront, kube-prometheus-stack(EKS) + CloudWatch(24위젯·알람 7종) + **X-Ray(5 Lambda 분산추적)** + Grafana(4소스 통합) + CloudTrail + Teams 알림(3채널) |
-| **IaC** | Terraform(레이어드 5층 + monitoring) · `deploy.ps1` 순서 강제 |
+| **IaC** | Terraform(**레이어드 6층** — shared·karpenter·target·console·backend·monitoring) · `deploy.ps1`이 apply 정방향 / destroy 역방향 순서 강제 |
 
 ---
 
@@ -165,7 +187,7 @@ cnapp-agentic/
 | 📚 **RAG (`rag/`)** | ✅ **라이브** — Titan Embed v2(1024-dim) 적재 → pgvector cosine(HNSW) 검색 → Bedrock 답변. finding 설명 탭·`/chat` 실동작 |
 | 🕸️ **attack-path (`attackpath/`)** | ✅ R1~R5 상관 + 그래프 모델 · 2-pass backfill. 실 RDS 기준 재계산(골든 5노드 크로스클라우드 체인) |
 | ⚡ **조치 (Remediation)** | ✅ **HITL 실증** — approver 승인 → `remediation_requests` INSERT → Step Functions `StartExecution` → finding remediated → Secure Score 상승. S3 Object Lock 불변 감사. terraform drift 0 |
-| 🏗️ **인프라 (`infra/`)** | ✅ **라이브 풀사이클** — 레이어드 5층 apply→검증→destroy 반복 실증(deploy.ps1). VPC(NAT Instance)·EKS 1.34(Karpenter spot)·RDS PG16+pgvector·Lambda VPC 배치. 키리스(GitHub OIDC·IRSA) |
+| 🏗️ **인프라 (`infra/`)** | ✅ **라이브 풀사이클** — 레이어드 **6층 · 리소스 207개** apply→검증→destroy 반복 실증(`deploy.ps1`이 순서 강제, 잔존 0). VPC(NAT Instance)·EKS 1.34(Karpenter spot)·RDS PG16+pgvector(7테이블)·Lambda VPC 배치. 키리스(GitHub OIDC·IRSA) |
 | 🔐 **거버넌스 · 하드닝** | ✅ CloudFront WAF(실 XSS 차단 확인) · JWT 서명검증(`aws-jwt-verify`) · 전구간 TLS · read-only first · 불변 감사(Object Lock) |
 | 📊 **운영 관측 (`infra/monitoring`)** | ✅ **라이브** — Grafana(4소스: Prometheus·CloudWatch·PostgreSQL·X-Ray) · CloudWatch 24위젯·알람 7종 · X-Ray 5 Lambda 분산추적 · CloudTrail 연동 · Teams 알림 3채널 |
 | ⚙️ **CI/CD (`.github/`·`gitops/`)** | ✅ CI(회귀 10종 + Trivy/Checkov Shift-Left) · 이미지빌드(OIDC 키리스→ECR) · ArgoCD GitOps · cron 자동스캔(Prowler·Access Analyzer)·라이브 헬스 캔어리 |
