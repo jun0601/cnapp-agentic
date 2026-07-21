@@ -30,11 +30,15 @@ HERE = Path(__file__).resolve().parent          # infra/backend
 ROOT = HERE.parent.parent                       # 레포 루트
 BUILD = HERE / "build"
 
-# 번들 정의: (빌드 폴더명, 포함 패키지, 배포 후 존재해야 할 핸들러 파일)
+# 번들 정의: (빌드 폴더명, 포함 패키지들, 배포 후 존재해야 할 핸들러 파일)
+# ⚠️ engine은 rag도 함께 넣는다 — engine/handler.py의 _rag_retriever()가 rag.retrieval을
+#    import하기 때문. 안 넣으면 ImportError가 그 함수의 except에 먹혀 **조용히 rag_refs가
+#    영원히 빈 채로** 남는다(2026-07-21 배선 시 실제로 밟을 뻔한 함정).
 BUNDLES = [
-    ("src-pipeline", "pipeline", ["pipeline/ingest/handler.py", "pipeline/normalize/handler.py"]),
-    ("src-attackpath", "attackpath", ["attackpath/correlation/handler.py"]),
-    ("src-engine", "engine", ["engine/handler.py", "engine/remediation.py"]),
+    ("src-pipeline", ["pipeline"], ["pipeline/ingest/handler.py", "pipeline/normalize/handler.py"]),
+    ("src-attackpath", ["attackpath"], ["attackpath/correlation/handler.py"]),
+    ("src-engine", ["engine", "rag"], ["engine/handler.py", "engine/remediation.py",
+                                       "rag/retrieval/retriever.py"]),
 ]
 
 # 패키지 복사에서 제외 — 캐시·데모 산출물(런타임 불필요, zip 슬림 유지)
@@ -42,11 +46,12 @@ IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache", "out_ca
 
 
 def build_bundles() -> None:
-    for name, pkg, handlers in BUNDLES:
+    for name, pkgs, handlers in BUNDLES:
         dst = BUILD / name
         if dst.exists():
             shutil.rmtree(dst)
-        shutil.copytree(ROOT / pkg, dst / pkg, ignore=IGNORE)
+        for pkg in pkgs:
+            shutil.copytree(ROOT / pkg, dst / pkg, ignore=IGNORE)
         # contracts는 *.json만(스키마·카탈로그·mock — 런타임 로드 대상). validate.py 등 스크립트 제외.
         (dst / "contracts").mkdir(parents=True, exist_ok=True)
         for j in (ROOT / "contracts").glob("*.json"):
@@ -54,7 +59,7 @@ def build_bundles() -> None:
         for h in handlers:
             assert (dst / h).is_file(), f"[{name}] 핸들러 누락: {h}"
         n = sum(1 for _ in dst.rglob("*") if _.is_file())
-        print(f"OK {name}: {n} files (pkg={pkg} + contracts/*.json)")
+        print(f"OK {name}: {n} files (pkg={'+'.join(pkgs)} + contracts/*.json)")
 
 
 def build_psycopg2_layer() -> None:

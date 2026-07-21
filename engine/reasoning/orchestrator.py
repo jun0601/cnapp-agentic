@@ -123,6 +123,7 @@ class Orchestrator:
         evidence_agent: Optional[object] = None,
         hypothesis_agent: Optional[object] = None,
         reasoning_agent: Optional[object] = None,
+        rag_retriever: Optional[object] = None,
     ) -> None:
         # evidence_agent/hypothesis_agent/reasoning_agent: 템플릿·규칙 플래너(기본) ↔ 실배포
         # LLM 플래너(Bedrock*Agent) 스왑 지점. 셋 다 원본과 동일 인터페이스
@@ -132,6 +133,31 @@ class Orchestrator:
         self._hyp = hypothesis_agent or HypothesisAgent()
         self._ev = evidence_agent or EvidenceAgent(self.executor)
         self._rsn = reasoning_agent or ReasoningAgent()
+        # rag_retriever: 주입되면 Reasoning 결과에 지식베이스 근거(control_id)를 붙인다.
+        # None이면 rag_refs=[]로 그대로 진행(무주입 = 기존 동작, CI·목업 무영향).
+        # ⚠️ 2026-07-21까지 이 배선 자체가 없어서 계약⑦의 rag_refs가 항상 비어 있었다.
+        self._rag = rag_retriever
+
+    def _retrieve_rag_refs(self, case_findings: List[dict]) -> List[str]:
+        """조사한 finding들의 지식베이스 근거(control_id)를 모은다 — 중복 제거·입력 순서 유지.
+
+        RAG는 판정의 '보조 설명'이지 판정 자체가 아니므로, 검색이 실패해도(pgvector 미적재·
+        Bedrock 오류 등) 케이스 전체를 죽이지 않고 빈 목록으로 강등한다.
+        """
+        if self._rag is None:
+            return []
+        refs: List[str] = []
+        seen = set()
+        try:
+            for f in case_findings:
+                for chunk in self._rag.search_by_finding(f, top_k=2):
+                    ref = (chunk.get("metadata") or {}).get("control_id") or chunk.get("chunk_id")
+                    if ref and ref not in seen:
+                        seen.add(ref)
+                        refs.append(ref)
+        except Exception:  # noqa: BLE001 — RAG 실패가 판정을 막으면 안 된다
+            return []
+        return refs
 
     def run(
         self,
@@ -183,9 +209,16 @@ class Orchestrator:
 
         top_score = max(triage(f).priority_score for f in case_findings)
         min_sev = min(int(f.get("severity_id", 5)) for f in case_findings)
+        # 승급 사유는 실제 조건에서 도출한다 — 옛 코드는 "attack_path_id!=null(골든 경로)"로
+        # 하드코딩돼 있어, 경로에 안 붙고 severity만으로 승급된 case에도 틀린 사유가 찍혔다.
+        drivers = []
+        if golden_path_id:
+            drivers.append("attack_path_id!=null(경로 소속)")
+        if min_sev <= 2:
+            drivers.append("severity_id=%d(High↑)" % min_sev)
         case_mod.set_triage(
             c, top_score, True,
-            "escalate — attack_path_id!=null(골든 경로) · 최고 severity_id=%d" % min_sev,
+            "escalate — " + " · ".join(drivers or ["게이트 통과"]),
         )
 
         # ── ② Hypothesis ──────────────────────────────────────────
@@ -215,6 +248,7 @@ class Orchestrator:
         case_mod.set_reasoning(
             c, rsn["narrative"], rsn["risk_level"], rsn["recommended_actions"],
             tokens=rsn_in + rsn_out, model=getattr(self._rsn, "model_label", "template"),
+            rag_refs=self._retrieve_rag_refs(case_findings),
         )
 
         # EMF 비용 지표는 케이스 1건 전체(Hypothesis+Evidence+Reasoning 3스테이지 합)를 반영—

@@ -104,12 +104,14 @@ def handler(event: dict, context=None) -> dict:
     # 안 그러면 correlation이 만든 attack_path 2·3번은 영원히 조사 대상에서 빠진다.
     orch = _orchestrator()
     results = []
+    investigated: set = set()  # 경로 case가 실제로 조사한 finding_id — 아래 잔여 처리에서 제외
     for path in paths:
         case_id = _case_id_for_path(path["attack_path_id"])
         try:
-            case, _escalated, _case_findings = orch.run(findings, [path], case_id=case_id)
+            case, _escalated, case_findings = orch.run(findings, [path], case_id=case_id)
         except ValueError:
             continue  # 이 경로엔 조사 가능한(escalate+control 매칭) finding이 없음 — 스킵
+        investigated.update(f["finding_id"] for f in case_findings)
         _upsert_case(case)
         _upsert_explanations(case)
         results.append({
@@ -118,7 +120,56 @@ def handler(event: dict, context=None) -> dict:
             # verdict/confidence는 case["evidence_meta"](set_evidence 기록). reasoning엔 narrative·risk_level만.
             "verdict": (case.get("evidence_meta") or {}).get("verdict"),
         })
-    return {"cases": results}
+
+    # ── 위 경로 case가 조사하지 않은 escalated finding 전부 ──────────────
+    # 트리아지 게이트는 "severity_id<=2 OR attack_path_id!=null"인데 경로 case는 두 겹으로
+    # 걸러낸다: ① 경로 소속만 보고 ② 그중에서도 _INVESTIGATION_ORDER(hero 경로 전용 control
+    # 3종)에 있는 것만 조사한다. 그래서 두 부류가 게이트를 통과하고도 영원히 pending으로 남았다.
+    #   ⓐ 경로에 안 붙은 High↑ finding (예: S3-PUBLIC sev1)
+    #   ⓑ 경로에는 붙었지만 조사 순서 목록에 없는 finding (예: SECRET-PLAINTEXT)
+    # 2026-07-21 라이브 실측: 게이트 통과 19건 중 13건(ⓐ) → ⓐ 처리 후에도 4건(ⓑ)이 남았다.
+    # 그래서 "경로 밖"이 아니라 **실제로 조사되지 않은 것 전부**를 기준으로 삼는다.
+    # run()은 paths=[]이면 golden_path_id=None → escalated[:3]로 후보를 잡으므로 3건씩 끊어 넘긴다.
+    off_path = [
+        f for f in findings
+        if f["finding_id"] not in investigated and _escalates(f)
+    ]
+    # 폭주 방지 — 스캐너가 대량 유입되면 Bedrock 비용이 선형으로 늘어난다. 기본 6 case(=18건).
+    max_cases = int(os.environ.get("MAX_OFFPATH_CASES", "6"))
+    batches = [off_path[i:i + 3] for i in range(0, len(off_path), 3)][:max_cases]
+    dropped = len(off_path) - sum(len(b) for b in batches)
+    for i, batch in enumerate(batches):
+        try:
+            case, _e, _cf = orch.run(batch, [], case_id=_case_id_for_offpath(i))
+        except ValueError:
+            continue
+        _upsert_case(case)
+        _upsert_explanations(case)
+        results.append({
+            "case": case["case_id"],
+            "attack_path_id": None,
+            "verdict": (case.get("evidence_meta") or {}).get("verdict"),
+        })
+
+    out = {"cases": results}
+    if dropped:
+        # 조용히 자르지 않는다 — 잘린 게 있으면 응답에 남겨 다음 호출에서 처리되는지 보이게.
+        out["offpath_dropped"] = dropped
+    return out
+
+
+def _escalates(finding: dict) -> bool:
+    """트리아지 게이트와 동일 조건(engine/evidence/triage.py) — open + (High↑ or 경로 소속)."""
+    from engine.evidence.triage import triage
+    return bool(triage(finding).escalate)
+
+
+def _case_id_for_offpath(index: int) -> str:
+    """경로 밖 배치용 결정적 case_id — 경로용(c0000…000N)과 안 겹치게 b 접두 대역을 쓴다.
+
+    재실행해도 같은 배치가 같은 case_id를 받아야 UPSERT가 멱등이다.
+    """
+    return "b0000000-0000-4000-8000-%012d" % (index + 1)
 
 
 def _case_id_for_path(attack_path_id: str) -> str:
@@ -155,7 +206,30 @@ def _orchestrator() -> Orchestrator:
         evidence_agent=BedrockEvidenceAgent(ex, **kwargs),
         hypothesis_agent=BedrockHypothesisAgent(**kwargs),
         reasoning_agent=BedrockReasoningAgent(**kwargs),
+        rag_retriever=_rag_retriever(region),
     )
+
+
+def _rag_retriever(region: str):
+    """실 RAG 검색기(Titan 쿼리임베딩 → pgvector cosine). 실패하면 None(=rag_refs 빈 목록).
+
+    2026-07-21까지 orchestrator에 RAG 배선 자체가 없어 `finding_explanations.rag_refs`가
+    항상 []였다(감사에서 발견). 여기서 주입해 판정 근거에 지식베이스 control_id가 실리게 한다.
+    ⚠️ 지식베이스가 비어 있으면(재apply 직후 등) 검색 결과가 0건이라 rag_refs도 비는데,
+       그건 정상 동작이 아니라 적재 누락 신호다 — `python -m rag.corpus.load_live` 참고.
+    """
+    try:
+        import json as _json
+        import boto3
+        from rag.retrieval.retriever import RAGRetriever
+        sm = boto3.client("secretsmanager", region_name=region)
+        sec = _json.loads(sm.get_secret_value(SecretId=os.environ["DB_SECRET_ARN"])["SecretString"])
+        dsn = "host=%s port=5432 dbname=%s user=%s password=%s sslmode=require" % (
+            os.environ["DB_HOST"], sec.get("dbname", "cnapp"), sec["username"], sec["password"],
+        )
+        return RAGRetriever(mock=False, pg_dsn=dsn, region=region)
+    except Exception:  # noqa: BLE001 — RAG는 보조 설명이라 실패해도 조사는 계속돼야 한다
+        return None
 
 
 def _case_finding_ids(case: dict) -> list:
@@ -199,7 +273,9 @@ def _upsert_explanations(case: dict) -> None:
                     "finding_id": fid,
                     "ai_summary": reasoning.get("narrative", ""),
                     "confidence_score": meta.get("confidence_score"),
-                    "rag_refs": reasoning.get("rag_refs", []),  # RAG 연동 전엔 []( reasoning엔 아직 미기록)
+                    # 2026-07-21 배선 완료 — orchestrator가 RAG 검색기로 채운 control_id 목록.
+                    # (그 전엔 배선이 없어 항상 [] 였다. 비어 있으면 지식베이스 미적재를 의심할 것.)
+                    "rag_refs": reasoning.get("rag_refs", []),
                     "case_id": case["case_id"],
                 })
                 cur.execute("UPDATE findings SET ai_status = 'done' WHERE finding_id = %s;", (fid,))

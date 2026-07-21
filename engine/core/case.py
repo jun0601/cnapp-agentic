@@ -42,12 +42,16 @@ def set_hypotheses(
 
 def set_reasoning(
     case: dict, narrative: str, risk_level: str, recommended_actions: List[str],
-    tokens: int = 0, model: str = "template",
+    tokens: int = 0, model: str = "template", rag_refs: Optional[List[str]] = None,
 ) -> dict:
     case["reasoning"] = {
         "narrative": narrative,
         "risk_level": risk_level,
         "recommended_actions": list(recommended_actions),
+        # 계약⑦이 처음부터 정의해뒀지만 2026-07-21까지 한 번도 안 채워지던 필드
+        # (orchestrator에 RAG 배선이 없어 finding_explanations.rag_refs가 항상 []였다).
+        # 콘솔 EvidenceTab이 작은 칩으로 렌더하므로 chunk UUID가 아니라 control_id를 담는다.
+        "rag_refs": list(rag_refs or []),
     }
     case["stage"] = "reasoning"
     # 2026-07-10: "sonnet" 하드코딩 제거(이 계정은 Sonnet Marketplace 미승인이라 실제론 Haiku가

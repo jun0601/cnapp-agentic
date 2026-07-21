@@ -38,7 +38,7 @@ export interface Case {
   hypotheses?: unknown[]
   evidence?: unknown[]
   evidence_meta?: unknown
-  reasoning?: { narrative?: string }
+  reasoning?: { narrative?: string; risk_level?: string; recommended_actions?: string[]; rag_refs?: string[] }
   model_trace?: unknown[]
 }
 export interface FindingExplanation {
@@ -55,7 +55,13 @@ export interface FindingDetail {
   case: Case | null
 }
 
-const USE_MOCK = (process.env.USE_MOCK ?? 'true') !== 'false'
+// ⚠️ 기본값이 환경에 따라 다르다 — fail-safe 방향 때문.
+//   로컬/CI: contracts/*.json이 있으므로 mock이 안전한 기본값(개발 편의).
+//   Lambda : 번들에 contracts/가 없어서 mock으로 폴백하면 loadJson의 readFileSync가 그대로 터진다.
+//            (2026-07-21 감사에서 발견 — env 주입이 실패하면 크래시하던 경로)
+//            그래서 Lambda에선 real이 기본. terraform이 USE_MOCK을 명시 주입하지만 그게 유실돼도 살아남게.
+const IN_LAMBDA = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME)
+const USE_MOCK = (process.env.USE_MOCK ?? (IN_LAMBDA ? 'false' : 'true')) !== 'false'
 // Lambda 번들 시 contracts를 함께 패키징하거나 CONTRACTS_DIR로 지정. 로컬 mock은 레포 contracts.
 const CONTRACTS_DIR = process.env.CONTRACTS_DIR ?? join(__dirname, '..', '..', '..', 'contracts')
 
@@ -214,7 +220,7 @@ export async function getSystem(): Promise<SystemInfo> {
     return {
       live: false,
       models,
-      rag: { chunks: 24, controls: 14, dim: 1024, index: 'HNSW (cosine)' },
+      rag: { chunks: 24, controls: 15, dim: 1024, index: 'HNSW (cosine)' },
       bedrock: { invocations24h: 6, inputTokens24h: 7415, outputTokens24h: 1180 },
       data: {
         findingsOpen: fs.filter((f) => f.status === 'open').length,
@@ -641,7 +647,9 @@ async function pgFindingDetail(id: string): Promise<FindingDetail | null> {
         hypotheses: (row.hypotheses as unknown[]) ?? [],
         evidence: (row.evidence as unknown[]) ?? [],
         evidence_meta: row.evidence_meta ?? undefined,
-        reasoning: (row.reasoning as { narrative?: string }) ?? undefined,
+        reasoning:
+          (row.reasoning as { narrative?: string; risk_level?: string; recommended_actions?: string[]; rag_refs?: string[] }) ??
+          undefined,
         model_trace: (row.model_trace as unknown[]) ?? [],
       }
     }
@@ -650,9 +658,17 @@ async function pgFindingDetail(id: string): Promise<FindingDetail | null> {
     e && e.ai_status === 'done'
       ? {
           finding_id: id,
-          summary: `${finding.title} — control ${finding.control_id} 위반(${finding.pillar}).`,
+          summary: caseObj?.reasoning?.risk_level
+            ? `${finding.title} — control ${finding.control_id} 위반(${finding.pillar}) · 위험도 ${caseObj.reasoning.risk_level}`
+            : `${finding.title} — control ${finding.control_id} 위반(${finding.pillar}).`,
           why: caseObj?.reasoning?.narrative ?? e.ai_summary,
-          how: '조치 카탈로그(§14) 참조 — 승인 경로(HITL)로만 적용.',
+          // 엔진 Reasoning 단계가 낸 실제 권고안을 쓴다.
+          // (2026-07-21 이전엔 여기가 '조치 카탈로그 참조…' 상수여서, real 모드인데도 AI 설명 3필드 중
+          //  2개가 하드코딩이었다 — 감사에서 발견. recommended_actions가 비면 그때만 안내 문구로 폴백.)
+          how:
+            caseObj?.reasoning?.recommended_actions?.length
+              ? caseObj.reasoning.recommended_actions.map((a, i) => `${i + 1}. ${a}`).join('\n')
+              : '권고안 미생성 — 조치 카탈로그(§14) 참조. 모든 변경은 승인 경로(HITL)로만 적용.',
           ai_status: 'done',
           case_id: e.case_id,
         }
