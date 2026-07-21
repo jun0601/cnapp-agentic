@@ -1,0 +1,153 @@
+<mxfile host="app.diagrams.net" type="device">
+  <diagram name="CI-CD 파이프라인" id="cicd-pipeline">
+    <mxGraphModel dx="900" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ============ 1. 커밋 / PR ============ -->
+        <mxCell id="n1" value="&lt;b&gt;개발자 커밋 → PR (→ main)&lt;/b&gt;"
+          style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#24292F;strokeWidth=2;fontColor=#111820;fontSize=14;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="255" y="21" width="330" height="63" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 2. GitHub Actions ci.yml (컨테이너) ============ -->
+        <mxCell id="n2" value="&lt;b&gt;GitHub Actions — ci.yml&lt;/b&gt;"
+          style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#24292F;strokeWidth=2;fontColor=#111820;fontSize=15;verticalAlign=top;spacingTop=10;container=1;collapsible=0;"
+          vertex="1" parent="1">
+          <mxGeometry x="60" y="117" width="720" height="315" as="geometry" />
+        </mxCell>
+
+        <mxCell id="n2a" value="&lt;b&gt;&lt;font color=&quot;#15803D&quot;&gt;하드 게이트 — 전부 exit 0 이어야 병합&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px; font-family: Consolas, monospace;&quot; color=&quot;#5C6C7E&quot;&gt;· contracts 계약 4-assert&lt;br&gt;· 회귀 10종 (run_demo 9 + run_e2e)&lt;/font&gt;"
+          style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#15803D;strokeWidth=1.5;fontColor=#111820;fontSize=13;align=left;spacingLeft=14;verticalAlign=middle;"
+          vertex="1" parent="n2">
+          <mxGeometry x="27" y="51" width="666" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="n2b" value="&lt;b&gt;Shift-Left (report)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px; font-family: Consolas, monospace;&quot; color=&quot;#5C6C7E&quot;&gt;· Trivy (IaC·Dockerfile)&amp;nbsp;&amp;nbsp; · Checkov (Terraform)&lt;/font&gt;"
+          style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#D2DCE7;strokeWidth=1.5;fontColor=#111820;fontSize=13;align=left;spacingLeft=14;verticalAlign=middle;"
+          vertex="1" parent="n2">
+          <mxGeometry x="27" y="183" width="666" height="105" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 3. main 병합 ============ -->
+        <mxCell id="n3" value="&lt;b style=&quot;font-size: 16px;&quot;&gt;main 병합&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot; color=&quot;#5C6C7E&quot;&gt;Git = 원하는 상태의 단일 진실&lt;/font&gt;"
+          style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#F4F6F9;strokeColor=#24292F;strokeWidth=2;fontColor=#111820;fontSize=16;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="232" y="480" width="375" height="78" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 4a. build-images.yml (컨테이너) ============ -->
+        <mxCell id="n4a" value="&lt;b&gt;build-images.yml&lt;/b&gt;"
+          style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D97706;strokeWidth=2;fontColor=#111820;fontSize=14;verticalAlign=top;spacingTop=10;container=1;collapsible=0;"
+          vertex="1" parent="1">
+          <mxGeometry x="30" y="627" width="360" height="141" as="geometry" />
+        </mxCell>
+
+        <mxCell id="n4a1" value="&lt;font style=&quot;font-family: Consolas, monospace; font-size: 12px;&quot;&gt;GitHub OIDC → IAM Role&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#8A99AA&quot;&gt;장기 액세스 키 없음&lt;/font&gt;"
+          style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;dashed=1;dashPattern=6 4;fillColor=none;strokeColor=#8A99AA;strokeWidth=1.3;fontColor=#111820;fontSize=12;verticalAlign=middle;"
+          vertex="1" parent="n4a">
+          <mxGeometry x="24" y="51" width="312" height="69" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 4b. ArgoCD ============ -->
+        <mxCell id="n4b" value="&lt;b&gt;ArgoCD (on EKS)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot; color=&quot;#5C6C7E&quot;&gt;매니페스트 pull-sync&lt;br&gt;self-heal · prune&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#8A99AA&quot;&gt;CI에 클러스터 자격증명 없음&lt;/font&gt;"
+          style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E2603C;strokeWidth=2;fontColor=#111820;fontSize=14;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="450" y="627" width="360" height="141" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 5. ECR ============ -->
+        <mxCell id="n5" value="&lt;b&gt;ECR ×3&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-family: Consolas, monospace; font-size: 12px;&quot; color=&quot;#5C6C7E&quot;&gt;member · product · order&lt;/font&gt;"
+          style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D97706;strokeWidth=2;fontColor=#111820;fontSize=14;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="30" y="819" width="360" height="108" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 6. EKS (합류 지점) ============ -->
+        <mxCell id="n6" value="&lt;b style=&quot;font-size: 16px;&quot;&gt;EKS — shop 네임스페이스&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-family: Consolas, monospace; font-size: 12px;&quot; color=&quot;#5C6C7E&quot;&gt;member · product · order&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#8A99AA&quot;&gt;각 2 replica · 총 6 파드&lt;/font&gt;"
+          style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2F6BE0;strokeWidth=2;fontColor=#111820;fontSize=16;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="210" y="1032" width="420" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 7. Karpenter + HPA ============ -->
+        <mxCell id="n7" value="&lt;b&gt;Karpenter (spot) + HPA&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#8A99AA&quot;&gt;노드 · 파드 자동 확장&lt;/font&gt;"
+          style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2F6BE0;strokeWidth=2;fontColor=#111820;fontSize=14;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="232" y="1200" width="375" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 화살표 ============ -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#5C6C7E;strokeWidth=1.8;endArrow=blockThin;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" parent="1" source="n1" target="n2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e2" value="통과해야 병합"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#5C6C7E;strokeWidth=1.8;endArrow=blockThin;endFill=1;fontSize=11;fontColor=#8A99AA;labelBackgroundColor=none;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" parent="1" source="n2" target="n3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#5C6C7E;strokeWidth=1.8;endArrow=blockThin;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" parent="1" source="n3" target="n4a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#5C6C7E;strokeWidth=1.8;endArrow=blockThin;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" parent="1" source="n3" target="n4b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#5C6C7E;strokeWidth=1.8;endArrow=blockThin;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" parent="1" source="n4a" target="n5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e6" value="이미지 pull"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#5C6C7E;strokeWidth=1.8;endArrow=blockThin;endFill=1;fontSize=11;fontColor=#8A99AA;labelBackgroundColor=none;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" parent="1" source="n5" target="n6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e7" value="매니페스트 적용"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#5C6C7E;strokeWidth=1.8;endArrow=blockThin;endFill=1;fontSize=11;fontColor=#8A99AA;labelBackgroundColor=none;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" parent="1" source="n4b" target="n6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#5C6C7E;strokeWidth=1.8;endArrow=blockThin;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" parent="1" source="n6" target="n7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 범례 ============ -->
+        <mxCell id="lg1" style="html=1;strokeColor=#5C6C7E;strokeWidth=1.8;endArrow=blockThin;endFill=1;"
+          edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="60" y="1318" as="sourcePoint" />
+            <mxPoint x="105" y="1318" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lg2" value="실선 = 자동 실행 흐름"
+          style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#5C6C7E;"
+          vertex="1" parent="1">
+          <mxGeometry x="112" y="1303" width="180" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lg3" value=""
+          style="rounded=1;arcSize=20;html=1;dashed=1;dashPattern=6 4;fillColor=none;strokeColor=#8A99AA;strokeWidth=1.3;"
+          vertex="1" parent="1">
+          <mxGeometry x="300" y="1308" width="45" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg4" value="점선 = 인증 (장기 키 없음)"
+          style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#5C6C7E;"
+          vertex="1" parent="1">
+          <mxGeometry x="352" y="1303" width="220" height="30" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
