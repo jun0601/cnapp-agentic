@@ -616,7 +616,27 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 **리드 문장:** "커밋은 회귀 게이트를 통과해야만 병합되고, 병합 이후 배포는 ArgoCD가 Git 상태에 맞춰 클러스터를 자동 동기화한다 — 품질 검증과 배포를 사람이 아닌 파이프라인이 강제한다."
 
-**[레이아웃] 좌 45% = 세로 파이프라인 도식(주인공) / 우 55% = 카드 4개 세로 스택 + 하단 강조 문구 한 줄.** 16:9 가로 슬라이드에서 도식이 좌측 전체 높이를 쓰고, 우측 카드가 그 높이에 맞춰 4단으로 쌓이는 형태.
+**[레이아웃] 좌 40% = 세로 파이프라인 도식(구조) / 우 60% = 카드 3개 + 그 아래 실행 증거 스크린샷 2장 가로 나란히 + 하단 강조 문구 한 줄.**
+
+> **왜 도식만으로 부족한가** — 도식은 "이렇게 설계했다"는 *주장*이고, 스크린샷은 "진짜 돌았다"는 *증거*다. 9번(엔진 이론)과 10번(Evidence 탭 실증)을 굳이 나눈 것과 정확히 같은 이유 — CI/CD는 "만들어는 놨는데 안 돌리는" 경우가 워낙 흔해서 **초록 체크 하나가 도식 열 개보다 신뢰를 준다.** 대신 도식 + 스크린샷 2장 + 카드 4개는 한 장에 안 들어가므로 **카드를 3개로 줄인다**(Shift-Left는 같은 `ci.yml` 얘기라 CI 카드에 흡수).
+
+**필요한 스크린샷 2장 (둘 다 새로 캡처):**
+- **ⓐ GitHub Actions — `ci.yml` run 성공.** 이 샷의 강점은 job 이름이 **한글로 "로직 회귀(run_demo·run_e2e·contracts)"·"Shift-Left 보안 스캔"** 이라 게이트 내용이 캡션 없이 그대로 읽힌다는 것(흔한 `build`/`test` 초록체크와 차별).
+  - 캡처 조건: **PR 상태에서 찍을 것.** `ci.yml`은 PR 전용이라, 옛 push 트리거 시절 샷(`Triggered via push` 표시)을 쓰면 카피와 어긋난다. 인프라 불필요 — 아무 PR이나 하나 열면 30초 안에 돈다.
+- **ⓑ ArgoCD — Application `shop-target` Synced ✅ / Healthy ✅ + 리소스 트리(파드 6개).** GitOps가 실제로 클러스터를 잡고 있다는 증거이자, 작게 줄여도 초록 트리 모양으로 인식되는 그림.
+  - 캡처 조건: **이미지 빌드가 먼저 끝나 있어야 한다.** 이미지가 없으면 파드가 ImagePullBackOff → ArgoCD가 `Degraded`로 뜬다. **인프라 살아있는 세션에서만 가능**하므로 apply 세션 때 다른 라이브 캡처(7·10번 스크린샷)와 **한 번에 몰아서** 찍는 게 효율적.
+
+**[레이아웃 스케치]**
+```
+┌──────────────┬─────────────────────────────────┐
+│              │  카드1  CI 하드 게이트 + Shift-Left │
+│  세로 도식     │  카드2  CD — pull 기반 GitOps      │
+│  (구조)       │  카드3  키리스 빌드 & 자동 운영      │
+│   40%        ├─────────────────────────────────┤
+│              │  [Actions 샷]   [ArgoCD 샷]  ← 증거 │
+└──────────────┴─────────────────────────────────┘
+              [강조 문구 한 줄]
+```
 
 - **CI (GitHub Actions `ci.yml`)** — **PR(→main)** 에 하드 게이트: `contracts/validate.py`(계약 4-assert) + **회귀 10종**(영역별 `run_demo` 9개 + `run_e2e`)이 전부 exit 0이어야 통과. + Shift-Left(report): **Trivy**(IaC·Dockerfile 미스컨피그) · **Checkov**(Terraform). 회귀는 순수 stdlib라 클라우드 인프라 없이 러너에서 실행(비용 0).
   - ⓐ Shift-Left가 왜 report(soft-fail)인가 — 이 레포는 **의도적 취약 타깃**(`infra/target`·`apps/target`)을 품고 있어 하드 게이트로 걸면 CI가 영구히 빨갛다. 실서비스 파이프라인이면 hard-gate가 정석이라는 점을 함께 적으면 "몰라서가 아니라 알고 고른 것"이 드러난다.
@@ -667,13 +687,15 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 [좌측] 세로 CI/CD 파이프라인 도식 (위 시각자료)
 
-[카드 1 — CI: 병합 전 하드 게이트] PR(→main)에서 contracts 계약 4-assert + 회귀 10종(영역별 run_demo 9개 + run_e2e)이 전부 exit 0이어야 병합 가능 · 순수 stdlib 실행이라 클라우드 인프라 불필요
+[카드 1 — CI: 병합 전 하드 게이트] PR(→main)에서 contracts 계약 4-assert + 회귀 10종(영역별 run_demo 9개 + run_e2e)이 전부 exit 0이어야 병합 가능 · 함께 도는 Shift-Left 스캔은 Trivy(IaC·Dockerfile)·Checkov(Terraform) · 의도적 취약 타깃을 품은 레포라 report 모드(실서비스라면 하드 게이트가 정석)
 
-[카드 2 — Shift-Left: 취약점을 커밋 단계에서] Trivy(IaC·Dockerfile 미스컨피그) · Checkov(Terraform) 자동 스캔 · 의도적 취약 타깃을 품은 레포라 report 모드로 운영(실서비스라면 하드 게이트가 정석)
+[카드 2 — CD: pull 기반 GitOps] ArgoCD Application shop-target이 Git 매니페스트를 pull-sync(self-heal·prune) · CI에 클러스터 자격증명을 넣지 않는 구조 · Git이 원하는 상태의 단일 진실
 
-[카드 3 — CD: pull 기반 GitOps] ArgoCD Application shop-target이 Git 매니페스트를 pull-sync(self-heal·prune) · CI에 클러스터 자격증명을 넣지 않는 구조 · Git이 원하는 상태의 단일 진실
+[카드 3 — 키리스 빌드 & 자동 운영] GitHub OIDC → IAM Role로 장기 키 없이 ECR ×3(member·product·order) 빌드·푸시 · Karpenter(spot)+HPA 자동 확장 · 정기 스캔 워크플로가 결과를 파이프라인에 자동 합류
 
-[카드 4 — 키리스 빌드 & 자동 운영] GitHub OIDC → IAM Role로 장기 키 없이 ECR ×3(member·product·order) 빌드·푸시 · Karpenter(spot)+HPA 자동 확장 · 정기 스캔 워크플로가 결과를 파이프라인에 자동 합류
+[스크린샷 2장 — 카드 아래 가로 나란히] ⓐ GitHub Actions ci.yml run 성공(job 2개 초록) / ⓑ ArgoCD shop-target Synced·Healthy + 리소스 트리
+
+[스크린샷 캡션 한 줄] CI 게이트 통과 → ArgoCD가 클러스터를 Git 상태로 동기화 — 실제 실행 화면
 
 [강조 문구] 커밋 → CI 게이트 → ECR → ArgoCD → EKS, 전 구간 실배포로 관통 검증
 
@@ -757,9 +779,10 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 | 11 RAG | RAG 흐름도 + /chat 스크린샷 | **박스+아이콘 혼합** + 스크린샷 | Titan·Bedrock은 아이콘, pgvector 검색은 개념 박스. + `/chat` 캡처 |
 | 13 거버넌스·자기방어 | 심층 방어(defense-in-depth) 도식 | **박스+아이콘 혼합(캔바 직접)** | 6개 원칙을 겹겹의 방어 계층으로. 바깥→안: ① CloudFront+WAF → ② Cognito SSO+JWT → ③ read-only 에이전트(allowlist 2중) → ④ HITL 승인 → 중심=보호 대상(AWS 워크로드·Azure 신원). 하단 밴드=키리스(OIDC/IRSA)·불변 감사로그(S3 Object Lock)가 전 계층 관통. 동심(중첩) 또는 좌우 겹겹 박스. AWS 서비스(WAF·CloudFront·Cognito·ALB·SFn·S3 Object Lock)는 아이콘, 개념(read-only·HITL·allowlist)은 박스. 도식이 주인공(좌/중앙) + 6개 카드가 각 층 상세(우). 메시지: "한 층이 뚫려도 다음 층이 막는 defense-in-depth" |
 | 14 인프라 설계 | VPC 배치도 **또는** 레이어 의존도 | ⓐVPC=draw.io(AWS 아이콘) / ⓑ레이어=박스 | 택1. VPC 도식은 draw.io, terraform 레이어 의존도는 박스+화살표 |
-| 16 CI/CD | **세로 파이프라인 도식**(슬라이드 좌측 45%, 전체 높이) | **draw.io(AWS 아이콘)** | 전체 아키텍처 drawio의 CI/CD 부분을 **크롭해 빼온 뒤 상세화**. 세로 척추 1줄: 커밋/PR → ci.yml(하드 게이트+Shift-Left) → main 병합 → **여기서 한 번만 갈라짐**(좌: build-images.yml OIDC→IAM→ECR ×3 / 우: ArgoCD 매니페스트 pull-sync) → EKS shop ns에서 합류(ECR에서 이미지 pull) → Karpenter+HPA. 실선=자동 실행 흐름 / 점선=인증(OIDC→IAM Role), 범례 한 줄. 아이콘 = ECR·EKS·IAM(+GitHub·ArgoCD 로고), 개념 박스 = 하드 게이트·Shift-Left. **갈래를 더 늘리지 말 것**(세로 도식은 위→아래 한 방향으로 읽혀야 값어치가 남) |
+| 16 CI/CD | **세로 파이프라인 도식**(좌측 40%) + **스크린샷 2장**(우측 하단) | **draw.io(AWS 아이콘)** + 스크린샷 | 스크린샷 = ⓐ GitHub Actions `ci.yml` 성공(**PR 상태에서 캡처** — PR 전용 트리거라 push 시절 샷은 카피와 어긋남) / ⓑ ArgoCD `shop-target` Synced·Healthy + 리소스 트리(**이미지 빌드 완료 후, 인프라 살아있는 세션에 7·10번과 몰아서 캡처**). 도식은 전체 아키텍처 drawio의 CI/CD 부분을 **크롭해 빼온 뒤 상세화**. 세로 척추 1줄: 커밋/PR → ci.yml(하드 게이트+Shift-Left) → main 병합 → **여기서 한 번만 갈라짐**(좌: build-images.yml OIDC→IAM→ECR ×3 / 우: ArgoCD 매니페스트 pull-sync) → EKS shop ns에서 합류(ECR에서 이미지 pull) → Karpenter+HPA. 실선=자동 실행 흐름 / 점선=인증(OIDC→IAM Role), 범례 한 줄. 아이콘 = ECR·EKS·IAM(+GitHub·ArgoCD 로고), 개념 박스 = 하드 게이트·Shift-Left. **갈래를 더 늘리지 말 것**(세로 도식은 위→아래 한 방향으로 읽혀야 값어치가 남) |
 
-- **AWS 아이콘(draw.io) = 5·8·14ⓐ·16** / **박스 위주(캔바 직접) = 6·9·11·13·14ⓑ** / **스크린샷 = 7·10·11**.
+- **AWS 아이콘(draw.io) = 5·8·14ⓐ·16** / **박스 위주(캔바 직접) = 6·9·11·13·14ⓑ** / **스크린샷 = 7·10·11·16**.
+- **라이브 캡처 몰아 찍기** — 인프라가 살아있어야만 찍히는 것 = 7(대시보드)·10(Evidence 탭)·11(`/chat`)·16ⓑ(ArgoCD). apply 세션에 **한 번에** 처리한다(각각 따로 찍으려면 그때마다 apply해야 함). 16ⓐ(GitHub Actions)는 인프라 무관이라 아무 때나.
 - 전체 drawio에서 크롭으로 커버되는 것 = 5·6·8·16(16은 크롭 후 상세화 필요). 새로 만들 것 = 9(박스 루프)·11(박스 흐름)·13(심층 방어 도식)·14(도식). 부담 크지 않음.
 - 표·카드·빅넘버 위주 슬라이드(1·2·3·4·12·15·17·18·19·20)는 다이어그램 불필요.
 
