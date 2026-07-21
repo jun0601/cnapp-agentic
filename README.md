@@ -6,6 +6,14 @@
 >
 > **현재 단계: 전 레이어 실배포·실검증 완료.** AWS+Azure 멀티클라우드에 실제로 배포해 — 스캐너(kube-bench·Trivy·Prowler AWS/Azure·IAM Access Analyzer)가 실 계정·실 클러스터를 read-only로 스캔하고, 에이전틱 엔진이 **실 Bedrock으로 read-only API를 스스로 호출해 능동 조사·판정**하며, 관제 콘솔이 커스텀 도메인(`cnapp-agentic.cloud`)에서 **SSO 실 로그인**으로 동작하고, HITL 조치가 **실 Step Functions로 실행**되는 것까지 검증했다. 비용 규율상 상시 가동이 아니라 **apply→검증→destroy 사이클**로 운영한다.
 
+### 🖥️ 실행 화면
+
+![관제 콘솔 — 크로스클라우드 attack-path](screenshots/console/console-attack-path.png)
+
+> 관제 콘솔의 attack-path 화면. 현재 posture에서 발견된 **독립 공격 경로 3개**를 위험도순으로 세우고, 선택한 경로를 AWS(워크로드)·Azure(신원) 레인으로 나눠 그린다. **빨간 점선이 클라우드 경계를 넘는 엣지** — `order` 파드의 평문 시크릿에서 얻은 Azure 자격증명으로 Entra ID를 장악하는 구간이다. 개별로는 중간 위험인 finding들이 묶여 Critical 경로가 되는 지점이 CNAPP의 핵심.
+>
+> 화면 데이터는 전부 실 RDS 값이다. 다른 화면(대시보드·RAG 챗·ArgoCD GitOps 등)과 **각 이미지가 무엇을 증명하는지·어떻게 재현하는지**는 [`screenshots/README.md`](screenshots/README.md) 참조.
+
 ### 📊 실측 검증 수치
 
 | 항목 | 실측값 |

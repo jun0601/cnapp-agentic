@@ -16,6 +16,12 @@ const EDGE_LABEL: Record<string, string> = {
   identity_takeover: '신원 장악',
 }
 
+/** 레인 폭(약 280px, 11px 폰트)에 들어가는 길이로 자른다 — 넘치면 옆 레인 라벨과 겹친다. */
+const LABEL_MAX = 20
+function clipLabel(s: string): string {
+  return s.length > LABEL_MAX ? `${s.slice(0, LABEL_MAX)}…` : s
+}
+
 export function AttackPathGraph({ path }: { path: AttackPath }) {
   const { nodes, edges } = useMemo(() => {
     // 클라우드별 레인 배치 — 등장 순서대로 y 증가
@@ -44,13 +50,19 @@ export function AttackPathGraph({ path }: { path: AttackPath }) {
       id: `e${i}`,
       source: e.from,
       target: e.to,
-      label: e.label ?? EDGE_LABEL[e.type] ?? e.type,
+      // 엣지 라벨은 폭 제한이 없는 SVG 텍스트라, 길면 옆 레인 라벨과 가로로 겹친다
+      // (AWS 세로 엣지 · 크로스클라우드 엣지 · Azure 세로 엣지가 같은 높이에 놓임).
+      // → 레인 폭에 맞춰 자르고, 불투명 배경을 깔아 겹쳐도 읽히게 한다. 전문은 하단 '공격 서사'에 있다.
+      label: clipLabel(e.label ?? EDGE_LABEL[e.type] ?? e.type),
       animated: !!e.cross_cloud,
       style: {
         stroke: e.cross_cloud ? '#dc2626' : '#64748b',
         strokeWidth: e.cross_cloud ? 3 : 1.5,
       },
       labelStyle: { fontSize: 11, fill: e.cross_cloud ? '#dc2626' : '#475569' },
+      labelBgStyle: { fill: '#ffffff', fillOpacity: 0.94 },
+      labelBgPadding: [6, 3] as [number, number],
+      labelBgBorderRadius: 4,
       markerEnd: { type: MarkerType.ArrowClosed, color: e.cross_cloud ? '#dc2626' : '#64748b' },
     }))
 
