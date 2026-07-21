@@ -52,9 +52,15 @@ def build_bundles() -> None:
             shutil.rmtree(dst)
         for pkg in pkgs:
             shutil.copytree(ROOT / pkg, dst / pkg, ignore=IGNORE)
-        # contracts는 *.json만(스키마·카탈로그·mock — 런타임 로드 대상). validate.py 등 스크립트 제외.
+        # contracts는 *.json만(스키마·카탈로그). validate.py 등 스크립트 제외.
+        # ⚠️ mock-*.json은 제외한다 — 프로덕션 핸들러는 RDS에서 읽고(handler.py의 SQL),
+        #    mock을 읽는 load_findings()/load_attack_paths()는 run_demo·run_e2e(CI 하네스) 전용이다.
+        #    런타임에 안 쓰이는 목업 데이터를 배포 아티팩트에 실을 이유가 없다(2026-07-21 정리).
+        #    실제로 필요한 건 evidence-allowlist.json·control-catalog.json·*.schema.json.
         (dst / "contracts").mkdir(parents=True, exist_ok=True)
         for j in (ROOT / "contracts").glob("*.json"):
+            if j.name.startswith("mock-"):
+                continue
             shutil.copy2(j, dst / "contracts" / j.name)
         for h in handlers:
             assert (dst / h).is_file(), f"[{name}] 핸들러 누락: {h}"

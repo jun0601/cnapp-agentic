@@ -309,8 +309,18 @@ resource "aws_security_group" "rds" {
   description = "RDS pgvector - 5432 from within VPC only"
   vpc_id      = module.vpc.vpc_id
 
+  # 소스 SG 단위로 좁히는 게 정석이지만 **레이어 순환 의존** 때문에 여기선 VPC CIDR로 둔다:
+  #   RDS SG는 shared(기반) 소유인데, 접속 주체인 Lambda SG는 backend 레이어가 만든다.
+  #   shared가 backend를 참조할 수 없으므로(apply 순서 shared→backend) 여기서 SG id를 못 쓴다.
+  # 좁히려면 backend 쪽에서 aws_security_group_rule로 이 SG에 규칙을 '주입'해야 하는데,
+  #   shared에서 이 ingress를 먼저 지우면 backend apply 전까지 DB 연결이 끊긴다(순서 위험).
+  # 완화 요소: RDS는 private subnet 전용(publicly_accessible=false)이라 VPC 밖에서 도달 불가,
+  #   접속은 Secrets Manager 자격증명 + sslmode=require로 한 번 더 걸린다.
+  # → 데모 환경에서 감수하는 알려진 트레이드오프. 프로덕션이면 backend에 규칙 주입으로 전환할 것.
   ingress {
-    description = "PostgreSQL from VPC (Lambda + EKS). TODO: narrow to source SG"
+    # NOTE: AWS SG description은 ASCII 제한(^[0-9A-Za-z_ .:/()#,@[]+=&;{}!$*-]*$)이라 한글/em-dash 불가.
+    #       사유는 위 주석 참고.
+    description = "PostgreSQL from VPC (Lambda + EKS). Source-SG scoping deferred: layer cycle (RDS SG in shared, Lambda SG in backend)"
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
@@ -535,10 +545,21 @@ resource "aws_iam_policy" "evidence_readonly" {
 
 data "aws_iam_policy_document" "bedrock_invoke" {
   statement {
-    sid       = "BedrockInvoke"
-    effect    = "Allow"
-    actions   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
-    resources = ["*"] # TODO: 서울 가용 모델 ARN으로 좁히기(haiku·sonnet·titan). 모델 액세스 콘솔 활성화 선행
+    sid     = "BedrockInvoke"
+    effect  = "Allow"
+    actions = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
+    # 2026-07-21: "*" → 실제로 쓰는 모델 계열로 축소. 다른 벤더 모델·타 서비스는 호출 불가.
+    resources = [
+      # 임베딩(적재·검색 공통, 계약⑥ const) — 서울 리전 파운데이션 모델
+      "arn:aws:bedrock:${var.region}::foundation-model/amazon.titan-embed-text-v2:0",
+      # 추론(Evidence·Hypothesis·Reasoning·RAG 답변) — Claude 계열.
+      # ⚠️ global inference profile은 여러 리전으로 라우팅되므로 **파운데이션 모델은 리전 와일드카드**가
+      #    필요하다(리전을 고정하면 라우팅된 호출이 AccessDenied로 죽는다).
+      "arn:aws:bedrock:*::foundation-model/anthropic.claude-*",
+      # 계정 소유 inference profile(global.anthropic.claude-*). Haiku↔Sonnet 스왑은
+      # CHAT_MODEL_ID·RAG_MODEL_ID env로 하는 게 설계라(무코드 스왑), 계열 단위로 열어 둔다.
+      "arn:aws:bedrock:${var.region}:${data.aws_caller_identity.current.account_id}:inference-profile/global.anthropic.claude-*",
+    ]
   }
 }
 
