@@ -271,7 +271,17 @@ class RealToolExecutor(ToolExecutor):
 
     def _describe_security_groups(self, tool: str, resource_id: str) -> ToolResult:
         sg_id = self._native(resource_id, "security_group")
-        resp = self._client("ec2").describe_security_groups(GroupIds=[sg_id])
+        try:
+            resp = self._client("ec2").describe_security_groups(GroupIds=[sg_id])
+        except self._ClientError as e:
+            # 다른 핸들러(S3 NoSuchBucket·Macie·AccessAnalyzer)와 동일한 원칙 — 리소스가
+            # 실AWS에 없으면 조사 크래시 대신 중립 결과로 강등(2026-07-21, X-Ray에서 이 핸들러만
+            # try/except가 빠져 unhandled fault로 잡히던 걸 발견). 골든시드 합성 SG ID처럼
+            # 애초에 실물이 없는 경우 여기로 옴 — confirms=False(위험을 확증도 반증도 못 함).
+            code = e.response["Error"]["Code"]
+            return ToolResult(tool, resource_id,
+                              "보안 그룹 조회 불가(%s) — 이 SG는 실AWS에 존재하지 않음" % code,
+                              False, {"error": code}, self._now())
         perms = resp["SecurityGroups"][0].get("IpPermissions", []) if resp.get("SecurityGroups") else []
         open_rules = []
         for p in perms:
@@ -293,11 +303,17 @@ class RealToolExecutor(ToolExecutor):
     def _simulate_principal_policy(self, tool: str, resource_id: str) -> ToolResult:
         """f4 과도권한의 객관 증거 — '임의 버킷 객체'에 대한 민감 S3 액션이 allowed인가 시뮬레이션."""
         role = self._native(resource_id, "iam_role")
-        resp = self._client("iam").simulate_principal_policy(
-            PolicySourceArn=self._role_arn(role),
-            ActionNames=["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-            ResourceArns=["arn:aws:s3:::*/*"],
-        )
+        try:
+            resp = self._client("iam").simulate_principal_policy(
+                PolicySourceArn=self._role_arn(role),
+                ActionNames=["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+                ResourceArns=["arn:aws:s3:::*/*"],
+            )
+        except self._ClientError as e:
+            code = e.response["Error"]["Code"]
+            return ToolResult(tool, resource_id,
+                              "역할 조회 불가(%s) — 이 역할은 실AWS에 존재하지 않음" % code,
+                              False, {"error": code}, self._now())
         allowed = [r["EvalActionName"] for r in resp.get("EvaluationResults", [])
                    if r.get("EvalDecision") == "allowed"]
         summary = ("%s가 임의 S3 객체에 %s 허용 — 과도권한(측면이동 경로) 확인"
@@ -308,7 +324,13 @@ class RealToolExecutor(ToolExecutor):
 
     def _list_attached_role_policies(self, tool: str, resource_id: str) -> ToolResult:
         role = self._native(resource_id, "iam_role")
-        resp = self._client("iam").list_attached_role_policies(RoleName=role)
+        try:
+            resp = self._client("iam").list_attached_role_policies(RoleName=role)
+        except self._ClientError as e:
+            code = e.response["Error"]["Code"]
+            return ToolResult(tool, resource_id,
+                              "역할 조회 불가(%s) — 이 역할은 실AWS에 존재하지 않음" % code,
+                              False, {"error": code}, self._now())
         names = [p["PolicyName"] for p in resp.get("AttachedPolicies", [])]
         broad = [n for n in names
                  if n in ("AdministratorAccess", "PowerUserAccess", "AmazonS3FullAccess")]
