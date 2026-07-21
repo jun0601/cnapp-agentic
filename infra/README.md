@@ -32,11 +32,11 @@ infra/shared ───────┤
 
 | 레이어 | 내용 | 주요 과금 | 코드 상태 |
 |---|---|---|---|
-| `shared/` | VPC·NAT Instance·EKS·ECR·RDS pgvector·GitHub OIDC·엔진 IAM 2종 + **`db/schema.sql`**(pgvector 6테이블). **discovery 태그만 부착**(Karpenter 실체는 별 레이어) | **EKS $0.10/h**·NAT ~$3/월(t4g.micro=프리티어)·RDS(프리티어) | ✅ 라이브 apply→destroy 실검증 |
+| `shared/` | VPC·NAT Instance·EKS·ECR·RDS pgvector·GitHub OIDC·엔진 IAM 2종 + **`db/schema.sql`**(pgvector 7테이블). **discovery 태그만 부착**(Karpenter 실체는 별 레이어) | **EKS $0.10/h**·NAT ~$3/월(t4g.micro=프리티어)·RDS(프리티어) | ✅ 라이브 apply→destroy 실검증 |
 | `karpenter/` | Karpenter 서브모듈(컨트롤러 IRSA·노드 IAM·spot 중단 SQS) + helm_release(**1.13.0**, replicas 1) + EC2NodeClass·NodePool(t3.small/micro spot) | Karpenter가 띄운 노드 실비(스팟, 데모선 미미) | ✅ **전체 수명주기 실증**(프로비저닝 ~30초·consolidation 회수, [README §4](karpenter/README.md)) |
 | `target/` | 의도적 결함 토글(f3 open SG·f4 과도 IRSA·f6 공개 S3) — `enable_*` var | S3 몇 센트 | ✅ 라이브 실검증 |
 | `backend/` | **수집·정규화**(SQS·ingest/normalize Lambda) + **상관·오케스트레이터** Lambda(2-pass) + **조치** remediation SFn·감사 Object Lock 버킷 — *구 pipeline+engine 병합* | 무료급 + Bedrock 호출당 | ✅ 라이브 실검증(ENI 함정 하드닝 반영) |
-| `console/` | S3+CloudFront(OAC)·Cognito(Entra SAML)·ALB(authenticate-cognito)→Lambda | ALB ~$0.03/h·CF/Lambda 무료급 | ✅ 라이브 실검증(CloudFront 200) |
+| `console/` | S3+CloudFront(OAC)+**WAF**·Cognito(Entra SAML, **SPA가 OIDC/PKCE로 직접 로그인** — ALB는 API 전용)·ALB→Lambda·**커스텀 도메인/ACM/Route53**·**login_trigger**(Cognito Post-Auth 감사) | ALB ~$0.03/h·CF/Lambda 무료급 | ✅ 라이브 실검증(CloudFront 200) |
 | `monitoring/` | Grafana IRSA·CloudWatch 대시보드 24위젯·CloudTrail→Logs 배관·Teams 알림(SNS·Lambda·알람7) | 무료급(대시보드·로그량) | ✅ 라이브 실검증 (**shared+backend+console 후**) |
 | `slice/` | 공개 S3 1개+가짜 PII 1개(엔진 실 tool-use 표적) | 몇 센트 | ✅ Phase1 실검증 완료 |
 
@@ -89,7 +89,7 @@ aws rds describe-db-engine-versions --engine postgres --region ap-northeast-2 --
 cd apps/console-backend && npm ci && npm run build   # ⚠️ console archive_file은 dist/ 필요 — 없으면 console plan부터 실패
 # shared: terraform init -reconfigure → plan → 리뷰 → apply
 ```
-- Bedrock 모델 액세스 ✅(manual-infra §4) · fck-nat AMI owner `568608671756` 검증 ✅(2026-07-02) · EKS 1.34·RDS 16.9 = 표준지원/가용(2026-07-02 확인, apply 지연 시 재확인).
+- Bedrock 모델 액세스 ✅(manual-infra §4) · fck-nat AMI owner `568608671756` 검증 ✅(2026-07-21 — fck-nat 공식 문서 대조) · EKS 1.34·RDS 16.9 = 표준지원/가용(2026-07-02 확인, apply 지연 시 재확인).
 - ✅ **Lambda 실코드**: 스텁 스왑 완료(2026-07-03). `infra/backend/build_lambdas.py`가 각 패키지 + `contracts/*.json`을 zip 루트에 나란히 배치하고 psycopg2·X-Ray 레이어를 만든다(`deploy.ps1`이 backend apply/plan 전 자동 실행). ⚠️ engine 번들은 **engine+rag** 두 패키지 — `engine/handler.py`가 RAG 검색기를 주입하기 때문(빠지면 ImportError가 except에 먹혀 `rag_refs`가 조용히 빈 채로 남는다). `mock-*.json`은 프로덕션 미사용이라 번들에서 제외.
 - **RDS 스키마**: shared apply 후 VPC 내부에서 `psql -f shared/db/schema.sql` 1회(멱등) — [shared README](shared/README.md).
 - ⚠️ **RAG 코퍼스 적재(재apply마다 필수)**: `rag_chunks`는 RDS에 있어 destroy와 함께 사라진다. 안 넣으면 `/chat`이 근거 0건으로 검색해 **에러 없이 Bedrock 자체 지식으로 답한다**(2026-07-21 실제로 그 상태였음). `python -m rag.corpus.load_live --emit-sql rag_chunks.sql` 후 안내대로 psql 적용 → `curl .../api/system`의 `rag.chunks`가 0이 아닌지 확인.

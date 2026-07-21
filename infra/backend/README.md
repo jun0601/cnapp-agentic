@@ -65,7 +65,10 @@ terraform apply backend.tfplan
 ## Lambda 실코드 배포 (2026-07-03 스텁 스왑 완료)
 모든 Lambda가 **실코드**를 배포한다. 빌드 = **`python infra/backend/build_lambdas.py`**(deploy.ps1이 backend apply/plan 전 자동 실행):
 - `build/src-{pipeline,attackpath,engine}/` = 각 패키지 + `contracts/*.json`을 zip 루트에 나란히 배치 → 코드의 상대경로 해석(`normalizer._CATALOG_PATH` 등)이 무변경으로 동작.
+  - ⚠️ **engine 번들만 패키지가 2개(`engine` + `rag`)** — `engine/handler.py`의 `_rag_retriever()`가 `rag.retrieval`을 import하기 때문. 빠지면 ImportError가 그 함수의 광역 except에 먹혀 **에러 없이 `rag_refs`가 영원히 빈 채로** 남는다(2026-07-21 배포 직전 포착).
+  - `mock-*.json`은 **번들에서 제외**(2026-07-21) — 프로덕션 핸들러는 RDS에서 읽고 목업 로더는 `run_demo`·`run_e2e`(CI 하네스) 전용이다. 실제 실리는 건 `evidence-allowlist.json`·`control-catalog.json`·`*.schema.json`.
 - `build/layer/python/` = psycopg2-binary(manylinux2014_x86_64·cp312) → Lambda 레이어(RDS 접근 4함수 부착, ingest 제외).
+- `build/layer-xray/python/` = aws-xray-sdk + wrapt(`--no-deps` — 안 그러면 botocore를 통째로 재번들해 30MB+로 불고 런타임 제공 botocore와 섀도잉 위험) → 5개 Lambda 전부 부착.
 - zip은 terraform `archive_file`이 생성(소스 해시 일관). `validate`는 archive를 평가 안 해 빌드 없이 통과, `plan/apply`는 빌드 디렉터리 필수.
 
 | Lambda | handler | 레이어 | 비고 |

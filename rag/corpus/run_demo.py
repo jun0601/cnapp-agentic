@@ -6,7 +6,7 @@
   1. 코퍼스 내용 로드 — 진우 mock_corpus.all_chunks()(control별 한국어 청크, embedding 없음)
   2. CorpusLoader.load(dry_run) — 각 청크를 mock 임베딩(결정적 1024-dim)해 계약⑥ 청크 완성
   3. 계약⑥ 검증 — embedding[1024]·model const·dim const·metadata.control_id
-  4. control-catalog(14종) 커버리지 확인 — 적재 청크가 카탈로그 control을 다 덮는가
+  4. control-catalog(15종) 커버리지 확인 — 적재 청크가 카탈로그 control을 다 덮는가
 
 실배포 스왑: CorpusLoader(mock=False, pg_dsn=...) → Titan Embed v2 임베딩 + pgvector UPSERT.
 """
@@ -62,7 +62,7 @@ def main() -> int:
     print("mock 임베딩 결정성(재현 가능)     : %s" % ("OK ✅" if same else "FAIL ⚠️"))
 
     # ── control-catalog 커버리지 ─────────────────────────────────────
-    _hr("control-catalog(14종) 커버리지")
+    _hr("control-catalog(15종) 커버리지")
     catalog = _catalog_controls()
     covered = set(result["controls"])
     missing = catalog - covered

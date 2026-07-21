@@ -16,7 +16,7 @@ terraform apply -var 'profile=cnapp'          # 공개 버킷 1개 생성
 terraform output resource_id                   # → aws:s3_bucket:cnapp-slice-member-pii-xxxx
 
 # 엔진 실 tool-use 테스트: 이 resource_id를 RealToolExecutor로 조사
-#   (엔진 쪽 실 LLM 플래너는 준형과 함께 붙일 부분)
+#   (실 LLM 플래너는 구현·검증 완료 — engine/evidence/bedrock_planner.py)
 
 terraform destroy -var 'profile=cnapp'         # ★ 테스트 끝나면 즉시
 ```
@@ -26,9 +26,9 @@ terraform destroy -var 'profile=cnapp'         # ★ 테스트 끝나면 즉시
   → `-var 'enable_public_policy=false'`로 두면 PAB-off 신호만으로도 tool-use 데모 가능
   (RealToolExecutor는 `GetPublicAccessBlock`에서 '차단 없음'을 관측).
 - **RealToolExecutor의 신원**(로컬 `cnapp` 프로파일 또는 전용 역할)이 `s3:GetBucketPolicy`·
-  `s3:GetPublicAccessBlock` 권한을 가져야 함(계약④ evidence-allowlist 범위).
-- **Bedrock 모델 액세스**(Claude Haiku)는 별도 콘솔 승인 필요 — 실 model ID/리전 확정은 apply 때.
+  `s3:GetBucketPublicAccessBlock` 권한을 가져야 함(계약④ evidence-allowlist 범위).
+- **Bedrock 모델**: ✅ 확정 — `global.anthropic.claude-haiku-4-5-20251001-v1:0`(서울 global inference profile). shared의 `bedrock_invoke` 정책이 이 계열로만 열려 있다(2026-07-21 축소).
 
 ## 관련
 - 실행기: [engine/core/tools.py](../../engine/core/tools.py) `RealToolExecutor`
-- 상세 실행 플랜은 클로드 메모리(vertical-slice-plan)에 체크리스트로 보관.
+- ✅ **Phase1 실검증 완료(2026-07-02)**: apply → `python -m engine.run_real` → destroy. 실 Bedrock Haiku가 `s3:GetBucketPolicy`·`s3:GetBucketPublicAccessBlock`을 **스스로 골라 호출**해 공개 버킷을 확인하고 CONFIRMED(100%) 판정 → 즉시 destroy(잔존 ~$0). 지금은 최소비용 회귀 픽스처로만 유지한다.

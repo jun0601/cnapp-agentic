@@ -33,7 +33,7 @@ terraform init && terraform validate
 terraform apply \
   -var "acm_certificate_arn=arn:aws:acm:..." \
   -var "saml_metadata_url=https://login.microsoftonline.com/.../federationmetadata.xml" \
-  -var "remediation_state_machine_arn=$(cd ../engine && terraform output -raw remediation_state_machine_arn)"
+  -var "remediation_state_machine_arn=$(cd ../backend && terraform output -raw remediation_state_machine_arn)"
 # 프론트 업로드:
 #   cd apps/console && npm run build && aws s3 sync dist s3://$(terraform -chdir=../infra/console output -raw front_bucket)
 terraform destroy

@@ -88,8 +88,12 @@
 - 배경음악 넣을 거면 아주 작게(내레이션 우선).
 
 ## 녹화 전 체크리스트
+- [ ] 🔴 **RAG 코퍼스 적재** — `python -m rag.corpus.load_live --emit-sql rag_chunks.sql` 후 안내대로 EKS psql 파드로 적용(VPC 안이면 `--direct`). **재apply 때마다 필수**(`rag_chunks`는 RDS에 있어 destroy와 함께 사라짐).
+      - 확인: `/system`의 `rag.chunks`가 0이 아님(현재 **26청크 / 15 control**) **그리고** `/chat` 응답에 `refs`가 붙음.
+      - ⚠️ **이걸 빠뜨리면 §5 낭독이 거짓말이 된다** — 청크가 0이면 검색 결과가 없어 Bedrock이 **자체 지식으로 답하는데 답변은 그럴듯해서 티가 안 난다**(2026-07-21에 실제로 그 상태로 스크린샷을 찍었다가 폐기함). "근거 기반·환각 아님"을 말하려면 화면에 근거 칩이 실제로 떠 있어야 한다.
 - [ ] `deploy.ps1 apply`로 전 레이어 살아있음 + 타깃 파드 Running + ArgoCD Synced
 - [ ] Entra SAML 식별자 = 현 Cognito Pool(로그인 됨)
+- [ ] AI 조사 상태 — orchestrator 1회 invoke 후 `/findings`에서 **트리아지 통과분 미조사 0건**인지(현재 71건 중 조사완료 21건)
 - [ ] 콘솔 하드 새로고침(최신 번들) · Evidence 탭·/chat·/system 정상 렌더 확인
 - [ ] (원하면) attack-path·Evidence가 있는 finding 미리 열어둬 동선 매끄럽게
 - [ ] 녹화 끝나면 **비용 규율**: `deploy.ps1 -Action destroy -AutoApprove` (+ monitoring은 진우 별도)

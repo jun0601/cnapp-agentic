@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """contracts/ 정합 검증 — CI 게이트 (target-app-design §2.1).
 
-JSON 유효성 + 의미 정합 4-assert를 검사한다. json.load가 못 잡는 '의미 불일치'를
+JSON 유효성 + 의미 정합 7-assert(a~g)를 검사한다. json.load가 못 잡는 '의미 불일치'를
 여기서 막는다. 실패 시 exit 1 → GitHub Actions가 머지 차단.
 
 asserts:
@@ -159,7 +159,7 @@ def report():
         for e in errors:
             print("  -", e)
         sys.exit(1)
-    print("OK — contracts 정합 검증 통과 (4-assert + json + control + case)")
+    print("OK — contracts 정합 검증 통과 (a~g 7-assert + json + control + case)")
     sys.exit(0)
 
 

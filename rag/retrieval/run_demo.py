@@ -184,7 +184,7 @@ def main() -> int:
     ev_reflected = "에이전트 조사" in s3_result["output"]["explanation"]
     checks.append(("S3 finding 설명에 evidence 조사 내용 반영", ev_reflected))
 
-    # (f) 코퍼스가 14개 control 전체 커버 (control-catalog.json 기준)
+    # (f) 코퍼스가 15개 control 전체 커버 (control-catalog.json 기준)
     import json, os as _os
     _cat_path = _os.path.join(
         _os.path.dirname(__file__), "..", "..", "contracts", "control-catalog.json"
@@ -193,7 +193,7 @@ def main() -> int:
         _catalog = json.load(_f)
     catalog_count = len(_catalog["controls"])
     corpus_coverage = len(covered_controls()) == catalog_count
-    checks.append(("코퍼스가 카탈로그 14개 control 전부 커버", corpus_coverage))
+    checks.append(("코퍼스가 카탈로그 15개 control 전부 커버", corpus_coverage))
 
     all_ok = True
     for label, ok in checks:

@@ -86,7 +86,7 @@ gitops/
 
 기본으로 딸려오는 kube-prometheus-stack 대시보드 27개는 전부 **"쿠버네티스 클러스터 자체가 건강한가"**(노드·파드·네트워킹)만 본다 — "우리 CNAPP 서비스가 잘 도는가"(Lambda·RDS·SQS·Bedrock·엔진 EMF)는 안 보여준다. 그건 원래 `infra/monitoring`이 만드는 **AWS 네이티브 CloudWatch 대시보드**(24위젯, AWS 콘솔에서 별도로 봄, `terraform output dashboard_url`)의 몫이었다.
 
-CloudWatch가 이미 데이터소스로 연결돼 있으니(§IRSA 배선), 그 24위젯과 **동등한 커버리지**를 Grafana 쪽에도 만들었다 — 한 화면에 다 몰아넣지 않고 **분야별 대시보드 4개**로 나눴다(전환이 쉽고 각자 화면이 덜 복잡함):
+CloudWatch가 이미 데이터소스로 연결돼 있으니(§IRSA 배선), 그 24위젯과 **동등한 커버리지**를 Grafana 쪽에도 만들었다 — 한 화면에 다 몰아넣지 않고 **분야별 대시보드 6개**로 나눴다(전환이 쉽고 각자 화면이 덜 복잡함):
 
 | 대시보드 | 패널 | 데이터소스 |
 |---|---|---|
@@ -103,11 +103,11 @@ CloudWatch가 이미 데이터소스로 연결돼 있으니(§IRSA 배선), 그 
 
 범례 = `{{short_node}} ({{label_eks_amazonaws_com_nodegroup}}{{label_karpenter_sh_capacity_type}}, {{az}})` → 예: `ip-10-20-11-123 (baseline, ap-northeast-2a)` / `ip-10-20-10-80 (spot, ap-northeast-2a)`.
 
-**동작 원리**: kube-prometheus-stack 차트의 Grafana sidecar가 `grafana_dashboard: "1"` 라벨이 붙은 ConfigMap을 자동으로 찾아 로드한다(기본 대시보드 27개도 이 방식) — 이 ConfigMap 4개도 똑같은 라벨을 달아서 **수동 클릭 없이 자동 등록**되게 했다. `kube-prometheus-stack-values.yaml`의 CloudWatch 데이터소스에 `uid: cloudwatch-monitoring`을 **고정**해둔 이유가 이거다 — uid를 안 고정하면 apply할 때마다 랜덤값이 나와서 대시보드 JSON이 참조하는 datasource uid가 매번 깨진다.
+**동작 원리**: kube-prometheus-stack 차트의 Grafana sidecar가 `grafana_dashboard: "1"` 라벨이 붙은 ConfigMap을 자동으로 찾아 로드한다(기본 대시보드 27개도 이 방식) — 이 ConfigMap 6개도 똑같은 라벨을 달아서 **수동 클릭 없이 자동 등록**되게 했다. `kube-prometheus-stack-values.yaml`의 CloudWatch 데이터소스에 `uid: cloudwatch-monitoring`을 **고정**해둔 이유가 이거다 — uid를 안 고정하면 apply할 때마다 랜덤값이 나와서 대시보드 JSON이 참조하는 datasource uid가 매번 깨진다.
 
 **⚠️ 유지보수 주의 — 비고정 AWS 리소스 ID 3종**: `ALB ARN suffix`(`app-application-dashboard.yaml`)·`Cognito User Pool ID`·`CloudFront Distribution ID`는 Lambda/RDS/IAM 역할처럼 이름이 고정되지 않고 **매 apply마다 AWS가 새로 발급**한다 — `infra/console`을 destroy→재apply하면 이 3개 값이 바뀌어서 해당 CloudWatch 패널이 데이터를 못 찾는다(에러는 안 나고 "No data"만 뜸). 재apply 후 `terraform output`(alb_arn_suffix·cognito_user_pool_id·cloudfront_distribution_id)으로 새 값을 확인해 `cnapp-application-dashboard.yaml`의 세 상수를 갱신할 것. Lambda 함수명·RDS 식별자·SQS 큐 이름·SFN ARN·감사 버킷명은 전부 `${project}-...` 고정 패턴이라 이 문제가 없다.
 
-**검증(2026-07-06)**: Grafana `/api/dashboards/db`+`/api/ds/query`로 4개 대시보드·31개 패널을 전부 임시 등록해 실데이터 확인(28개 실값, 3개는 최근 활동 없어 정상 empty — Cognito 로그인·Step Functions 실행·S3 감사기록) → CloudWatch metric math(비용 계산) 쿼리는 `statistic` 필드 누락(500) → `id` 필드가 대문자로 시작(CloudWatch `Id` 규칙 위반, 400) 두 버그를 잡음 → wildcard 분포 패널(판정분포·tool별breakdown)은 `dimensions` 값이 빈 문자열이 아니라 `["*"]` 배열이어야 함을 확인 → 전부 고친 뒤 ConfigMap으로 옮겨 sidecar 자동 로드까지 재확인.
+**검증(2026-07-06 — 당시 4종 31패널 기준. 이후 파이프라인 운영건강·분산추적 2종 추가로 현재 6종)**: Grafana `/api/dashboards/db`+`/api/ds/query`로 4개 대시보드·31개 패널을 전부 임시 등록해 실데이터 확인(28개 실값, 3개는 최근 활동 없어 정상 empty — Cognito 로그인·Step Functions 실행·S3 감사기록) → CloudWatch metric math(비용 계산) 쿼리는 `statistic` 필드 누락(500) → `id` 필드가 대문자로 시작(CloudWatch `Id` 규칙 위반, 400) 두 버그를 잡음 → wildcard 분포 패널(판정분포·tool별breakdown)은 `dimensions` 값이 빈 문자열이 아니라 `["*"]` 배열이어야 함을 확인 → 전부 고친 뒤 ConfigMap으로 옮겨 sidecar 자동 로드까지 재확인.
 
 ### ⚠️ 함정 — kube-prometheus-stack 최초 배포 시 Prometheus가 안 뜨는 문제(해결됨)
 

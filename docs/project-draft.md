@@ -298,7 +298,7 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 **terraform = 레이어드.** `infra/`에서만 apply하고, 컴포넌트 폴더(scanners·pipeline·engine·rag·attackpath·apps)는 **코드만**(CI가 배포). 쪼개기 단위는 **영역까지만**(영역 안 반반까지 또 terraform 만들지 않음 — 한 영역 = state 1개, 두 사람이 그 파일만 공유).
 
 ```
-1) 기반 먼저:  infra/shared   (VPC·EKS·OIDC·RDS pgvector·Bedrock·ECR + db/schema.sql[pgvector 6테이블] + Karpenter discovery 태그)  → 준형, 최초 apply, 모두가 의존
+1) 기반 먼저:  infra/shared   (VPC·EKS·OIDC·RDS pgvector·Bedrock·ECR + db/schema.sql[pgvector 7테이블] + Karpenter discovery 태그)  → 준형, 최초 apply, 모두가 의존
 2) 그 위 영역별 terraform (영역 주인이 apply, 의존성 순서대로):
      infra/karpenter  준형   동적 노드 오토스케일러(컨트롤러 helm·IRSA·spot SQS·NodePool·EC2NodeClass) — shared 직후, 라이브 EKS 필요  ✅ 코드 (2026-07-03 shared에서 분리)
      infra/target     준형   취약 워크로드+의도적 결함 (휘발성 — 토글하며 apply/destroy 잦음, 격리)  ✅ 코드
@@ -626,11 +626,13 @@ CSPM(S3·SG·IAM·암호화) · CIEM(AWS 과도 권한 + **Azure Entra 과도권
 |---|---|---|---|---|
 | Orchestrator | 파이프라인·핸드오프 | (공유) | (공유) | Haiku |
 | Triage | enrichment·우선순위 | 설정 finding | 취약점/권한 finding | Haiku |
-| Hypothesis | 가설 생성 | 컴플라이언스 위반 영향 | attack-path(권한+취약점+설정) | Sonnet |
+| Hypothesis | 가설 생성 | 컴플라이언스 위반 영향 | attack-path(권한+취약점+설정) | **Haiku**(설계는 Sonnet) |
 | Evidence | read-only 검증 | 관련 설정 확인 | 이미지·워크로드·권한 확인 | Haiku |
-| Reasoning | 종합·신뢰점수·리포트 | 컴플라이언스 리포트 | 공격경로 리포트·우선순위 | Sonnet |
+| Reasoning | 종합·신뢰점수·리포트 | 컴플라이언스 리포트 | 공격경로 리포트·우선순위 | **Haiku**(설계는 Sonnet) |
 
-> 모델: Haiku 계열(고빈도 분류·파싱·라우팅), Sonnet 계열(추론·내러티브 품질 중요). 데모 finding 100건 처리 기준 예상 비용 $1~3.
+> 모델: Haiku 계열(고빈도 분류·파싱·라우팅), Sonnet 계열(추론·내러티브 품질 중요).
+>
+> ⚠️ **실제 운용은 3단계 전부 Haiku 단일**(2026-07-21 기준) — 이 계정이 Sonnet Marketplace 구독 미승인이라 `AccessDeniedException`이 난다. 티어링은 **폐기가 아니라 스왑 포인트로 대기** 중: `BEDROCK_MODEL_ID`(엔진)·`CHAT_MODEL_ID`/`RAG_MODEL_ID`(콘솔·RAG) env만 바꾸면 코드 수정 없이 전환된다. **따라서 지금 비용을 실제로 통제하는 건 모델 티어링이 아니라 Triage 게이트다**(실측: findings 71건 중 escalate 조사 21건).
 >
 > ⚠️ **모델 ID 주의:** bare name(`claude-haiku-4-5`)은 Bedrock invoke ID가 아니라 **404** — inference profile ID를 써야 한다. **✅ 확정(2026-07-02):** Evidence(Haiku 티어) = **`global.anthropic.claude-haiku-4-5-20251001-v1:0`**(Bedrock 콘솔 '추론 프로파일'에서 확인한 Global inference profile). Sonnet 티어 ID는 실제 사용 시 동일 방법으로 확정. (모델 액세스 페이지는 폐지 — 서버리스 모델 첫 호출 시 자동 활성, 단 Anthropic은 최초 1회 use-case 제출 필요 → 완료.)
 >
@@ -760,7 +762,7 @@ MVP 코퍼스: A(CIS AWS+K8s) + FSBP + C(KEV) + E(자체 루브릭).
 - [x] **벡터DB = pgvector (RDS PostgreSQL t3.micro)** 확정 — 코퍼스 규모 작아 OpenSearch Serverless는 오버스펙·고비용. Aurora는 idle $43/월로 과함. RDS PostgreSQL t3.micro(free tier 12개월, 이후 $13/월)로 확정. 저렴·단순·finding 메타데이터와 동거 가능.
 - [x] **Azure 역할 = 신원(Entra ID) 중심 확정** — 데이터(회원 PII)는 **AWS S3 전용**, Azure에는 데이터를 두지 않는다(중복 저장은 명분 약함). Azure 점검은 Entra CIEM(과도권한 앱·위험한 consent·권한상승). Macie는 AWS S3 전용. *(2026-07-07 갱신: Defender for Cloud secure score는 시도 후 범위 제외 — D11 참고)*
 - [x] **MVP 데모 골든 시나리오 = 크로스클라우드 신원 탈취 경로 확정** — product 취약 이미지 침투 → order 평문 시크릿에서 Azure 자격증명 발견 → member 공개 S3로 AWS PII 탈취 → 탈취 자격증명으로 Azure Entra ID 과도권한 앱/계정 장악. MVP는 이 경로를 **분석·시각화**하는 수준, 실제 AWS→Azure 횡단 동작은 보너스.
-- [x] **attack-path 계산 = 커스텀 엔진 상관 확정** — 새 Security Hub exposure는 AWS 내부만 엮고 Azure를 못 덮어 크로스클라우드(AWS→Azure) 경로를 단독으로 못 그림 → 선택지가 사실상 커스텀뿐. 우리가 규칙 기반으로 finding을 엮어 4.4 계약 ③ 형식으로 출력(MVP는 골든 1경로 규칙, 규칙 추가로 확장). 콘솔 렌더링은 커스텀 postgres 인접 리스트(console 5.1).
+- [x] **attack-path 계산 = 커스텀 엔진 상관 확정** — 새 Security Hub exposure는 AWS 내부만 엮고 Azure를 못 덮어 크로스클라우드(AWS→Azure) 경로를 단독으로 못 그림 → 선택지가 사실상 커스텀뿐. 우리가 규칙 기반으로 finding을 엮어 4.4 계약 ③ 형식으로 출력(MVP는 골든 1경로로 시작했으나 2026-07-10 멀티경로로 전환 — 현재 3경로(hero 크로스클라우드 5노드 · AWS 단독 3노드 · Azure 단독 2노드)를 독립 발화·위험도순 정렬). 콘솔 렌더링은 커스텀 postgres 인접 리스트(console 5.1).
 - [x] **Azure findings 파이프라인 진입 = Prowler(Azure 모드) 확정** — Prowler가 AWS·Azure 모두 지원(entra_id_* 체크·Defender 연동), OCSF 포맷 출력. GitHub Actions 스케줄 실행 → S3 저장 → EventBridge S3 이벤트 → 기존 SQS→Lambda 파이프라인 합류. 별도 Azure Event Grid·Function 불필요.
 - [x] **자동 조치 카탈로그 1차 범위 확정(MVP 3종)** — ① S3 Public Access Block(1 API, 가역, 고임팩트) ② Security Group 0.0.0.0/0 인바운드 제거(특정 포트 룰 삭제) ③ IAM 최소권한 diff 제안(실제 사용 권한 기반 축소 정책 생성 — 승인 후 적용). ①②는 HITL 승인 후 자동 실행, ③은 제안만. Azure findings는 가이드 텍스트 + "수동 조치 필요" 표시(자동 실행 없음). console-app-design.md §14 동기화.
 

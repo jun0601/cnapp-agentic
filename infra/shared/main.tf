@@ -101,7 +101,7 @@ resource "aws_vpc_endpoint" "dynamodb" {
 
 
 # =============================================================================
-# [NAT] raw NAT Instance(t4g.nano ~$3/월) — NAT Gateway($32) 대신(22번)
+# [NAT] raw NAT Instance(t4g.micro ~$3/월) — NAT Gateway($32) 대신(22번)
 # private subnet 아웃바운드(노드 이미지 pull·EKS API·Bedrock·외부 API)용. S3/DDB는 위 Gateway Endpoint.
 # ⚠️ apply 전: nat_ami_owner(fck-nat 퍼블리셔 계정) 검증 / 데모 외엔 중지·destroy
 # =============================================================================

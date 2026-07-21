@@ -11,7 +11,7 @@
 | **Mock-first 개발** | 로직 90%를 `contracts/` mock으로 인프라 0원에 개발·검증 | 빌드 기간 대부분 **AWS 지출 $0** |
 | **apply → test → destroy** | 종량제 리소스를 상시 방치하지 않고 데모/검증 시간만 | EKS·RDS 등을 **월 과금 → 시간 과금**으로 |
 | **관리형 대신 경량 대체** | NAT Gateway→NAT Instance, Aurora→RDS t3.micro, OpenSearch→pgvector | 고정비 **월 $60+ → 월 $5 수준** |
-| **모델 티어링 + 게이트** | Bedrock Haiku/Sonnet 분리 + Triage 게이트로 풀 LLM 루프 최소화 | 토큰 비용을 **소수 케이스로 한정** |
+| **모델 티어링 + 게이트** | Triage 게이트로 풀 LLM 루프 최소화(모델 티어링은 Sonnet 액세스 미확보로 **현재 Haiku 단일**, env 스왑 포인트만 유지) | 토큰 비용을 **소수 케이스로 한정** |
 | **Azure = 평가판 + 신원만** | M365 Business 평가 테넌트, 데이터는 AWS S3 전용 | Azure 유료 구독 **$0**, 중복 저장 0 |
 | **거버넌스 회피** | Organizations/Identity Center/Control Tower **안 켬** | 무료 크레딧 소멸 트리거 회피 |
 
@@ -46,7 +46,7 @@
 
 | 결정 | 대안 대비 | 절감(개념) | 트레이드오프 |
 |---|---|---|---|
-| **NAT Instance** (`t4g.nano` + fck-nat AMI) | NAT Gateway | 월 **~$32 → ~$3** + 데이터 처리비 | HA 없음(단일 인스턴스), 수동 관리. 데모엔 무관 |
+| **NAT Instance** (`t4g.micro` + fck-nat AMI) | NAT Gateway | 월 **~$32 → ~$3** + 데이터 처리비 | HA 없음(단일 인스턴스), 수동 관리. 데모엔 무관 |
 | **S3·DynamoDB Gateway Endpoint** | NAT 경유 트래픽 | 두 서비스 트래픽은 **NAT 우회(무료 경로)** | Gateway Endpoint 지원 서비스에 한정 |
 | **EKS + Karpenter(spot 우선·on-demand 폴백) · consolidation** | on-demand·고정 노드그룹 | spot 할인 + **저활용/빈 노드 자동 정리(consolidation)** + 필요 시 just-in-time 프로비저닝 | spot 회수는 **on-demand 폴백 + PDB/topologySpread로 완화**. control plane 고정비($0.10/h)는 오토스케일러로 못 줄임 → destroy로만 |
 | **RDS `db.t3.micro` + pgvector** | Aurora Serverless / OpenSearch | 벡터DB를 **기존 postgres에 동거**(추가 인프라 0) | 소규모 전용, 스케일 한계. 데모 코퍼스엔 충분 |
@@ -58,6 +58,7 @@
 | | 내용 |
 |---|---|
 | **결정** | Bedrock 단계별 모델 분리 — Triage·Hypothesis·Evidence = **Haiku(저가)**, Reasoning 내러티브 = **Sonnet(고품질)**. 임베딩은 Titan v2(서울) |
+| **⚠️ 실제** | **3단계 전부 Haiku 단일**(2026-07-21) — 이 계정이 Sonnet Marketplace 구독 미승인. 티어링은 `BEDROCK_MODEL_ID`·`CHAT_MODEL_ID` env 스왑 포인트로 대기 중이라 **액세스가 열리면 코드 변경 없이 전환**된다. 즉 이 표의 절감 레버 중 **지금 실제로 작동하는 건 아래 '게이트'** 이고, 티어링은 준비만 된 상태다(정직하게 구분) |
 | **★ 게이트** | **Triage 게이트가 비용 통제를 제품 로직으로 내재화** — finding 1000건이라도 `severity_id≤2 OR attack_path_id!=null`인 소수만 풀 LLM 루프(Hypothesis→Evidence)로 승급. 나머지는 값싼 캐시 설명에서 멈춤 |
 | **절감** | 토큰 비용이 finding 총량이 아니라 **escalate된 소수**에 비례 |
 | **트레이드오프** | 게이트 임계값 튜닝 필요(과탐/미탐). 대신 실제 SOC의 트리아지 개념과 정합 |
