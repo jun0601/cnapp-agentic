@@ -606,33 +606,76 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 ---
 
 ### 16. CI/CD
-> 16·17번은 각각 5블록씩 내용이 충실하고 성격도 다르므로(16=코드→배포 자동화 / 17=운영 중 관측) **분리 유지**한다(합치면 10블록이 한 장에 몰려 빽빽).
+> 16·17번은 각각 내용이 충실하고 성격도 다르므로(16=코드→배포 자동화 / 17=운영 중 관측) **분리 유지**한다.
+>
+> **★ v9 변경 — 세로 파이프라인 다이어그램 중심으로 재구성.** 이 슬라이드는 "커밋이 클러스터까지 어떤 관문을 거치는가"가 곧 내용이므로, 텍스트 블록 5개를 나열하는 것보다 **세로로 흐르는 파이프라인 도식 1장**이 훨씬 빨리 읽힌다(PDF 포폴은 스킴한다). 그래서 **좌측에 세로 긴 draw.io 도식 + 우측에 카드 4개** 2단 구성으로 바꾸고, 옛 블록 5개는 카드 4개로 압축했다(cron 자동화는 오토스케일과 함께 "자동 운영" 카드로 병합).
+>
+> **⚠️ v9에서 바로잡은 사실 2건(옛 카피가 부정확했음):**
+> - **CI 트리거** — 옛 카피 "매 push·PR"은 틀렸다. `ci.yml`은 **PR(→main) + 수동(workflow_dispatch)** 에서만 돈다(main 직접 push 제외 — 2026-07-04 결정, 직접 push가 잦아 노이즈만 컸음).
+> - **ECR 개수** — 옛 카피 "ECR ×4(…console-backend)"는 틀렸다. 리포지터리는 4개 생성되지만 `build-images.yml`이 실제 build→push 하는 건 **3개(member·product·order)**. console-backend는 이미지가 아니라 **esbuild 번들 → Lambda zip**으로 배포된다.
 
-**리드 문장:** "커밋 하나가 회귀 게이트를 통과해야만 병합되고, 병합된 이미지는 ArgoCD가 자동으로 클러스터에 동기화한다 — 코드 품질과 배포를 파이프라인이 강제한다."
+**리드 문장:** "커밋은 회귀 게이트를 통과해야만 병합되고, 병합 이후 배포는 ArgoCD가 Git 상태에 맞춰 클러스터를 자동 동기화한다 — 품질 검증과 배포를 사람이 아닌 파이프라인이 강제한다."
 
-- **CI (GitHub Actions `ci.yml`)** — 매 push·PR에 하드 게이트: **회귀 10종**(영역별 `run_demo` 9개 + `run_e2e`) + `contracts/validate.py`(계약 4-assert)가 전부 exit 0이어야 통과. + Shift-Left(report): **Trivy**(config·이미지) · **Checkov**(IaC 미스컨피그). 회귀는 순수 stdlib라 별도 클라우드 인프라 없이 GitHub Actions 러너에서 실행.
-- **CD (ArgoCD GitOps)** — Application `shop-target`이 Git을 pull-sync(self-heal·prune·CreateNamespace). Git = 단일 진실, 클러스터가 거기로 수렴.
-- **이미지 빌드** — `build-images.yml`(OIDC 키리스)로 **ECR ×4**(product·order·member·console-backend) build→push.
-- **오토스케일** — Karpenter(spot·consolidation) + HPA. cron 스캔 자동화(`prowler-scan.yml`·`access-analyzer-scan.yml`).
-- 강조 문구: "커밋 하나가 회귀 10종 통과해야 병합 — CI→ECR→ArgoCD→EKS 완전 관통 증명"
+**[레이아웃] 좌 45% = 세로 파이프라인 도식(주인공) / 우 55% = 카드 4개 세로 스택 + 하단 강조 문구 한 줄.** 16:9 가로 슬라이드에서 도식이 좌측 전체 높이를 쓰고, 우측 카드가 그 높이에 맞춰 4단으로 쌓이는 형태.
+
+- **CI (GitHub Actions `ci.yml`)** — **PR(→main)** 에 하드 게이트: `contracts/validate.py`(계약 4-assert) + **회귀 10종**(영역별 `run_demo` 9개 + `run_e2e`)이 전부 exit 0이어야 통과. + Shift-Left(report): **Trivy**(IaC·Dockerfile 미스컨피그) · **Checkov**(Terraform). 회귀는 순수 stdlib라 클라우드 인프라 없이 러너에서 실행(비용 0).
+  - ⓐ Shift-Left가 왜 report(soft-fail)인가 — 이 레포는 **의도적 취약 타깃**(`infra/target`·`apps/target`)을 품고 있어 하드 게이트로 걸면 CI가 영구히 빨갛다. 실서비스 파이프라인이면 hard-gate가 정석이라는 점을 함께 적으면 "몰라서가 아니라 알고 고른 것"이 드러난다.
+- **CD (ArgoCD GitOps)** — Application `shop-target`이 **Git을 pull-sync**(self-heal·prune·CreateNamespace). **CI에 클러스터 자격증명을 넣지 않는 pull 기반**이 핵심 — push 기반 CD와 달리 CI가 클러스터 권한을 들고 있지 않다.
+  - ⚠️ 정확히: ArgoCD가 Git에서 당겨오는 건 **매니페스트**이고, **이미지는 EKS가 ECR에서 pull** 한다. 도식에서 이 둘을 별개 화살표로 그린다(옛 카피의 "병합된 이미지를 ArgoCD가 동기화"는 부정확).
+- **키리스 이미지 빌드** — `build-images.yml`: **GitHub OIDC → IAM Role**(AssumeRoleWithWebIdentity)로 장기 액세스 키 없이 인증 → **ECR ×3**(member·product·order) build→push.
+- **자동 운영** — Karpenter(spot·consolidation) + HPA로 노드·파드 자동 확장. 정기 스캔도 워크플로로 자동화(`prowler-scan.yml`·`access-analyzer-scan.yml`) → 스캔 결과가 파이프라인에 자동 합류.
+- 강조 문구: "커밋 → CI 게이트 → ECR → ArgoCD → EKS, 전 구간 실배포로 관통 검증"
+
+**[시각자료] 세로 CI/CD 파이프라인 도식 (draw.io, AWS 아이콘 — 전체 아키텍처 drawio에서 CI/CD 부분을 빼와 상세화):**
+
+```
+        개발자 커밋 → PR (→ main)
+                  │
+                  ▼
+   ┌──────────────────────────────────┐
+   │  GitHub Actions — ci.yml         │
+   │  ─ 하드 게이트 (전부 exit 0)      │
+   │     · contracts 4-assert         │
+   │     · 회귀 10종 (run_demo 9+e2e) │
+   │  ─ Shift-Left (report)           │
+   │     · Trivy   · Checkov          │
+   └──────────────────────────────────┘
+                  │ 통과해야 병합
+                  ▼
+        main 병합 — Git = 단일 진실
+          │                    │
+          ▼                    ▼
+  build-images.yml       ArgoCD (on EKS)
+  GitHub OIDC            매니페스트 pull-sync
+  → IAM Role (키 없음)    self-heal · prune
+          │                    │
+          ▼                    ▼
+      ECR ×3            EKS — shop 네임스페이스
+  member·product·order   member·product·order 파드
+          └──── 이미지 pull ────┘
+                       │
+                       ▼
+            Karpenter(spot) + HPA
+```
+> 도식 작성 팁: **세로 척추(spine) 하나에 중간에서 한 번만 갈라졌다 합쳐지는 형태**로 유지 — 갈래가 더 늘면 세로 도식의 장점(위→아래 한 방향으로 읽힘)이 깨진다. 실선 = 자동 실행 흐름, 점선 = 인증/자격증명(OIDC → IAM Role)으로 구분하고 범례 한 줄. AWS 아이콘 대상 = ECR·EKS·IAM(+ArgoCD·GitHub은 공식 로고), 개념 박스 = 하드 게이트·Shift-Left.
 
 **▶ 캔바에 그대로 넣을 카피:**
 
 [제목] CI/CD
 
-[중제목] 커밋 하나가 회귀 게이트를 통과해야 병합되고, 병합된 이미지는 ArgoCD가 클러스터에 자동 동기화 — 코드 품질과 배포를 파이프라인이 강제
+[중제목] 커밋은 회귀 게이트 10종을 통과해야만 병합되고, 병합 이후 배포는 ArgoCD가 Git 상태에 맞춰 클러스터를 자동 동기화 — 품질 검증과 배포를 사람이 아닌 파이프라인이 강제
 
-[블록 1 — CI (GitHub Actions ci.yml)] 매 push·PR에 하드 게이트: 회귀 10종(영역별 run_demo 9개 + run_e2e) + contracts/validate.py(계약 4-assert)가 전부 exit 0이어야 통과. + Shift-Left(report): Trivy(config·이미지)·Checkov(IaC).
+[좌측] 세로 CI/CD 파이프라인 도식 (위 시각자료)
 
-[블록 2 — CD (ArgoCD GitOps)] Application shop-target이 Git을 pull-sync(self-heal·prune·CreateNamespace). Git = 단일 진실, 클러스터가 거기로 수렴.
+[카드 1 — CI: 병합 전 하드 게이트] PR(→main)에서 contracts 계약 4-assert + 회귀 10종(영역별 run_demo 9개 + run_e2e)이 전부 exit 0이어야 병합 가능 · 순수 stdlib 실행이라 클라우드 인프라 불필요
 
-[블록 3 — 이미지 빌드] build-images.yml(OIDC 키리스)로 ECR ×4(product·order·member·console-backend) build→push.
+[카드 2 — Shift-Left: 취약점을 커밋 단계에서] Trivy(IaC·Dockerfile 미스컨피그) · Checkov(Terraform) 자동 스캔 · 의도적 취약 타깃을 품은 레포라 report 모드로 운영(실서비스라면 하드 게이트가 정석)
 
-[블록 4 — 오토스케일] Karpenter(spot·consolidation) + HPA.
+[카드 3 — CD: pull 기반 GitOps] ArgoCD Application shop-target이 Git 매니페스트를 pull-sync(self-heal·prune) · CI에 클러스터 자격증명을 넣지 않는 구조 · Git이 원하는 상태의 단일 진실
 
-[블록 5 — cron 자동화] prowler-scan.yml · access-analyzer-scan.yml(정기 스캔 자동 합류).
+[카드 4 — 키리스 빌드 & 자동 운영] GitHub OIDC → IAM Role로 장기 키 없이 ECR ×3(member·product·order) 빌드·푸시 · Karpenter(spot)+HPA 자동 확장 · 정기 스캔 워크플로가 결과를 파이프라인에 자동 합류
 
-[강조 문구] 커밋 하나가 회귀 10종 통과해야 병합 — CI→ECR→ArgoCD→EKS 완전 관통 증명
+[강조 문구] 커밋 → CI 게이트 → ECR → ArgoCD → EKS, 전 구간 실배포로 관통 검증
 
 ---
 
@@ -714,12 +757,13 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 | 11 RAG | RAG 흐름도 + /chat 스크린샷 | **박스+아이콘 혼합** + 스크린샷 | Titan·Bedrock은 아이콘, pgvector 검색은 개념 박스. + `/chat` 캡처 |
 | 13 거버넌스·자기방어 | 심층 방어(defense-in-depth) 도식 | **박스+아이콘 혼합(캔바 직접)** | 6개 원칙을 겹겹의 방어 계층으로. 바깥→안: ① CloudFront+WAF → ② Cognito SSO+JWT → ③ read-only 에이전트(allowlist 2중) → ④ HITL 승인 → 중심=보호 대상(AWS 워크로드·Azure 신원). 하단 밴드=키리스(OIDC/IRSA)·불변 감사로그(S3 Object Lock)가 전 계층 관통. 동심(중첩) 또는 좌우 겹겹 박스. AWS 서비스(WAF·CloudFront·Cognito·ALB·SFn·S3 Object Lock)는 아이콘, 개념(read-only·HITL·allowlist)은 박스. 도식이 주인공(좌/중앙) + 6개 카드가 각 층 상세(우). 메시지: "한 층이 뚫려도 다음 층이 막는 defense-in-depth" |
 | 14 인프라 설계 | VPC 배치도 **또는** 레이어 의존도 | ⓐVPC=draw.io(AWS 아이콘) / ⓑ레이어=박스 | 택1. VPC 도식은 draw.io, terraform 레이어 의존도는 박스+화살표 |
+| 16 CI/CD | **세로 파이프라인 도식**(슬라이드 좌측 45%, 전체 높이) | **draw.io(AWS 아이콘)** | 전체 아키텍처 drawio의 CI/CD 부분을 **크롭해 빼온 뒤 상세화**. 세로 척추 1줄: 커밋/PR → ci.yml(하드 게이트+Shift-Left) → main 병합 → **여기서 한 번만 갈라짐**(좌: build-images.yml OIDC→IAM→ECR ×3 / 우: ArgoCD 매니페스트 pull-sync) → EKS shop ns에서 합류(ECR에서 이미지 pull) → Karpenter+HPA. 실선=자동 실행 흐름 / 점선=인증(OIDC→IAM Role), 범례 한 줄. 아이콘 = ECR·EKS·IAM(+GitHub·ArgoCD 로고), 개념 박스 = 하드 게이트·Shift-Left. **갈래를 더 늘리지 말 것**(세로 도식은 위→아래 한 방향으로 읽혀야 값어치가 남) |
 
-- **AWS 아이콘(draw.io) = 5·8·14ⓐ** / **박스 위주(캔바 직접) = 6·9·11·13·14ⓑ** / **스크린샷 = 7·10·11**.
-- 전체 drawio에서 크롭으로 커버되는 것 = 5·6·8. 새로 만들 것 = 9(박스 루프)·11(박스 흐름)·13(심층 방어 도식)·14(도식). 부담 크지 않음.
-- 표·카드·빅넘버 위주 슬라이드(1·2·3·4·12·15·16·17·18·19·20)는 다이어그램 불필요.
+- **AWS 아이콘(draw.io) = 5·8·14ⓐ·16** / **박스 위주(캔바 직접) = 6·9·11·13·14ⓑ** / **스크린샷 = 7·10·11**.
+- 전체 drawio에서 크롭으로 커버되는 것 = 5·6·8·16(16은 크롭 후 상세화 필요). 새로 만들 것 = 9(박스 루프)·11(박스 흐름)·13(심층 방어 도식)·14(도식). 부담 크지 않음.
+- 표·카드·빅넘버 위주 슬라이드(1·2·3·4·12·15·17·18·19·20)는 다이어그램 불필요.
 
 ### 슬라이드 분량 검토 (합병 여부)
-- **16번(CI/CD) + 17번(운영 관측) → 분리 유지 확정.** 처음엔 "배지 없앤 지금 쪼갤 명분이 없다"고 합병을 검토했으나, 각각 5블록씩 내용이 충실하고(16=CI 게이트·CD·이미지·오토스케일·cron / 17=CloudWatch·X-Ray·Grafana·CloudTrail·Teams) **성격도 안 겹친다(배포 자동화 vs 운영 관측)**. 합치면 10블록이 한 장에 몰려 오히려 빽빽 → 분리가 맞다.
+- **16번(CI/CD) + 17번(운영 관측) → 분리 유지 확정.** 처음엔 "배지 없앤 지금 쪼갤 명분이 없다"고 합병을 검토했으나, 각각 내용이 충실하고 **성격도 안 겹친다(배포 자동화 vs 운영 관측)**. 합치면 한 장에 몰려 오히려 빽빽 → 분리가 맞다. **v9에서 16번이 세로 도식 + 카드 4개 2단 구성으로 바뀌면서 슬라이드 하나를 꽉 채우게 됐으므로 합병 논의는 완전히 닫힌다.**
 - **10번(Bedrock 실증)은 9번(엔진)과 분리 유지.** "목업이 아니라 실제로 돌았다"는 실증은 신뢰도 핵심이라 Evidence 탭 스크린샷과 함께 독립 슬라이드로. 9번(이론) → 10번(증거) 흐름도 자연스러움.
 - 그 외 슬라이드도 v8 기준 각자 충분한 밀도 확보 — **합병 대상 없음.**
