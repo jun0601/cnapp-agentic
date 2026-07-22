@@ -538,9 +538,11 @@ data "aws_iam_policy_document" "evidence_readonly" {
       "iam:SimulatePrincipalPolicy",
       "macie2:GetFindings",
       "ec2:DescribeSecurityGroups",
-      "accessanalyzer:ListFindings",
-      "accessanalyzer:ListAnalyzers" # ListFindings 호출 전 analyzer ARN을 조회하는 선행 스텝(_accessanalyzer_list_findings
-      # 내부에서 두 API를 순서대로 호출) — ListFindings만 있고 이건 빠져서 매번 AccessDenied(2026-07-22 X-Ray로 발견)
+      "access-analyzer:ListFindings", # boto3 클라이언트명(accessanalyzer, 하이픈 없음)과 실 IAM 액션 프리픽스(access-analyzer,
+      # 하이픈 있음)가 달라 이 문(과 아래 ListAnalyzers)이 지금까지 한 번도 매칭 안 됐음 — 실 AccessDenied 에러 메시지가
+      # "access-analyzer:ListAnalyzers"임을 보고 확인(2026-07-22, IAM 정책 시뮬레이터로 재검증).
+      "access-analyzer:ListAnalyzers" # ListFindings 호출 전 analyzer ARN을 조회하는 선행 스텝(_accessanalyzer_list_findings
+      # 내부에서 두 API를 순서대로 호출)
     ]
     resources = ["*"] # 전부 read-only라 * 가능. TODO: 가능한 액션은 리소스 좁히기
   }

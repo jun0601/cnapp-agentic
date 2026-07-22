@@ -153,7 +153,7 @@ class RealToolExecutor(ToolExecutor):
       s3:GetBucketPolicy · GetBucketAcl · GetBucketPublicAccessBlock  (f6 공개 S3)
       ec2:DescribeSecurityGroups                                 (f3 개방 SG)
       iam:SimulatePrincipalPolicy · ListAttachedRolePolicies · GetRolePolicy  (f4 과도 IRSA)
-      macie2:GetFindings · accessanalyzer:ListFindings           (f7 PII·외부접근 — 서비스 미활성이면
+      macie2:GetFindings · access-analyzer:ListFindings           (f7 PII·외부접근 — 서비스 미활성이면
                                                                   크래시 대신 중립 결과로 우아하게 강등)
     Azure(MS Graph) 툴은 미구현 — 골든 데모 조사 범위는 AWS(§9 UC0), Azure는 finding 소스로만.
 
@@ -213,7 +213,7 @@ class RealToolExecutor(ToolExecutor):
             "iam:ListAttachedRolePolicies": self._list_attached_role_policies,
             "iam:GetRolePolicy": self._get_role_policy,
             "macie2:GetFindings": self._macie_get_findings,
-            "accessanalyzer:ListFindings": self._accessanalyzer_list_findings,
+            "access-analyzer:ListFindings": self._accessanalyzer_list_findings,
         }
 
     def executable_apis(self) -> List[str]:

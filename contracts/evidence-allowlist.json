@@ -10,7 +10,7 @@
     "iam:SimulatePrincipalPolicy",
     "macie2:GetFindings",
     "ec2:DescribeSecurityGroups",
-    "accessanalyzer:ListFindings"
+    "access-analyzer:ListFindings"
   ],
   "azure_ms_graph": [
     "Application.Read.All",
@@ -21,6 +21,7 @@
     "read-only only — 변경/쓰기/삭제 API 금지(allowlist 외 호출 시도는 엔진이 차단)",
     "AWS는 단일 read-only IAM 역할로, Azure는 read-only MS Graph 앱 1개로 스코프",
     "변경(remediation)은 Evidence가 절대 안 함 — HITL 승인 후 Step Functions(분리된 격상 역할)만",
-    "s3:GetBucketPublicAccessBlock — S3 GetPublicAccessBlock API의 실제 IAM 액션명(API 오퍼레이션명과 다름, 2026-07-21 실AWS AccessDenied로 발견·정정)"
+    "s3:GetBucketPublicAccessBlock — S3 GetPublicAccessBlock API의 실제 IAM 액션명(API 오퍼레이션명과 다름, 2026-07-21 실AWS AccessDenied로 발견·정정)",
+    "access-analyzer:ListFindings — boto3 클라이언트명(accessanalyzer, 하이픈 없음)과 실제 IAM 액션 프리픽스(access-analyzer, 하이픈 있음)가 달라 AccessDenied로 발견·정정(2026-07-22)"
   ]
 }
