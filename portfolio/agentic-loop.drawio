@@ -1,40 +1,40 @@
 <mxfile host="app.diagrams.net" type="device">
   <diagram name="에이전틱 조사 루프" id="agentic-loop">
-    <mxGraphModel dx="1100" dy="640" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1220" pageHeight="600" math="0" shadow="0">
+    <mxGraphModel dx="1120" dy="660" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1240" pageHeight="620" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <!-- ============ 5단계 루프 (가로) ============ -->
-        <mxCell id="s1" value="&lt;b&gt;&lt;font color=&quot;#0E7C86&quot;&gt;① Orchestrator&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot; color=&quot;#5C6C7E&quot;&gt;루프 지휘 · 케이스 조립·저장&lt;/font&gt;"
-          style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#24292F;strokeWidth=2;fontColor=#111820;fontSize=14;verticalAlign=middle;"
+        <!-- ============ 5단계 루프 (가로) — 각 단계 불릿 3종 ============ -->
+        <mxCell id="s1" value="&lt;b&gt;&lt;font color=&quot;#0E7C86&quot; style=&quot;font-size: 15px;&quot;&gt;① Orchestrator&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#5C6C7E&quot;&gt;· 전체 루프 지휘·조율&lt;br&gt;· Triage→Hypothesis→Evidence→Reasoning 순차 호출&lt;br&gt;· 케이스 조립 → RDS 저장&lt;br&gt;· 스테이지별 토큰·모델 추적&lt;/font&gt;"
+          style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#24292F;strokeWidth=2;fontColor=#111820;fontSize=13;align=left;spacingLeft=12;verticalAlign=middle;"
           vertex="1" parent="1">
-          <mxGeometry x="20" y="50" width="200" height="95" as="geometry" />
+          <mxGeometry x="15" y="40" width="210" height="155" as="geometry" />
         </mxCell>
 
-        <mxCell id="s2" value="&lt;b&gt;&lt;font color=&quot;#0E7C86&quot;&gt;② Triage&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot; color=&quot;#5C6C7E&quot;&gt;비용 게이트 · 승급된 것만 통과&lt;br&gt;(실측 20건 → 12건)&lt;/font&gt;"
-          style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#24292F;strokeWidth=2;fontColor=#111820;fontSize=14;verticalAlign=middle;"
+        <mxCell id="s2" value="&lt;b&gt;&lt;font color=&quot;#0E7C86&quot; style=&quot;font-size: 15px;&quot;&gt;② Triage&lt;/font&gt;&lt;/b&gt;&amp;nbsp;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#8A99AA&quot;&gt;비용 게이트&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#5C6C7E&quot;&gt;· Bedrock 호출 전 규칙으로 선별&lt;br&gt;· 게이트: severity High↑ OR attack-path 후보&lt;br&gt;· 승급된 소수만 통과&lt;br&gt;&amp;nbsp;&amp;nbsp;&lt;b&gt;실측 20건 → 12건&lt;/b&gt; (토큰 낭비 차단)&lt;/font&gt;"
+          style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#24292F;strokeWidth=2;fontColor=#111820;fontSize=13;align=left;spacingLeft=12;verticalAlign=middle;"
           vertex="1" parent="1">
-          <mxGeometry x="265" y="50" width="200" height="95" as="geometry" />
+          <mxGeometry x="265" y="40" width="210" height="155" as="geometry" />
         </mxCell>
 
-        <mxCell id="s3" value="&lt;b&gt;&lt;font color=&quot;#0E7C86&quot;&gt;③ Hypothesis&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot; color=&quot;#5C6C7E&quot;&gt;검증 가능한 공격 가설 생성&lt;/font&gt;"
-          style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#24292F;strokeWidth=2;fontColor=#111820;fontSize=14;verticalAlign=middle;"
+        <mxCell id="s3" value="&lt;b&gt;&lt;font color=&quot;#0E7C86&quot; style=&quot;font-size: 15px;&quot;&gt;③ Hypothesis&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#5C6C7E&quot;&gt;· 승급 finding·attack-path로&lt;br&gt;&amp;nbsp;&amp;nbsp;검증 가능한 공격 가설 도출&lt;br&gt;· toolChoice로 구조화 출력 강제&lt;br&gt;&amp;nbsp;&amp;nbsp;(자유 텍스트 파싱 안 씀)&lt;br&gt;· 크로스클라우드 체인 가설 포함&lt;/font&gt;"
+          style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#24292F;strokeWidth=2;fontColor=#111820;fontSize=13;align=left;spacingLeft=12;verticalAlign=middle;"
           vertex="1" parent="1">
-          <mxGeometry x="510" y="50" width="200" height="95" as="geometry" />
+          <mxGeometry x="515" y="40" width="210" height="155" as="geometry" />
         </mxCell>
 
         <!-- ④ Evidence — 핵심 단계(강조) -->
-        <mxCell id="s4" value="&lt;b style=&quot;font-size: 15px;&quot;&gt;&lt;font color=&quot;#2F6BE0&quot;&gt;④ Evidence&lt;/font&gt;&lt;/b&gt;&amp;nbsp;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#2F6BE0&quot;&gt;핵심 단계&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot; color=&quot;#334155&quot;&gt;LLM이 read-only API를&lt;br&gt;&lt;b&gt;스스로 골라 호출&lt;/b&gt;&lt;/font&gt;"
-          style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#EAF1FD;strokeColor=#2F6BE0;strokeWidth=2.5;fontColor=#111820;fontSize=14;verticalAlign=middle;"
+        <mxCell id="s4" value="&lt;b style=&quot;font-size: 15px;&quot;&gt;&lt;font color=&quot;#2F6BE0&quot;&gt;④ Evidence&lt;/font&gt;&lt;/b&gt;&amp;nbsp;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#2F6BE0&quot;&gt;★ 핵심&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#1E3A5F&quot;&gt;· LLM이 검증할 read-only API를&lt;br&gt;&amp;nbsp;&amp;nbsp;&lt;b&gt;스스로 선택&lt;/b&gt;&lt;br&gt;· (api, resource_id) → 실행 →&lt;br&gt;&amp;nbsp;&amp;nbsp;응답을 toolResult로 되먹임&lt;br&gt;· 최대 6회 반복, 충분하면 스스로 종료&lt;/font&gt;"
+          style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#EAF1FD;strokeColor=#2F6BE0;strokeWidth=2.5;fontColor=#111820;fontSize=13;align=left;spacingLeft=12;verticalAlign=middle;"
           vertex="1" parent="1">
-          <mxGeometry x="755" y="50" width="200" height="95" as="geometry" />
+          <mxGeometry x="765" y="40" width="210" height="155" as="geometry" />
         </mxCell>
 
-        <mxCell id="s5" value="&lt;b&gt;&lt;font color=&quot;#0E7C86&quot;&gt;⑤ Reasoning&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot; color=&quot;#5C6C7E&quot;&gt;근거 기반 판정 +&lt;br&gt;한국어 내러티브&lt;/font&gt;"
-          style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#24292F;strokeWidth=2;fontColor=#111820;fontSize=14;verticalAlign=middle;"
+        <mxCell id="s5" value="&lt;b&gt;&lt;font color=&quot;#0E7C86&quot; style=&quot;font-size: 15px;&quot;&gt;⑤ Reasoning&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#5C6C7E&quot;&gt;· 수집 증거로 판정&lt;br&gt;&amp;nbsp;&amp;nbsp;&lt;b&gt;confirmed / inconclusive / refuted&lt;/b&gt;&lt;br&gt;· 한국어 내러티브 생성&lt;br&gt;· risk_level·권고는 결정론 로직&lt;br&gt;&amp;nbsp;&amp;nbsp;(판정 일관성 유지)&lt;/font&gt;"
+          style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#24292F;strokeWidth=2;fontColor=#111820;fontSize=13;align=left;spacingLeft=12;verticalAlign=middle;"
           vertex="1" parent="1">
-          <mxGeometry x="1000" y="50" width="200" height="95" as="geometry" />
+          <mxGeometry x="1015" y="40" width="210" height="155" as="geometry" />
         </mxCell>
 
         <!-- 단계 연결 화살표 -->
@@ -51,31 +51,31 @@
         <mxCell id="aws" value="&lt;b&gt;AWS read-only API&lt;/b&gt;&amp;nbsp;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#8A6D3B&quot;&gt;실 클라우드&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-family: Consolas, monospace; font-size: 11px;&quot; color=&quot;#5C6C7E&quot;&gt;s3:GetBucketPolicy · GetPublicAccessBlock&lt;br&gt;iam:SimulatePrincipalPolicy · ListAttachedRolePolicies&lt;br&gt;ec2:DescribeSecurityGroups · macie2:GetFindings …&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#8A99AA&quot;&gt;조사 전용 9종&lt;/font&gt;"
           style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#D97706;strokeWidth=2;fontColor=#111820;fontSize=13;verticalAlign=middle;"
           vertex="1" parent="1">
-          <mxGeometry x="625" y="360" width="460" height="130" as="geometry" />
+          <mxGeometry x="640" y="380" width="460" height="135" as="geometry" />
         </mxCell>
 
         <!-- 왕복 화살표: 나감(호출) -->
         <mxCell id="call" value="&lt;b&gt;①&lt;/b&gt; (api, resource_id) 골라 호출"
-          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#2F6BE0;strokeWidth=2.2;endArrow=blockThin;endFill=1;fontSize=12;fontColor=#2F6BE0;labelBackgroundColor=#FFFFFF;exitX=0.35;exitY=1;entryX=0.35;entryY=0;"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#2F6BE0;strokeWidth=2.2;endArrow=blockThin;endFill=1;fontSize=12;fontColor=#2F6BE0;labelBackgroundColor=#FFFFFF;exitX=0.32;exitY=1;entryX=0.32;entryY=0;"
           edge="1" parent="1" source="s4" target="aws"><mxGeometry relative="1" as="geometry" /></mxCell>
 
         <!-- 왕복 화살표: 돌아옴(증거) -->
         <mxCell id="ret" value="&lt;b&gt;②&lt;/b&gt; 실 응답 → toolResult로 되먹임"
-          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#15803D;strokeWidth=2.2;endArrow=blockThin;endFill=1;fontSize=12;fontColor=#15803D;labelBackgroundColor=#FFFFFF;exitX=0.65;exitY=0;entryX=0.65;entryY=1;"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#15803D;strokeWidth=2.2;endArrow=blockThin;endFill=1;fontSize=12;fontColor=#15803D;labelBackgroundColor=#FFFFFF;exitX=0.68;exitY=0;entryX=0.68;entryY=1;"
           edge="1" parent="1" source="aws" target="s4"><mxGeometry relative="1" as="geometry" /></mxCell>
 
         <!-- 반복 주석 -->
         <mxCell id="loop" value="&lt;font style=&quot;font-size: 12px;&quot; color=&quot;#5C6C7E&quot;&gt;충분해질 때까지&lt;br&gt;&lt;b&gt;최대 6회 반복&lt;/b&gt; → 스스로 종료&lt;/font&gt;"
           style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;dashed=1;dashPattern=6 4;fillColor=none;strokeColor=#8A99AA;strokeWidth=1.3;fontColor=#111820;fontSize=12;verticalAlign=middle;"
           vertex="1" parent="1">
-          <mxGeometry x="1000" y="235" width="200" height="70" as="geometry" />
+          <mxGeometry x="1015" y="410" width="210" height="75" as="geometry" />
         </mxCell>
 
         <!-- 거버넌스 가드 (2중 강제) -->
         <mxCell id="guard" value="&lt;b&gt;&lt;font color=&quot;#B91C1C&quot;&gt;허용 목록 2중 강제&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px;&quot; color=&quot;#5C6C7E&quot;&gt;① 스키마: api enum을 허용 목록으로 제한&lt;br&gt;② 실행 직전 &lt;font style=&quot;font-family: Consolas, monospace;&quot;&gt;_check()&lt;/font&gt; 재검증&lt;br&gt;&lt;b&gt;변경/쓰기 API 0종&lt;/b&gt; — 어느 경로로도 호출 불가&lt;/font&gt;"
           style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#DC2626;strokeWidth=1.5;fontColor=#111820;fontSize=12;align=left;spacingLeft=12;verticalAlign=middle;"
           vertex="1" parent="1">
-          <mxGeometry x="70" y="360" width="330" height="130" as="geometry" />
+          <mxGeometry x="70" y="385" width="340" height="125" as="geometry" />
         </mxCell>
 
         <mxCell id="gline" style="html=1;strokeColor=#DC2626;strokeWidth=1.4;dashed=1;dashPattern=4 4;endArrow=none;startArrow=none;exitX=1;exitY=0.5;entryX=0.05;entryY=0.5;"
@@ -85,7 +85,7 @@
         <mxCell id="foot" value="&lt;b style=&quot;font-size: 14px;&quot;&gt;챗봇 탈출의 단일 기준 — 규칙이 정한 API가 아니라, LLM이 finding을 읽고 조사 도구를 스스로 선택·호출한다&lt;/b&gt;"
           style="text;html=1;align=center;verticalAlign=middle;fontColor=#111820;fontSize=14;"
           vertex="1" parent="1">
-          <mxGeometry x="120" y="520" width="980" height="40" as="geometry" />
+          <mxGeometry x="130" y="555" width="980" height="40" as="geometry" />
         </mxCell>
 
       </root>
