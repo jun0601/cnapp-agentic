@@ -616,12 +616,12 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 **리드 문장:** "종량제 리소스를 상시 방치하지 않으려면 apply→destroy를 안전하게 반복할 수 있어야 한다 — 그래서 인프라를 레이어드 Terraform으로 짜고, 순서를 코드로 강제했다."
 
 **4개 축(각: 소제목 + 기술 상세):**
-1. **레이어드 Terraform** — `shared → karpenter → target · backend · console`(monitoring 별도) 5레이어. 하위 레이어가 상위를 `terraform_remote_state`로 참조. `infra/deploy.ps1`이 **apply는 정방향, destroy는 역방향**으로 순회하며 실패 시 즉시 중단(상태 보호). 실행: `./infra/deploy.ps1 -Action apply` / `-Action destroy -AutoApprove`.
+1. **레이어드 Terraform** — `shared → karpenter → target · backend · console · monitoring` 6레이어. 하위 레이어가 상위를 `terraform_remote_state`로 참조. `infra/deploy.ps1`이 **apply는 정방향, destroy는 역방향**으로 순회하며 실패 시 즉시 중단(상태 보호). 실행: `./infra/deploy.ps1 -Action apply` / `-Action destroy -AutoApprove`.
    - Karpenter destroy 후 고아 스팟노드 자동 종료 스윕(`karpenter.sh/nodepool` 태그 인스턴스) — pod ENI가 node SG를 붙잡아 shared destroy가 막히던 문제를 코드화.
 2. **VPC 설계** — `10.20.0.0/16`, 2 AZ(ap-northeast-2a/2c), public/private 서브넷 분리. **NAT Gateway($32/월) 대신 NAT Instance**(`t4g.micro`, fck-nat AMI arm64, IMDSv2 강제) + **S3/DynamoDB Gateway Endpoint**(NAT 우회로 데이터 전송 비용 절감).
 3. **컴퓨트·데이터** — **EKS 1.34**(관리형 노드그룹 spot `t3.small`, scale 0~2) + **Karpenter**(spot 우선·on-demand 폴백, 프리티어 제약으로 `t3.small`/`t3.micro`만) + HPA. **RDS PostgreSQL 16 `t3.micro` + pgvector**(private subnet, Secrets Manager로 자격증명). Lambda는 VPC 내부 배치(RDS 접근).
 4. **키리스 인증** — CI는 **GitHub OIDC → IAM Role**, 파드는 **IRSA**(역할별 `:aud`·`:sub` 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
-- 강조 문구: "**5레이어 · 리소스 298개**(모니터링 별도)를 순서대로 apply → 검증 → destroy까지 완주, **잔존 리소스 0**" (v10: 2026-07-22 `terraform state list` 실측 재확인 — 207개는 2026-07-03 시점 숫자로 이후 X-Ray·Prowler 자동화·WAF·CIEM·조치·RAG 등 추가되며 늘어남. 본문 "5레이어(모니터링 별도)" 서술과 통일해 모니터링 제외 기준으로 표기 — 모니터링까지 포함하면 6레이어·374개)
+- 강조 문구: "**6레이어 · 리소스 374개**를 순서대로 apply → 검증 → destroy까지 완주, **잔존 리소스 0**" (v12, 2026-07-22: 진우 최종 결정 — monitoring을 레이어 목록에 포함하는 쪽으로 통일, 숫자도 6레이어 전체 합산(374개)으로 맞춤. 참고: monitoring 제외 5레이어만이면 298개)
 - 🎨 **시각자료 확정(v11, 2026-07-22)**: **레이어 의존 다이어그램**(`shared → karpenter → target·backend·console → monitoring` 박스+화살표, 참조 방향 표시) 하나로 확정 — VPC 서브넷 배치도는 기각. 이유: VPC/SG/노드그룹 같은 콘솔 리소스 캡처는 "존재 증명"만 하고 이 슬라이드의 핵심 주장(설계 판단·순서 강제)은 증명 못 함 — 이 덱에서 통했던 스크린샷들(X-Ray 서비스맵·RAG 설명)은 전부 "동작"을 보여주는데, 리소스 리스트/맵은 "정지 상태"만 보여줘서 결이 다름. **예외로 딱 하나 실증 스크린샷 추가**: `deploy.ps1 -Action apply` 터미널 실행 화면(5레이어가 순서대로 실행되는 로그) — "순서를 코드로 강제했다"는 리드 문장을 동작으로 직접 증명하는 유일한 스크린샷이라 가치 있음.
 
 **▶ 캔바에 그대로 넣을 카피:**
@@ -630,7 +630,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 [중제목] 종량제 리소스를 상시 방치하지 않도록 apply→destroy를 안전하게 반복 — 레이어드 Terraform으로 그 순서를 코드로 강제
 
-[축 1 — 레이어드 Terraform] shared → karpenter → target·backend·console(monitoring 별도) 5레이어. 하위가 상위를 terraform_remote_state로 참조. deploy.ps1이 apply는 정방향, destroy는 역방향으로 순회하며 실패 시 즉시 중단(상태 보호). + Karpenter destroy 후 고아 스팟노드 자동 종료 스윕.
+[축 1 — 레이어드 Terraform] shared → karpenter → target·backend·console·monitoring 6레이어. 하위가 상위를 terraform_remote_state로 참조. deploy.ps1이 apply는 정방향, destroy는 역방향으로 순회하며 실패 시 즉시 중단(상태 보호). + Karpenter destroy 후 고아 스팟노드 자동 종료 스윕.
 
 [축 2 — VPC 설계] 10.20.0.0/16, 2 AZ(ap-northeast-2a/2c), public/private 서브넷 분리. NAT Gateway 대신 NAT Instance(t4g.micro, fck-nat AMI, IMDSv2 강제) + S3/DynamoDB Gateway Endpoint(NAT 우회 데이터 전송 절감).
 
@@ -638,7 +638,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 [축 4 — 키리스 인증] CI는 GitHub OIDC → IAM Role, 파드는 IRSA(역할별 aud·sub 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
 
-[강조 문구] 5레이어(모니터링 별도) · 리소스 298개를 순서대로 apply → 검증 → destroy까지 완주, 잔존 리소스 0
+[강조 문구] 6레이어 · 리소스 374개를 순서대로 apply → 검증 → destroy까지 완주, 잔존 리소스 0
 
 ---
 
