@@ -32,7 +32,7 @@
         </mxCell>
 
         <!-- ============ 3. main 병합 ============ -->
-        <mxCell id="n3" value="&lt;b style=&quot;font-size: 16px;&quot;&gt;main 병합&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot; color=&quot;#5C6C7E&quot;&gt;Git = 원하는 상태의 단일 진실&lt;/font&gt;"
+        <mxCell id="n3" value="&lt;b style=&quot;font-size: 16px;&quot;&gt;main 병합&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot; color=&quot;#5C6C7E&quot;&gt;Git = 클러스터가 맞춰갈 목표 상태(desired state)&lt;/font&gt;"
           style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#F4F6F9;strokeColor=#24292F;strokeWidth=2;fontColor=#111820;fontSize=16;verticalAlign=middle;"
           vertex="1" parent="1">
           <mxGeometry x="232" y="480" width="375" height="78" as="geometry" />

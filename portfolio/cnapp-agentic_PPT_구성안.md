@@ -400,7 +400,7 @@
 
 **핵심 포인트 3가지(각: 소제목 + 기술 설명, 카드/블록형으로):**
 
-- **① 포맷 이질성 해소 (OCSF-lite 정규화)** — Security Hub(ASFF)·Prowler(OCSF)·Trivy(trivy-json)·kube-bench(custom) 등 스키마가 전부 다른 출력을, 파서(`_parse_ocsf`·`_parse_asff`·`_parse_trivy`·`_parse_kube_bench`)로 단일 스키마(계약① finding)로 변환한다. 핵심 정규화 규칙 3가지:
+- **① 포맷 이질성 해소 (OCSF-lite 정규화)** — Security Hub(ASFF)·Prowler(OCSF)·Trivy(trivy-json)·kube-bench(custom) 등 스키마가 전부 다른 출력을, 파서(`_parse_ocsf`·`_parse_asff`·`_parse_trivy`·`_parse_kube_bench`)로 단일 finding 스키마로 변환한다. 핵심 정규화 규칙 3가지:
   - **resource_id 캐논화** — 클라우드 불문 `{cloud}:{type}:{native_id}` 형식으로 통일(예: `aws:s3_bucket:member-pii-prod`). ARN이 없는 Azure Entra도 같은 체계로 표현.
   - **dedup_key = `resource_id|control_id`** — 같은 리소스·같은 통제의 중복 finding을 하나로 병합하고 원본 스캐너 체크 id는 `sources[]`에 누적(예: `securityhub:S3.8`).
   - **severity_id 내부 컨벤션(1=Critical ~ 5=Info)** — 실제 OCSF(높을수록 심각)와 반대라 정규화 단계에서 매핑.
@@ -418,14 +418,14 @@
 
 **5단계 루프(가로 흐름, 각 단계 소제목 + 무엇을 하는가):**
 
-- **① Orchestrator** — 전체 루프 지휘. Triage→Hypothesis→Evidence→Reasoning을 순서대로 호출하고, 케이스(계약⑦)를 조립해 RDS에 저장.
+- **① Orchestrator** — 전체 루프 지휘. Triage→Hypothesis→Evidence→Reasoning을 순서대로 호출하고, 조사 케이스를 조립해 RDS에 저장.
 - **② Triage (비용 통제 게이트)** — Bedrock을 부르기 전에 규칙으로 먼저 거른다. 게이트 조건 = **`severity_id ≤ 2`(High/Critical) OR `attack_path_id ≠ null`(경로 후보)**. 승급된 소수만 다음 단계로 → LLM 토큰 낭비 차단(실측: 20건 → 12건 승급).
 - **③ Hypothesis (가설 생성)** — 승급된 finding과 attack-path를 LLM에 주고 "검증 가능한 공격 가설"을 생성. Converse `toolChoice`로 `submit_hypotheses` 툴 1회를 강제 호출시켜 구조화된 출력을 받음(자유 텍스트 파싱보다 안정적).
 - **④ Evidence (tool-use 루프) ⭐핵심 단계** — LLM이 가설을 검증할 read-only API를 **스스로 골라 호출**한다. Bedrock Converse `toolConfig`에 단일 툴 `invoke_readonly_api`를 주고, LLM이 `(api, resource_id)`를 결정 → 실행기가 호출 → 응답을 `toolResult`로 되먹임(에이전틱 루프, 최대 6회 `MAX_TOOL_ITERATIONS`). 충분하면 LLM이 스스로 종료(`end_turn`).
 - **⑤ Reasoning (판정·내러티브)** — 수집된 증거로 confirmed/inconclusive/refuted 판정 + 한국어 내러티브 생성(내러티브만 LLM, `risk_level`·권고사항은 결정론적 로직으로 일관성 유지).
 
 **allowlist 2중 강제(거버넌스 핵심 — read-only first):**
-- **① 스키마 레벨**: `toolConfig`의 `api` enum = 계약④ allowlist(AWS 9종 + Azure MS Graph read 3종) → LLM이 애초에 그 밖의 API를 못 고름.
+- **① 스키마 레벨**: `toolConfig`의 `api` enum을 허용 목록(AWS read-only 9종 + Azure MS Graph read 3종)으로 제한 → LLM이 애초에 그 밖의 API를 못 고름.
 - **② 실행 직전**: `executor._check()`가 호출 직전 한 번 더 검증 → LLM이 우회를 시도해도 실행기가 차단. 변경/쓰기/삭제 API는 allowlist에 없어 어느 경로로도 호출 불가.
 - 조사에 쓰는 AWS read-only API 9종: `s3:GetBucketPolicy` · `GetBucketAcl` · `GetPublicAccessBlock` · `iam:GetRolePolicy` · `ListAttachedRolePolicies` · `SimulatePrincipalPolicy` · `macie2:GetFindings` · `ec2:DescribeSecurityGroups` · `accessanalyzer:ListFindings`.
 
@@ -446,7 +446,7 @@
 ```
 > ④ Evidence 박스만 색/굵기로 띄운다(핵심 단계). ①~⑤는 우리 로직이라 AWS 아이콘 없이 박스로, Bedrock·AWS API 부분만 아이콘.
 
-- 🎨 **시각자료(박스 다이어그램 — 캔바 직접 제작)**: 5단계 루프(Orchestrator→Triage→Hypothesis→Evidence→Reasoning)를 가로 흐름으로, **Evidence 단계에서 AWS read-only API로 나갔다 돌아오는 왕복 화살표(①스스로 호출 ②증거→판정)**를 강조. ⚠️ 이 단계들은 AWS 서비스가 아니라 **우리 로직 단계라 서비스 아이콘이 없다** → draw.io가 아니라 **박스+화살표로 직접**(캔바에서 만들거나 전체 drawio의 "에이전틱 AI 조사 루프" 블록을 크롭). Bedrock·AWS API 부분만 아이콘 사용. 이 왕복 화살표가 "챗봇 탈출"의 시각적 증거라 반드시 그림으로.
+- 🎨 **시각자료 → `portfolio/agentic-loop.drawio` (편집 가능한 템플릿, 이미 만들어 둠)**: 5단계 루프(Orchestrator→Triage→Hypothesis→**Evidence**→Reasoning)를 가로 흐름으로 그리고, **④ Evidence를 파란 강조 박스**로 띄운 뒤 그 아래 "AWS read-only API(실 클라우드)" 박스와 **왕복 화살표 2개**(① 파란색 = LLM이 `(api, resource_id)` 골라 호출 / ② 초록색 = 실 응답을 되먹임)로 연결했다. 왼쪽엔 빨간 "허용 목록 2중 강제 · 변경 API 0종" 가드, 오른쪽엔 "최대 6회 반복 → 스스로 종료" 주석, 하단엔 핵심 문장. **이 왕복 화살표가 "챗봇 탈출"의 시각적 증거다** — draw.io에서 열어 색·문구만 다듬어 캔바에 이미지로 넣으면 된다(이 단계들은 AWS 서비스가 아니라 우리 로직이라 서비스 아이콘 없이 박스로 간다).
 
 **▶ 캔바에 그대로 넣을 카피:**
 
@@ -455,14 +455,14 @@
 [중제목] 기존 'AI 보안'이 수집된 데이터를 요약하는 챗봇 수준이라면, 이 엔진은 Bedrock이 read-only API를 스스로 호출·조사해 근거 기반으로 위험을 판정
 
 [5단계 루프 — 가로 흐름]
-① Orchestrator — 전체 루프 지휘 · Triage→Hypothesis→Evidence→Reasoning 순차 호출 · 케이스(계약⑦) 조립 → RDS 저장
+① Orchestrator — 전체 루프 지휘 · Triage→Hypothesis→Evidence→Reasoning 순차 호출 · 조사 케이스 조립 → RDS 저장
 ② Triage (비용 통제 게이트) — Bedrock 부르기 전 규칙으로 선별. 게이트 = severity_id ≤ 2 OR attack_path_id ≠ null. 승급된 소수만 통과 (실측: 20건 → 12건)
 ③ Hypothesis (가설 생성) — 승급 finding·attack-path로 검증 가능한 공격 가설 생성. Converse toolChoice로 구조화 출력 강제
 ④ Evidence (tool-use 루프, 핵심 단계) — LLM이 검증할 read-only API를 스스로 골라 호출. 응답을 toolResult로 되먹임(최대 6회), 충분하면 스스로 종료
 ⑤ Reasoning (판정·내러티브) — confirmed/inconclusive/refuted 판정 + 한국어 내러티브(risk_level·권고는 결정론 로직)
 
 [allowlist 2중 강제 박스]
-① 스키마 레벨: toolConfig의 api enum = 계약④ allowlist(AWS 9종 + Azure MS Graph read 3종) → LLM이 애초에 그 밖의 API를 못 고름
+① 스키마 레벨: toolConfig의 api enum을 허용 목록(AWS read-only 9종 + Azure MS Graph read 3종)으로 제한 → LLM이 애초에 그 밖의 API를 못 고름
 ② 실행 직전: executor._check()가 호출 직전 한 번 더 검증 → 변경/쓰기/삭제 API는 어느 경로로도 호출 불가
 
 [조사용 AWS read-only API 9종] s3:GetBucketPolicy · GetBucketAcl · GetPublicAccessBlock · iam:GetRolePolicy · ListAttachedRolePolicies · SimulatePrincipalPolicy · macie2:GetFindings · ec2:DescribeSecurityGroups · accessanalyzer:ListFindings
@@ -535,7 +535,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 > 질문/finding → **Titan Embed v2**(`amazon.titan-embed-text-v2:0`, 1024-dim 임베딩) → **pgvector cosine 검색**(RDS PostgreSQL 16, `rag_chunks` 테이블, HNSW 인덱스 `vector_cosine_ops`, `<=>` 연산자) → 상위 top-k 근거 청크 → **Bedrock Claude**가 그 근거로 답변 생성(근거 chunk 인용)
 
 **핵심 기술 포인트:**
-- **적재·검색 동일 모델 강제** — 코퍼스 적재(`CorpusLoader`)와 쿼리 임베딩이 반드시 같은 Titan Embed v2여야 벡터 공간이 맞음(계약⑥ `embedding_model` 상수로 고정).
+- **적재·검색 동일 모델 강제** — 코퍼스 적재(`CorpusLoader`)와 쿼리 임베딩이 반드시 같은 Titan Embed v2여야 벡터 공간이 맞음(임베딩 모델을 코드 상수로 고정, CI가 적재·검색 양쪽 일치 검사).
 - **코퍼스 규모** — 15개 INTERNAL control · 26개 청크(한국어). control_id 기반 인덱스(`idx_rag_control`)로 finding→설명 직접 매핑도 가능.
 - **2가지 실사용처**: ① Finding 상세의 "설명" 탭(control_id 기반 자동 근거 설명, `finding_explanations` 테이블) ② `/chat` AI 어시스턴트(자유 질의응답).
 - 강조 문구: "Evidence(조사 루프)와는 별개 파이프라인 — 같은 Bedrock, 다른 목적(판정 vs 설명·검색)"
@@ -620,7 +620,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
    - Karpenter destroy 후 고아 스팟노드 자동 종료 스윕(`karpenter.sh/nodepool` 태그 인스턴스) — pod ENI가 node SG를 붙잡아 shared destroy가 막히던 문제를 코드화.
 2. **VPC 설계** — `10.20.0.0/16`, 2 AZ(ap-northeast-2a/2c), public/private 서브넷 분리. **NAT Gateway($32/월) 대신 NAT Instance**(`t4g.micro`, fck-nat AMI arm64, IMDSv2 강제) + **S3/DynamoDB Gateway Endpoint**(NAT 우회로 데이터 전송 비용 절감).
 3. **컴퓨트·데이터** — **EKS 1.34**(관리형 노드그룹 spot `t3.small`, scale 0~2) + **Karpenter**(spot 우선·on-demand 폴백, 프리티어 제약으로 `t3.small`/`t3.micro`만) + HPA. **RDS PostgreSQL 16 `t3.micro` + pgvector**(private subnet, Secrets Manager로 자격증명). Lambda는 VPC 내부 배치(RDS 접근).
-4. **키리스(D4)** — CI는 **GitHub OIDC → IAM Role**, 파드는 **IRSA**(역할별 `:aud`·`:sub` 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
+4. **키리스 인증** — CI는 **GitHub OIDC → IAM Role**, 파드는 **IRSA**(역할별 `:aud`·`:sub` 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
 - 강조 문구: "**6레이어 · 리소스 207개**를 순서대로 apply → 검증 → destroy까지 완주, **잔존 리소스 0**" (v9: 옛 문구는 중제목 반복인 데다 정보가 없어 **실측치로 교체**)
 - 🎨 **시각자료(둘 중 택1)**: ⓐ **VPC 서브넷 배치도**(public/private·NAT Instance·EKS·RDS) — 전부 AWS 서비스라 **draw.io AWS 아이콘 적합**, 또는 ⓑ **레이어 의존 다이어그램**(`shared → karpenter → target·backend·console` 화살표) — 이건 terraform 레이어라 서비스 아이콘이 없으니 **박스+화살표**. 스크린샷 없이 도식만으로 성립하는 슬라이드라 다이어그램이 주인공.
 
@@ -636,7 +636,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 [축 3 — 컴퓨트·데이터] EKS 1.34(관리형 노드그룹 spot t3.small, scale 0~2) + Karpenter(spot 우선·on-demand 폴백) + HPA. RDS PostgreSQL 16 t3.micro + pgvector(private subnet, Secrets Manager). Lambda는 VPC 내부 배치.
 
-[축 4 — 키리스 (D4)] CI는 GitHub OIDC → IAM Role, 파드는 IRSA(역할별 aud·sub 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
+[축 4 — 키리스 인증] CI는 GitHub OIDC → IAM Role, 파드는 IRSA(역할별 aud·sub 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
 
 [강조 문구] 6레이어 · 리소스 207개를 순서대로 apply → 검증 → destroy까지 완주, 잔존 리소스 0
 

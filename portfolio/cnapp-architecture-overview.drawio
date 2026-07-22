@@ -215,7 +215,7 @@
         <mxCell id="L_NORM" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FED7AA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=8;" value="λ normalize&#xa;ASFF/OCSF→OCSF-lite→RDS" vertex="1">
           <mxGeometry height="38" width="205" x="1355" y="384" as="geometry" />
         </mxCell>
-        <mxCell id="L_CORR" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FED7AA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=8;" value="λ correlation&#xa;R1~R5 → attack-path" vertex="1">
+        <mxCell id="L_CORR" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FED7AA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=8;" value="λ correlation&#xa;상관 규칙 → attack-path" vertex="1">
           <mxGeometry height="38" width="205" x="1142" y="428" as="geometry" />
         </mxCell>
         <mxCell id="L_ORCH" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#A7F3D0;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=8;" value="🧠 λ orchestrator&#xa;Triage→Evidence→Reasoning" vertex="1">
@@ -287,7 +287,7 @@
         <mxCell id="P_RDS" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#C7D2FE;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" value="RDS 적재&#xa;findings upsert" vertex="1">
           <mxGeometry height="42" width="100" x="892" y="680" as="geometry" />
         </mxCell>
-        <mxCell id="P_CORR" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#FED7AA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" value="λ correlation&#xa;R1~R5→attack-path" vertex="1">
+        <mxCell id="P_CORR" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#FED7AA;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" value="λ correlation&#xa;상관 규칙→attack-path" vertex="1">
           <mxGeometry height="42" width="130" x="1004" y="680" as="geometry" />
         </mxCell>
         <mxCell id="P_ORCH" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#A7F3D0;fontColor=#0F172A;fontSize=9;align=left;spacingLeft=6;" value="🧠 λ orchestrator&#xa;tool-use(Bedrock)" vertex="1">
@@ -362,7 +362,7 @@
         <mxCell id="S_DATA" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FECACA;fontColor=#0F172A;fontSize=9.5;align=left;spacingLeft=8;" value="데이터 (DSPM)&#xa;Macie — S3 PII 탐지(AWS 전용)" vertex="1">
           <mxGeometry height="42" width="284" x="1628" y="230" as="geometry" />
         </mxCell>
-        <mxCell id="S_ATTACKPATH" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FBCFE8;fontColor=#0F172A;fontSize=9.5;align=left;spacingLeft=8;" value="attack-path (상관)&#xa;커스텀 엔진 R1~R5 · 2-pass" vertex="1">
+        <mxCell id="S_ATTACKPATH" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FBCFE8;fontColor=#0F172A;fontSize=9.5;align=left;spacingLeft=8;" value="attack-path (상관)&#xa;커스텀 엔진 · 규칙 상관 · 2-pass" vertex="1">
           <mxGeometry height="42" width="284" x="1920" y="230" as="geometry" />
         </mxCell>
         <mxCell id="SCAN_NOTE1" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=9;fontColor=#94A3B8;" value="Shift-Left: CI에서 Checkov/OPA(IaC)·Trivy(이미지) — 빌드 단계 차단" vertex="1">
