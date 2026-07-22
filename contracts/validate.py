@@ -12,6 +12,9 @@ asserts:
 보너스:
   (e) finding.control_id 가 control-catalog 에 존재
   (f) mock-cases finding_ids 존재 · evidence tool 이 evidence-allowlist 안
+  (g) 임베딩 모델 상수가 Python(loader.py)·TypeScript(data.ts) 양쪽에서 계약⑥ const와 일치
+      (폴리글랏 RAG 드리프트 = 에러 없이 검색 결과만 엉뚱해지는 '조용한 실패' 차단)
+  (h) control-catalog isms_p 가 15종 전부 ISMS-P 코드로 채워짐(컴플라이언스 화면·RAG가 사용)
 """
 import json
 import sys
