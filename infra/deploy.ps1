@@ -231,9 +231,17 @@ function Clear-GrafanaIngress {
 # terraform creates the notify secrets/K8s Secrets but never carries their VALUES
 # (kept out of git/state on purpose). After a monitoring apply, remind to re-inject them.
 function Show-MonitoringSecretsReminder {
-  Write-Host "[monitoring] REMINDER -- terraform does not carry secret VALUES; re-inject manually:" -ForegroundColor Yellow
-  Write-Host "   - Teams webhook URLs x3 (alerts/cost/login) into Secrets Manager  (infra/monitoring/README 5.4)" -ForegroundColor Yellow
-  Write-Host "   - Grafana admin + pg-datasource K8s Secrets, if EKS was recreated  (README 3.4 / 3.5)" -ForegroundColor Yellow
+  # terraform re-creates the infra but NOT: the ArgoCD self-heal state (the destroy hook
+  # turned it OFF), the Grafana Ingress (the hook deleted it), or secret VALUES. On a
+  # standalone monitoring re-apply (cluster still up) these must be restored by hand --
+  # ArgoCD auto-sync is too slow to rely on (verified 2026-07-22: Ingress not recreated
+  # after ~2min even with self-heal on). Re-applying the manifests directly is prompt.
+  Write-Host "[monitoring] POST-APPLY restore -- terraform does not carry these:" -ForegroundColor Yellow
+  Write-Host "   1) re-enable ArgoCD self-heal + Grafana Ingress (destroy hook turned them off):" -ForegroundColor Yellow
+  Write-Host "        kubectl apply -f gitops/argocd/app-monitoring.yaml" -ForegroundColor Yellow
+  Write-Host "        kubectl apply -f gitops/monitoring/grafana-ingress.yaml   # ALB back in ~2-3 min" -ForegroundColor Yellow
+  Write-Host "   2) re-inject Teams webhook URLs x3 into Secrets Manager        (infra/monitoring/README 5.4)" -ForegroundColor Yellow
+  Write-Host "   3) Grafana admin + pg-datasource K8s Secrets, only if EKS was recreated  (README 3.4 / 3.5)" -ForegroundColor Yellow
 }
 
 foreach ($l in $layers) {
