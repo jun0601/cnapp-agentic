@@ -538,7 +538,9 @@ data "aws_iam_policy_document" "evidence_readonly" {
       "iam:SimulatePrincipalPolicy",
       "macie2:GetFindings",
       "ec2:DescribeSecurityGroups",
-      "accessanalyzer:ListFindings"
+      "accessanalyzer:ListFindings",
+      "accessanalyzer:ListAnalyzers" # ListFindings 호출 전 analyzer ARN을 조회하는 선행 스텝(_accessanalyzer_list_findings
+      # 내부에서 두 API를 순서대로 호출) — ListFindings만 있고 이건 빠져서 매번 AccessDenied(2026-07-22 X-Ray로 발견)
     ]
     resources = ["*"] # 전부 read-only라 * 가능. TODO: 가능한 액션은 리소스 좁히기
   }
