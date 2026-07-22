@@ -1,0 +1,93 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="defense-in-depth" id="sec-did">
+    <mxGraphModel dx="900" dy="600" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="820" pageHeight="560" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="sub" value="플랫폼 자체 심층 방어 (Defense-in-Depth) — 한 층이 뚫려도 다음 층이 막는다" style="text;html=1;align=center;fontSize=13;fontStyle=2;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="40" y="16" width="740" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="net" value="🌐  인터넷 / 공격자 요청" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE3E3;strokeColor=#D64545;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#B02525;" vertex="1" parent="1">
+          <mxGeometry x="290" y="52" width="240" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="b1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#F0A030;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="116" width="740" height="92" as="geometry" />
+        </mxCell>
+        <mxCell id="b1t" value="①  경계 (Edge)&lt;br&gt;&lt;span style=&quot;font-size:10px;color:#996515&quot;&gt;트래픽 1차 차단&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#8A5A12;" vertex="1" parent="1">
+          <mxGeometry x="56" y="128" width="150" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="b1c1" value="WAF&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;관리규칙 · Rate limit&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F0A030;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="214" y="138" width="175" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="b1c2" value="CloudFront&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;진입점 · 캐시&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F0A030;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="399" y="138" width="175" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="b1c3" value="전구간 TLS&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;ACM · HTTPS · sslmode&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F0A030;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="584" y="138" width="182" height="48" as="geometry" />
+        </mxCell>
+
+        <mxCell id="b2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E7F0FC;strokeColor=#3F7FE0;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="236" width="740" height="92" as="geometry" />
+        </mxCell>
+        <mxCell id="b2t" value="②  앱 · 신원&lt;br&gt;&lt;span style=&quot;font-size:10px;color:#2A5AA8&quot;&gt;누가·무엇을 통제&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#26497F;" vertex="1" parent="1">
+          <mxGeometry x="56" y="248" width="150" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="b2c1" value="Cognito SSO&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;Entra SAML&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3F7FE0;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="214" y="258" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="b2c2" value="JWT 서명검증&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;fail-closed&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3F7FE0;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="352" y="258" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="b2c3" value="RBAC&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;viewer · approver&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3F7FE0;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="258" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="b2c4" value="CORS · 보안헤더&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;HSTS · CSP&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3F7FE0;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="628" y="258" width="138" height="48" as="geometry" />
+        </mxCell>
+
+        <mxCell id="b3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E6F6EC;strokeColor=#34A853;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="356" width="740" height="92" as="geometry" />
+        </mxCell>
+        <mxCell id="b3t" value="③  데이터 (Data)&lt;br&gt;&lt;span style=&quot;font-size:10px;color:#1E7E45&quot;&gt;핵심 자산은 마지막에&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#1B6E3C;" vertex="1" parent="1">
+          <mxGeometry x="56" y="368" width="150" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="b3c1" value="RDS 암호화&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;private subnet&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#34A853;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="214" y="378" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="b3c2" value="S3 SSE&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;PAB 차단&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#34A853;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="352" y="378" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="b3c3" value="Secrets Manager&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;키 관리&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#34A853;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="378" width="130" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="b3c4" value="감사 Object Lock&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;불변 로그&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#34A853;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="628" y="378" width="138" height="48" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pii" value="🔒  회원 PII (최종 보호 대상)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D8EFE0;strokeColor=#1E7E45;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#155A32;" vertex="1" parent="1">
+          <mxGeometry x="290" y="476" width="240" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" style="endArrow=block;html=1;strokeColor=#888888;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="net" target="b1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="endArrow=block;html=1;strokeColor=#888888;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="b1" target="b2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" style="endArrow=block;html=1;strokeColor=#888888;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="b2" target="b3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="endArrow=block;html=1;strokeColor=#888888;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="b3" target="pii">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="flow" value="통과한 요청만&lt;br&gt;다음 층으로" style="text;html=1;align=center;fontSize=9;fontColor=#999999;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="536" y="210" width="120" height="24" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

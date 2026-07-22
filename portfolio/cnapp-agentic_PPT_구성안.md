@@ -528,27 +528,29 @@
 ---
 
 ### 11. 실증: Bedrock 능동조사 증거 (목업이 아니라 실제로 돌았다)
-> 10번이 "설계상 이렇게 동작한다"라면, 11번은 "실제 AWS·실제 Bedrock으로 돌려서 증명했다"는 실측 슬라이드. **화면 = 라이브 콘솔 Evidence 탭**(실 finding member-pii-prod 조사 결과 — 5회 read-only 호출·판정·RAG 근거·토큰 전부 실측). 별도로 Phase1 vertical slice(`infra/slice` apply → `run_real` → `destroy`)가 배포→정리 전 구간(E2E)을 무잔존으로 검증. ⚠️ 콘솔 신뢰도는 60%(엔진 결정론 값) — 슬라이드에 100% 쓰지 말 것(화면과 불일치).
+> 10번이 "설계상 이렇게 동작한다"라면, 11번은 "실제 AWS·실제 Bedrock으로 돌려서 증명했다"는 실측 슬라이드. **화면 = 라이브 콘솔 Evidence 탭**(실 finding member-pii-prod 조사 결과 — 5회 read-only 호출·판정·RAG 근거·토큰 전부 실측). 별도로 Phase1 vertical slice(`infra/slice` apply → `run_real` → `destroy`)가 배포→정리 전 구간(E2E)을 무잔존으로 검증. ⚠️ 콘솔 라벨 = '확증률'(확증한 도구 ÷ 전체 검사). 버킷을 진짜 공개로 두고 재조사하면 confirmed로 확증률↑ — 슬라이드 %는 캡처한 실제 값과 반드시 일치시킬 것.
 
-**왼쪽 빅넘버 3개:** `5회` LLM이 스스로 호출한 read-only API(자율 tool use) · `수 센트` 1회 조사 비용(Haiku 토큰 — 화면 model_trace에 실측 표시) · `E2E` 배포→조사→판정→정리 전 구간 관통
+**왼쪽 빅넘버 3개:** `5회` LLM이 스스로 호출한 read-only API(자율 tool use) · `약 100원` 1회 조사 비용(Haiku 토큰 — 화면 model_trace에 실측 표시) · `E2E` 배포→조사→판정→정리 전 구간 관통(Phase1 slice, 무잔존)
 
-**실제로 일어난 일(단계별):**
+**★ 핵심 대비 (이 슬라이드의 so-what — 빅넘버 바로 아래, 눈에 띄게):**
+> 챗봇 → "이 버킷은 공개일 수 있습니다"(지식 기반 추측, 확인 안 함) · **이 엔진 → `GetBucketPolicy` 실호출 → `Principal:"*"` 확인 → "공개 맞음"(증거 기반 판정)**. 좌측 회색·작게(챗봇) vs 우측 accent·굵게(엔진)로 대비. 이 프로젝트 전체 명제("챗봇 아님")를 한 박스로 증명.
+
+**실제로 일어난 일(단계별 — 스크린샷 콜아웃 ①②③과 번호 일치):**
 1. LLM이 공개 S3 finding을 받고 **스스로** `s3:GetBucketPolicy`·`s3:GetPublicAccessBlock`을 호출할 것을 결정(canned 응답이 아님).
 2. 실 API 응답: 버킷 정책에 `Principal:"*"` 공개 statement 존재 + `BlockPublicAcls=false` 등 PAB 미설정 확인.
-3. 그 증거를 근거로 **confirmed** 판정(신뢰도 60%) → 케이스에 tool 호출 타임라인·판정·model_trace(토큰)·지식베이스 근거(RAG) 기록.
-- 방어 심층화: 실 API 오류(NoSuchBucket 등)는 크래시 대신 error `toolResult`로 강등해 LLM이 다른 도구로 조정하게 함(2026-07-04 라이브 실측 반영).
+3. 그 증거를 근거로 **confirmed** 판정(확증률은 화면 값 그대로) → 케이스에 tool 호출 타임라인·판정·model_trace(토큰)·지식베이스 근거(RAG) 기록.
+- 방어 심층화: 실 API 오류(NoSuchBucket 등)는 크래시 대신 error `toolResult`로 강등해 LLM이 다른 도구로 조정하게 함 + read-only 허용목록 2중 강제(스키마 enum + 실행 직전 `_check`) — 2026-07-04 라이브 실측 반영.
 - 강조 문구: "규칙 플래너가 정해준 게 아니라, LLM이 finding을 읽고 조사 도구를 스스로 선택·호출했다 = tool use 실증"
 **[레이아웃 스케치]** — 이 장은 **증거**가 목적이라 스크린샷이 절반을 먹는다. 좌측은 숫자→서사 순으로 위에서 아래.
 ```
 ┌──────────────────────┬──────────────────────────────┐
-│ 빅넘버 3개(세로)        │                              │
-│   100%   판정 신뢰도    │   Evidence 탭 스크린샷         │
-│   수 센트  1회 검증비용  │   (tool 호출 타임라인 stepper)  │
-│   E2E    전 구간 관통   │                              │
-├──────────────────────┤   ← 스크린샷이 우측 전체 높이    │
-│ 실제로 일어난 일 1·2·3  │                              │
-│  (LLM이 도구 선택 →     │                              │
-│   실 API 응답 → 판정)   │                              │
+│ 빅넘버 3개(세로)        │  ① confirmed 60% (판정 히어로) │
+│   5회     자율 tool 호출│                              │
+│   약 100원 1회 검증비용  │   Evidence 탭 스크린샷         │
+│   E2E     전 구간 관통  │  ② 5개 tool 호출 타임라인      │
+├──────────────────────┤                              │
+│ [챗봇 vs 엔진 대비 박스] │  ③ model_trace(토큰)·RAG 근거 │
+│ 실제로 일어난 일 ①②③   │   ← 콜아웃 3개 = 좌측 단계 연결 │
 └──────────────────────┴──────────────────────────────┘
    [방어 심층화 캡션 — 작게]        [강조 문구 — 하단 1줄]
 ```
@@ -560,23 +562,34 @@
 
 [제목] 실증 — Bedrock 능동조사 증거 (목업이 아니라 실제로 돌았다)
 
-[중제목] 설계 설명이 아니라 실제 AWS·실제 Bedrock으로 관통 검증한 결과 (Phase1 vertical slice)
+[중제목] 설계 설명이 아니라 실제 AWS·실제 Bedrock으로 관통 검증한 결과 — 라이브 콘솔 Evidence 탭
 
 [왼쪽 빅넘버 3개]
 5회 — LLM이 스스로 호출한 read-only API (자율 tool use)
-수 센트 — 1회 조사 비용 (Haiku 토큰, 화면 model_trace에 실측)
-E2E — 배포→조사→판정→정리 전 구간 관통
+약 100원 — 1회 조사 비용 (Haiku 토큰, 화면 model_trace에 실측)
+E2E — 배포→조사→판정→정리 전 구간 관통 (Phase1 slice, 무잔존)
 
-[실제로 일어난 일 — 단계별]
+[★ 핵심 대비 — 빅넘버 아래, 이 슬라이드의 so-what]
+챗봇   "이 버킷은 공개일 수 있습니다"          ← 지식 기반 추측 (회색·작게)
+이 엔진   GetBucketPolicy 실호출 → Principal:"*" 확인 → "공개 맞음"   ← 증거 기반 판정 (accent·굵게)
+
+[실제로 일어난 일 — 단계별 · 스크린샷 콜아웃 ①②③과 번호 일치]
 1. 공개 S3 finding 수신 → LLM이 스스로 s3:GetBucketPolicy·s3:GetPublicAccessBlock 호출 결정 (canned 아님)
 2. 실 API 응답 → 버킷 정책 Principal:"*" 공개 statement + BlockPublicAcls=false 등 PAB 미설정 확인
-3. 증거 기반 confirmed 판정(신뢰도 60%) → 케이스에 tool 호출 타임라인·판정·model_trace(토큰)·지식베이스 근거(RAG) 기록
+3. 증거 기반 confirmed 판정 → 케이스에 tool 호출 타임라인·판정·model_trace(토큰)·지식베이스 근거(RAG) 기록
 
-[방어 심층화 캡션] 실 API 오류(NoSuchBucket 등)는 크래시 대신 error toolResult로 강등해 LLM이 다른 도구로 조정하게 함(2026-07-04 라이브 실측)
+[스크린샷 콜아웃 — 화면 위에 번호 핀]
+① confirmed 60% 판정 히어로 = 증거 기반 판정
+② 5개 tool 호출 타임라인 = LLM이 스스로 선택·호출
+③ model_trace(토큰)·RAG 근거 칩 = 판정 근거 전부 기록
+
+[방어 심층화 캡션] 실 API 오류(NoSuchBucket 등)는 크래시 대신 error toolResult로 강등해 LLM이 다른 도구로 조정 + read-only 허용목록 2중 강제 (2026-07-04 라이브 실측)
+
+[확증률 캡션 — 선택] 확증률 = 확증한 도구 ÷ 전체 검사 (결정론적 산식) — 억지 숫자가 아니라 실제 증거 일치 비율
 
 [강조 문구] 규칙 플래너가 정해준 게 아니라, LLM이 finding을 읽고 조사 도구를 스스로 선택·호출했다 = tool use 실증
 
-[시각자료] Finding 상세의 능동조사(Evidence) 탭 스크린샷 — tool 호출 타임라인 stepper
+[시각자료] Finding 상세의 능동조사(Evidence) 탭 스크린샷 — tool 호출 타임라인 stepper + confirmed 히어로 (콜아웃 ①②③)
 
 ---
 
