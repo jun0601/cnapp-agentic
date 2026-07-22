@@ -32,7 +32,7 @@ export function EvidenceTab({ evidenceCase }: { evidenceCase: Case | null }) {
           </div>
           <div className="hidden text-right sm:block">
             <p className="text-3xl font-bold tabular-nums">{confidence}%</p>
-            <p className="text-xs text-white/70">신뢰도</p>
+            <p className="text-xs text-white/70">확증률</p>
           </div>
         </div>
         <p className="relative z-10 mt-3 text-sm text-white/90">
@@ -72,7 +72,7 @@ export function EvidenceTab({ evidenceCase }: { evidenceCase: Case | null }) {
           <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">③ 능동 수집 증거 · read-only API 호출</h4>
           {c.evidence_meta && (
             <span className="text-xs text-slate-500">
-              {c.evidence_meta.tool_calls_count}회 호출 · 신뢰도 {Math.round((c.evidence_meta.confidence_score ?? 0) * 100)}%
+              {c.evidence_meta.tool_calls_count}회 호출 · 확증률 {Math.round((c.evidence_meta.confidence_score ?? 0) * 100)}%
             </span>
           )}
         </div>
@@ -100,7 +100,7 @@ export function EvidenceTab({ evidenceCase }: { evidenceCase: Case | null }) {
           <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">④ 판정 (Reasoning)</h4>
           <p className="mt-2 flex items-center gap-2 text-sm">
             <Badge tone={isConfirmed ? 'red' : 'emerald'}>{c.reasoning.verdict}</Badge>
-            <span className="text-slate-500">신뢰도 {confidence}%</span>
+            <span className="text-slate-500">확증률 {confidence}%</span>
           </p>
           <p className="mt-2 text-sm leading-relaxed text-slate-700">{c.reasoning.narrative}</p>
           {c.reasoning.rag_refs && c.reasoning.rag_refs.length > 0 && (
