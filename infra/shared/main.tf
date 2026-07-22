@@ -314,9 +314,16 @@ resource "aws_security_group" "rds" {
   #   shared가 backend를 참조할 수 없으므로(apply 순서 shared→backend) 여기서 SG id를 못 쓴다.
   # 좁히려면 backend 쪽에서 aws_security_group_rule로 이 SG에 규칙을 '주입'해야 하는데,
   #   shared에서 이 ingress를 먼저 지우면 backend apply 전까지 DB 연결이 끊긴다(순서 위험).
-  # 완화 요소: RDS는 private subnet 전용(publicly_accessible=false)이라 VPC 밖에서 도달 불가,
-  #   접속은 Secrets Manager 자격증명 + sslmode=require로 한 번 더 걸린다.
-  # → 데모 환경에서 감수하는 알려진 트레이드오프. 프로덕션이면 backend에 규칙 주입으로 전환할 것.
+  # 완화 요소(3중): ① RDS는 private subnet 전용(publicly_accessible=false)이라 VPC 밖에서 도달 불가
+  #   ② 접속은 Secrets Manager 자격증명 필요 ③ sslmode=require로 in-transit 암호화 강제.
+  #
+  # ★ 결정(2026-07-22, 준형·진우): 소스 SG 축소(안 A) 대신 현행(안 B) 유지로 확정.
+  #   안 A = backend/console이 aws_security_group_rule로 각자 SG를 이 RDS SG에 주입(코드는 30~40분).
+  #   안 B를 고른 이유: 이 프로젝트는 apply→destroy를 데모마다 반복하는데, 안 A는 매 사이클
+  #     (ⓐ 최초 전환 시 shared apply~backend apply 사이 DB 순간단절 ⓑ destroy 역순에서
+  #      cross-layer SG 참조가 DependencyViolation 유발 — Lambda ENI 함정과 동류)을 안고 간다.
+  #     "이미 안전한 걸 조금 더"의 실익 < 반복 리스크로 판단. 위 3중 완화가 실질 방어를 담당한다.
+  #   프로덕션(상시 운영·apply 1회)이라면 순간단절 리스크가 사라지므로 안 A로 전환하는 게 맞다.
   ingress {
     # NOTE: AWS SG description은 ASCII 제한(^[0-9A-Za-z_ .:/()#,@[]+=&;{}!$*-]*$)이라 한글/em-dash 불가.
     #       사유는 위 주석 참고.
