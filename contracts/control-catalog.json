@@ -1,5 +1,5 @@
 {
-  "_description": "4.4.1(b) INTERNAL control_id 카탈로그 (MVP — 골든 경로 R1~R5 + 6기둥 발화 필수분). 소스 무관 내부 통일 id ← 각 스캐너 native 체크 매핑. finding.control_id·rag_chunks.metadata.control_id가 이 id를 공유. severity_default는 내부 컨벤션(1=Critical~5=Info). source_coverage(역인덱스)는 remediated 스코프(4.4.1c) 판정에 사용. isms_p는 RAG 코퍼스 D 작업 시 채움(현재 null=미지정).",
+  "_description": "4.4.1(b) INTERNAL control_id 카탈로그 (MVP — 골든 경로 R1~R5 + 6기둥 발화 필수분). 소스 무관 내부 통일 id ← 각 스캐너 native 체크 매핑. finding.control_id·rag_chunks.metadata.control_id가 이 id를 공유. severity_default는 내부 컨벤션(1=Critical~5=Info). source_coverage(역인덱스)는 remediated 스코프(4.4.1c) 판정에 사용. isms_p = ISMS-P 인증기준 통제항목 코드(2026-07-22 15종 전부 채움 — 콘솔 ISMS_STRUCT와 SSOT 일치).",
   "version": "mvp-2026-06-30",
   "severity_convention": "1=Critical 2=High 3=Medium 4=Low 5=Info (내부, OCSF와 반대)",
   "controls": {
@@ -7,8 +7,11 @@
       "pillar": "vuln",
       "title": "KEV-listed CVE in container image",
       "severity_default": 1,
-      "sources": ["inspector:CVE-*", "trivy:CVE-*"],
-      "isms_p": null,
+      "sources": [
+        "inspector:CVE-*",
+        "trivy:CVE-*"
+      ],
+      "isms_p": "2.11.1",
       "remediable": true,
       "lifecycle": "build"
     },
@@ -16,8 +19,11 @@
       "pillar": "kspm",
       "title": "Privileged or hostPath pod (Pod Security violation)",
       "severity_default": 2,
-      "sources": ["kube-bench:5.2.*", "trivy-k8s:KSV*"],
-      "isms_p": null,
+      "sources": [
+        "kube-bench:5.2.*",
+        "trivy-k8s:KSV*"
+      ],
+      "isms_p": "2.11.5",
       "remediable": true,
       "lifecycle": "runtime"
     },
@@ -25,8 +31,10 @@
       "pillar": "kspm",
       "title": "cluster-admin role bound beyond necessity (CIS RBAC)",
       "severity_default": 2,
-      "sources": ["kube-bench:4.1.*"],
-      "isms_p": null,
+      "sources": [
+        "kube-bench:4.1.*"
+      ],
+      "isms_p": "2.5.3",
       "remediable": false,
       "lifecycle": "runtime"
     },
@@ -34,8 +42,12 @@
       "pillar": "ciem",
       "title": "Over-privileged IAM/IRSA policy (wildcard action/resource)",
       "severity_default": 1,
-      "sources": ["accessanalyzer:*", "prowler:iam_policy_allows_privilege_escalation", "prowler:iam_inline_policy_allows_*"],
-      "isms_p": null,
+      "sources": [
+        "accessanalyzer:*",
+        "prowler:iam_policy_allows_privilege_escalation",
+        "prowler:iam_inline_policy_allows_*"
+      ],
+      "isms_p": "2.5.3",
       "remediable": true,
       "lifecycle": "runtime"
     },
@@ -43,8 +55,11 @@
       "pillar": "cspm",
       "title": "Plaintext secret in pod env/manifest (Secrets Manager 미사용)",
       "severity_default": 1,
-      "sources": ["prowler:eks_*_secret_*", "custom:manifest-scan"],
-      "isms_p": null,
+      "sources": [
+        "prowler:eks_*_secret_*",
+        "custom:manifest-scan"
+      ],
+      "isms_p": "2.7.3",
       "remediable": true,
       "lifecycle": "build"
     },
@@ -52,8 +67,12 @@
       "pillar": "cspm",
       "title": "S3 bucket allows public access",
       "severity_default": 1,
-      "sources": ["securityhub:S3.8", "config:s3-bucket-public-read-prohibited", "prowler:s3_bucket_public_access"],
-      "isms_p": null,
+      "sources": [
+        "securityhub:S3.8",
+        "config:s3-bucket-public-read-prohibited",
+        "prowler:s3_bucket_public_access"
+      ],
+      "isms_p": "2.6.4",
       "remediable": true,
       "lifecycle": "runtime"
     },
@@ -61,8 +80,11 @@
       "pillar": "cspm",
       "title": "S3 bucket without server-side encryption (KMS)",
       "severity_default": 3,
-      "sources": ["securityhub:S3.4", "config:s3-bucket-server-side-encryption-enabled"],
-      "isms_p": null,
+      "sources": [
+        "securityhub:S3.4",
+        "config:s3-bucket-server-side-encryption-enabled"
+      ],
+      "isms_p": "2.7.1",
       "remediable": true,
       "lifecycle": "runtime"
     },
@@ -70,8 +92,11 @@
       "pillar": "cspm",
       "title": "S3 bucket access logging / versioning not enabled",
       "severity_default": 4,
-      "sources": ["config:s3-bucket-versioning-enabled", "config:s3-bucket-logging-enabled"],
-      "isms_p": null,
+      "sources": [
+        "config:s3-bucket-versioning-enabled",
+        "config:s3-bucket-logging-enabled"
+      ],
+      "isms_p": "2.9.4",
       "remediable": true,
       "lifecycle": "runtime"
     },
@@ -79,8 +104,10 @@
       "pillar": "data",
       "title": "Sensitive PII detected in exposed S3 bucket",
       "severity_default": 1,
-      "sources": ["macie:SensitiveData/*"],
-      "isms_p": null,
+      "sources": [
+        "macie:SensitiveData/*"
+      ],
+      "isms_p": "3.2.2",
       "remediable": true,
       "lifecycle": "runtime"
     },
@@ -88,8 +115,12 @@
       "pillar": "cspm",
       "title": "Security Group allows 0.0.0.0/0 inbound",
       "severity_default": 2,
-      "sources": ["securityhub:EC2.19", "config:restricted-common-ports", "prowler:ec2_securitygroup_allow_ingress_from_internet_to_any_port"],
-      "isms_p": null,
+      "sources": [
+        "securityhub:EC2.19",
+        "config:restricted-common-ports",
+        "prowler:ec2_securitygroup_allow_ingress_from_internet_to_any_port"
+      ],
+      "isms_p": "2.6.1",
       "remediable": true,
       "lifecycle": "runtime"
     },
@@ -97,8 +128,10 @@
       "pillar": "ciem",
       "title": "Over-privileged Entra App Registration (e.g. Directory.ReadWrite.All)",
       "severity_default": 1,
-      "sources": ["prowler:entra_app_registration_no_unused_privileged_permissions"],
-      "isms_p": null,
+      "sources": [
+        "prowler:entra_app_registration_no_unused_privileged_permissions"
+      ],
+      "isms_p": "2.5.6",
       "remediable": true,
       "lifecycle": "runtime",
       "_note_2026-07-08": "실측(진우): 원래 가정한 'entra_id_*' 체크는 Prowler v5(azure·m365 둘 다)에 존재하지 않음(실제는 'entra_*', 언더스코어 id 없음). 이 control과 정확히 매칭되는 체크는 azure provider의 entra 서비스엔 없고 **m365 provider에만 존재**(entra_app_registration_no_unused_privileged_permissions) — scanners/ciem/entra.py가 provider=azure로 호출하므로 이 소스는 현재 코드 경로로는 미도달(라이브 전환 시 provider=m365로 바꿔야 함, m365의 키리스 CI 인증은 별도 과제 — az-cli-auth가 Prowler 자체 코드상 미작동 명시, sp-env-auth는 client secret 필요해 D4 위반 소지)."
@@ -107,8 +140,10 @@
       "pillar": "ciem",
       "title": "Entra Service Principal credential with excessive validity (>6 months) / leak risk",
       "severity_default": 2,
-      "sources": ["prowler:entra_app_registration_credential_not_expired"],
-      "isms_p": null,
+      "sources": [
+        "prowler:entra_app_registration_credential_not_expired"
+      ],
+      "isms_p": "2.5.5",
       "remediable": true,
       "lifecycle": "runtime",
       "_note_2026-07-08": "실측(진우): azure provider entra 서비스에 실존하는 체크로 정정(기존 'entra_id_sp_credential_no_expiry'는 존재하지 않던 이름). provider=azure로 바로 도달 가능."
@@ -117,8 +152,11 @@
       "pillar": "ciem",
       "title": "Risky admin consent grant to unverified app",
       "severity_default": 2,
-      "sources": ["prowler:entra_policy_restricts_user_consent_for_apps", "prowler:entra_policy_user_consent_for_verified_apps"],
-      "isms_p": null,
+      "sources": [
+        "prowler:entra_policy_restricts_user_consent_for_apps",
+        "prowler:entra_policy_user_consent_for_verified_apps"
+      ],
+      "isms_p": "2.5.6",
       "remediable": true,
       "lifecycle": "runtime",
       "_note_2026-07-08": "실측(진우): azure·m365 provider 둘 다 존재하는 실제 체크명으로 정정. provider=azure로 바로 도달 가능."
@@ -127,8 +165,10 @@
       "pillar": "cspm",
       "title": "Entra App Registration insecure configuration (redirect URI etc., Defender secure-score)",
       "severity_default": 4,
-      "sources": ["prowler:entra_id_app_redirect_uri_insecure"],
-      "isms_p": null,
+      "sources": [
+        "prowler:entra_id_app_redirect_uri_insecure"
+      ],
+      "isms_p": "2.6.1",
       "remediable": true,
       "lifecycle": "runtime",
       "_note_2026-07-08": "실측(진우): 'redirect URI insecure' 의미에 대응하는 실제 Prowler v5 체크를 azure·m365 어느 provider에서도 찾지 못함 — 이 sources 값은 실존하는 Prowler checkID가 아니라 golden mock 데모 전용 합성 식별자(실 스캔에서 절대 발생 안 함, 무해한 죽은 매핑). Defender for Cloud secure-score 축 자체가 2026-07-07 범위 제외 결정과 맞물려 이 control은 구조적으로 mock-only로 남을 가능성이 높음."
@@ -137,8 +177,11 @@
       "pillar": "cspm",
       "title": "ECR repository scan-on-push disabled",
       "severity_default": 3,
-      "sources": ["securityhub:ECR.1", "prowler:ecr_*_scan_*"],
-      "isms_p": null,
+      "sources": [
+        "securityhub:ECR.1",
+        "prowler:ecr_*_scan_*"
+      ],
+      "isms_p": "2.11.2",
       "remediable": true,
       "lifecycle": "build"
     }

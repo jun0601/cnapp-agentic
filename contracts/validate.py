@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """contracts/ 정합 검증 — CI 게이트 (target-app-design §2.1).
 
-JSON 유효성 + 의미 정합 7-assert(a~g)를 검사한다. json.load가 못 잡는 '의미 불일치'를
+JSON 유효성 + 의미 정합 8-assert(a~h)를 검사한다. json.load가 못 잡는 '의미 불일치'를
 여기서 막는다. 실패 시 exit 1 → GitHub Actions가 머지 차단.
 
 asserts:
@@ -106,6 +106,16 @@ def main():
     # (g) 임베딩 모델 상수가 구현 3곳에서 일치하는가 — 계약⑥ embedding_model const
     assert_embedding_model_consistency()
 
+    # (h) control-catalog의 isms_p가 15종 전부 채워졌고 ISMS-P 코드 형식인가
+    #     (2026-07-22 채움 — 컴플라이언스 화면·RAG가 이 매핑을 쓴다. 새 control 추가 시 빈칸 방지)
+    import re as _re
+    for cid, c in catalog.items():
+        v = c.get("isms_p")
+        if not v:
+            errors.append(f"[h] {cid}: isms_p 미지정 — control-catalog에 ISMS-P 코드 필요")
+        elif not _re.match(r"^\d+\.\d+(\.\d+)?$", str(v)):
+            errors.append(f"[h] {cid}: isms_p '{v}'가 ISMS-P 코드 형식(예 2.6.4) 아님")
+
     report()
 
 
@@ -159,7 +169,7 @@ def report():
         for e in errors:
             print("  -", e)
         sys.exit(1)
-    print("OK — contracts 정합 검증 통과 (a~g 7-assert + json + control + case)")
+    print("OK — contracts 정합 검증 통과 (a~h 8-assert + json + control + case)")
     sys.exit(0)
 
 

@@ -675,9 +675,10 @@ data "aws_iam_policy_document" "remediation" {
   }
   # 조치 3종을 '타깃(shop) 리소스'로 스코프 — 특히 iam:PutRolePolicy를 임의 역할(admin 포함) 재작성 못 하게 제한(권한상승 차단).
   statement {
-    sid       = "RemediateS3"
-    actions   = ["s3:PutBucketPublicAccessBlock", "s3:PutBucketPolicy", "s3:PutEncryptionConfiguration"] # 2026-07-08: put_bucket_encryption API의 실제 IAM 액션은 s3:PutEncryptionConfiguration(API명≠IAM액션명) — 처음 s3:PutBucketEncryption로 잘못 넣어 존재않는 액션이라 무시돼 AccessDenied났던 것 수정
-    resources = ["arn:aws:s3:::${var.project}-*", "arn:aws:s3:::member-pii-*"]                    # 타깃 버킷만
+    sid = "RemediateS3"
+    # PutBucketLogging = s3_enable_logging(2026-07-22). API명≠IAM액션명 함정 재발 방지: s3:PutBucketLogging은 실존 액션.
+    actions   = ["s3:PutBucketPublicAccessBlock", "s3:PutBucketPolicy", "s3:PutEncryptionConfiguration", "s3:PutBucketLogging"]
+    resources = ["arn:aws:s3:::${var.project}-*", "arn:aws:s3:::member-pii-*"] # 타깃 버킷만
   }
   statement {
     sid       = "RemediateECR" # 2026-07-08 추가 — 우리 프로젝트 리포만(admin 재작성 차단과 동일 스코핑 원칙)

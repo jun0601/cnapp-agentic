@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 _ACTIONS = {
     "s3_block_public", "sg_remove_open_ingress", "iam_least_privilege",
     "s3_enable_encryption", "ecr_enable_scan_on_push",  # 2026-07-08 추가
+    "s3_enable_logging",  # 2026-07-22 추가(드리프트 X — INTERNAL-S3-LOGGING-DISABLED-001 조치)
 }
 
 
@@ -72,6 +73,8 @@ def _dispatch(action: str, target: dict, dry_run: bool, region: str) -> dict:
         return _s3_enable_encryption(target["bucket"], dry_run, region)
     if action == "ecr_enable_scan_on_push":
         return _ecr_enable_scan_on_push(target["repository_name"], dry_run, region)
+    if action == "s3_enable_logging":
+        return _s3_enable_logging(target["bucket"], target.get("log_bucket"), dry_run, region)
     raise ValueError(action)  # _ACTIONS 게이트를 통과했으므로 도달 불가
 
 
@@ -171,6 +174,24 @@ def _ecr_enable_scan_on_push(repository_name: str, dry_run: bool, region: str) -
         imageScanningConfiguration={"scanOnPush": True},
     )
     return {"applied": True, "plan": plan}
+
+
+def _s3_enable_logging(bucket: str, log_bucket, dry_run: bool, region: str) -> dict:
+    """S3 서버 액세스 로깅 활성화(INTERNAL-S3-LOGGING-DISABLED-001 되돌림, 2026-07-22).
+    드리프트 X — terraform이 이 버킷의 logging 속성을 관리하지 않는다.
+    log_bucket 미지정 시 자기 자신을 대상으로(데모 단순화 — 실서비스는 전용 로그 버킷)."""
+    dest = log_bucket or bucket
+    plan = {"api": "s3:PutBucketLogging", "bucket": bucket,
+            "change": "LoggingEnabled.TargetBucket = %s" % dest}
+    if dry_run:
+        return {"applied": False, "plan": plan}
+    import boto3
+    boto3.client("s3", region_name=region).put_bucket_logging(
+        Bucket=bucket,
+        BucketLoggingStatus={"LoggingEnabled": {"TargetBucket": dest, "TargetPrefix": "s3-access/%s/" % bucket}},
+    )
+    return {"applied": True, "plan": plan}
+
 
 
 # ── 감사(불변) + RDS 상태 갱신 ─────────────────────────────────────────

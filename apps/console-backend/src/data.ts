@@ -308,6 +308,7 @@ export async function triggerReanalyze(findingId: string): Promise<{ accepted: b
 const REMEDIATION_ACTIONS: Record<string, { action: string; targetKey: string }> = {
   'INTERNAL-S3-NOENCRYPT-001': { action: 's3_enable_encryption', targetKey: 'bucket' }, // 드리프트 X
   'INTERNAL-ECR-SCAN-DISABLED-001': { action: 'ecr_enable_scan_on_push', targetKey: 'repository_name' }, // 드리프트 X
+  'INTERNAL-S3-LOGGING-DISABLED-001': { action: 's3_enable_logging', targetKey: 'bucket' }, // 드리프트 X (2026-07-22)
   'INTERNAL-S3-PUBLIC-001': { action: 's3_block_public', targetKey: 'bucket' }, // ⚠️ 드리프트 O(target 토글 되돌림)
   'INTERNAL-SG-OPEN-INGRESS-001': { action: 'sg_remove_open_ingress', targetKey: 'security_group_id' }, // ⚠️ 드리프트 O
 }
