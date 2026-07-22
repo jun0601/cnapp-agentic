@@ -49,13 +49,13 @@ $ErrorActionPreference = 'Continue'
 
 # Dependency order (SSOT) for the 'all' sweep. apply = forward, destroy = reverse.
 #   karpenter right after shared (needs the live cluster).
-# NOTE: 'monitoring' is intentionally EXCLUDED from 'all' -- it is owned/operated by
-#   jw_kim and applied/destroyed on its own cadence (its state lives in the shared S3
-#   backend, so it is independent). Manage it explicitly:
-#       ./infra/deploy.ps1 -Action <apply|destroy> -Layer monitoring
-#   To fold it back into 'all' later, just append 'monitoring' to this list -- it reads
-#   shared+backend+console, so it lands LAST in apply / FIRST in destroy automatically.
-$ApplyOrder = @('shared', 'karpenter', 'target', 'backend', 'console')
+#   monitoring LAST on apply (reads shared+backend+console via remote_state),
+#   so FIRST on destroy -- where the Clear-GrafanaIngress hook releases the ALB first.
+# 2026-07-22: jh_lee now owns ALL terraform layers, so 'monitoring' is folded into 'all'
+#   (previously excluded as jw_kim's separate, always-on layer). NOTE: a full destroy now
+#   also tears down the notify Lambdas/dashboards -- keep infra up if you rely on
+#   daily_cost_notifier, or drop 'monitoring' from this list to keep it always-on.
+$ApplyOrder = @('shared', 'karpenter', 'target', 'backend', 'console', 'monitoring')
 
 $InfraRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
@@ -73,11 +73,8 @@ else {
 
 Write-Host ""
 Write-Host "== terraform $Action | order: $($layers -join ' -> ') ==" -ForegroundColor Cyan
-if ($Layer -eq 'all') {
-  Write-Host "   NOTE: 'monitoring' is NOT in 'all' (owned by jw_kim). Run it separately: -Layer monitoring" -ForegroundColor Yellow
-  if ($Action -eq 'destroy') {
-    Write-Host "   (destroy is reverse: console first, shared last -- and confirm jw_kim tore down monitoring)" -ForegroundColor Yellow
-  }
+if ($Layer -eq 'all' -and $Action -eq 'destroy') {
+  Write-Host "   (destroy is reverse: monitoring first -> shared last; Grafana Ingress ALB is auto-released before monitoring destroy)" -ForegroundColor Yellow
 }
 Write-Host ""
 
@@ -199,10 +196,52 @@ function Clear-OrphanKarpenterNodes {
   Write-Host "[karpenter] orphan-node sweep: terminated (pod ENIs released -> node SG can now delete)" -ForegroundColor Green
 }
 
+# infra/monitoring owns the AWS Load Balancer Controller IRSA + the Grafana Ingress,
+# which the controller turns into a dedicated ALB (grafana.cnapp-agentic.cloud). If
+# terraform destroy removes the controller IRSA BEFORE the Ingress is gone, the controller
+# loses IAM and cannot strip the Ingress finalizer -> the Ingress hangs Terminating and the
+# ALB ORPHANS (real 2026-07-08 incident). So before destroying monitoring, stop ArgoCD
+# self-heal and delete the Ingress while the controller is still alive; 'kubectl delete'
+# blocks on the finalizer until the controller has torn the ALB down. This runs FIRST in the
+# reverse (destroy) sweep, with the cluster still fully up.
+function Clear-GrafanaIngress {
+  if (-not (Get-Command kubectl -ErrorAction SilentlyContinue)) {
+    Write-Host "WARN: kubectl not found -- delete the Grafana Ingress by hand BEFORE this destroy" -ForegroundColor Yellow
+    Write-Host "      or the ALB orphans: kubectl -n monitoring delete ingress grafana" -ForegroundColor Yellow
+    return
+  }
+  Push-Location (Join-Path $InfraRoot 'shared')
+  try { $cluster = (& terraform output -raw eks_cluster_name 2>$null) } finally { Pop-Location }
+  if ($cluster) { & aws eks update-kubeconfig --name $cluster --region ap-northeast-2 2>$null | Out-Null }
+
+  Write-Host "--- [monitoring] pre-destroy: releasing Grafana Ingress ALB (controller must be alive) ---" -ForegroundColor Green
+  # 1) stop ArgoCD self-heal so it does not recreate the Ingress we are deleting (harmless if absent)
+  & kubectl -n argocd patch application monitoring --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}' 2>$null
+  # 2) delete the Ingress while the controller still has IAM; blocks on the finalizer until the ALB is gone
+  & kubectl -n monitoring delete ingress grafana --ignore-not-found --timeout=120s
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host "WARN: Grafana Ingress delete did not confirm -- verify the ALB is gone before continuing" -ForegroundColor Yellow
+    Write-Host "      (a stuck finalizer means the ALB may orphan): kubectl -n monitoring get ingress grafana" -ForegroundColor Yellow
+  }
+  else {
+    Write-Host "[monitoring] Grafana Ingress released (ALB deleted) -- safe to destroy monitoring" -ForegroundColor Green
+  }
+}
+
+# terraform creates the notify secrets/K8s Secrets but never carries their VALUES
+# (kept out of git/state on purpose). After a monitoring apply, remind to re-inject them.
+function Show-MonitoringSecretsReminder {
+  Write-Host "[monitoring] REMINDER -- terraform does not carry secret VALUES; re-inject manually:" -ForegroundColor Yellow
+  Write-Host "   - Teams webhook URLs x3 (alerts/cost/login) into Secrets Manager  (infra/monitoring/README 5.4)" -ForegroundColor Yellow
+  Write-Host "   - Grafana admin + pg-datasource K8s Secrets, if EKS was recreated  (README 3.4 / 3.5)" -ForegroundColor Yellow
+}
+
 foreach ($l in $layers) {
+  if ($l -eq 'monitoring' -and $Action -eq 'destroy') { Clear-GrafanaIngress }
   Invoke-Layer -L $l -Act $Action
   if ($l -eq 'karpenter' -and $Action -eq 'apply') { Test-KarpenterHealth }
   if ($l -eq 'karpenter' -and $Action -eq 'destroy') { Clear-OrphanKarpenterNodes }
+  if ($l -eq 'monitoring' -and $Action -eq 'apply') { Show-MonitoringSecretsReminder }
   Write-Host ""
 }
 

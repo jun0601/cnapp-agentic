@@ -213,7 +213,7 @@ aws secretsmanager put-secret-value --secret-id <ARN> --secret-string '<url>'
 | 항목 | 상태 |
 |---|---|
 | **X-Ray 분산 트레이싱** | ✅ **완료(2026-07-08)** — 5개 Lambda(ingest·normalize·correlation·orchestrator·remediation) Active tracing + 전용 xray-sdk 레이어(2026-07-07, 준형) → Grafana X-Ray 데이터소스 + 분산 트레이싱 대시보드 2패널 신설·실 렌더링 검증(§3.6). SQS는 `links[]` 참조, EventBridge는 트레이스 병합으로 이어짐(실측). |
-| **`infra/monitoring` 상시 유지** | ✅ **결정됨(2026-07-07) — 상시 유지.** 이 레이어는 비싼 리소스가 없어(§6) destroy 대상에서 제외, 계속 켜둔다(`deploy.ps1`의 `all`에서도 이미 제외됨). `daily_cost_notifier` 09:00 스케줄이 항상 울릴 수 있고 Grafana도 상시 접속(§3.3). 별도 `infra/notify` 레이어 분리안은 불필요로 폐기. |
+| **`infra/monitoring`를 'all'에 편입** | ✅ **갱신(2026-07-22) — jh_lee가 전 terraform 소유하게 되어 `deploy.ps1`의 `all`에 포함**(apply 마지막·destroy 처음, destroy 시 `Clear-GrafanaIngress` 훅이 ALB를 먼저 정리). 이 레이어는 비싼 리소스가 없어(§6) **원하면 상시 유지도 가능** — `$ApplyOrder`에서 `'monitoring'`만 빼면 `all` destroy에서 제외돼 `daily_cost_notifier`·Grafana가 계속 산다(§3.3). 이전 결정(2026-07-07 상시유지·jw_kim 소유·`all` 제외)에서 소유·운영 통합으로 전환. 별도 `infra/notify` 분리안은 계속 폐기. |
 
 **Azure Defender for Cloud는 시도 후 범위 제외 확정(2026-07-07)** — `Discovery`·`FoundationalCspm`·`CloudPosture`(Defender CSPM, 30일 무료체험) 다 켜고 테넌트 수준 가시성 권한(Security Reader, 루트 관리그룹)까지 부여했지만 "평가된 리소스 0"·"총 보안 점수 해당없음"이 그대로 — 권한 문제가 아니라 **이 프로젝트 Azure 자산이 Entra ID 신원 객체뿐이라 CSPM 엔진(리소스 인벤토리 기반)이 평가할 대상 자체가 없는 것으로 최종 확인**(Azure 포털 인벤토리 "총 리소스 0" 실측). 콘솔 Scores의 Azure 점수는 이 시도와 별개로 준형이 이미 실 open findings 기반 산출로 교체해둠(`apps/console-backend/src/data.ts getScores()`). 상세 근거는 `docs/project-draft.md` D11, 시행착오는 `troubleshooting.md`(2026-07-07). 켜둔 플랜은 `CloudPosture`만 Free로 되돌림 — `Discovery`·`FoundationalCspm`은 Free 옵션이 API에 없어 Standard로 남지만 리소스 0개라 실질 $0.
 
