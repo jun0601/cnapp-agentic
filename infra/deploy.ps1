@@ -237,11 +237,15 @@ function Show-MonitoringSecretsReminder {
   # ArgoCD auto-sync is too slow to rely on (verified 2026-07-22: Ingress not recreated
   # after ~2min even with self-heal on). Re-applying the manifests directly is prompt.
   Write-Host "[monitoring] POST-APPLY restore -- terraform does not carry these:" -ForegroundColor Yellow
-  Write-Host "   1) re-enable ArgoCD self-heal + Grafana Ingress (destroy hook turned them off):" -ForegroundColor Yellow
+  Write-Host "   (standalone re-apply, cluster still up. A full 'all' cycle recreates EKS -> bootstrap ArgoCD fresh instead.)" -ForegroundColor DarkGray
+  Write-Host "   1) restart ALB controller -- its IRSA was recreated so the pod's cached creds are now invalid" -ForegroundColor Yellow
+  Write-Host "      (fails with 'UnrecognizedClientException: security token invalid' until restarted):" -ForegroundColor Yellow
+  Write-Host "        kubectl -n kube-system rollout restart deployment aws-load-balancer-controller" -ForegroundColor Yellow
+  Write-Host "   2) re-enable ArgoCD self-heal + Grafana Ingress (destroy hook turned them off):" -ForegroundColor Yellow
   Write-Host "        kubectl apply -f gitops/argocd/app-monitoring.yaml" -ForegroundColor Yellow
   Write-Host "        kubectl apply -f gitops/monitoring/grafana-ingress.yaml   # ALB back in ~2-3 min" -ForegroundColor Yellow
-  Write-Host "   2) re-inject Teams webhook URLs x3 into Secrets Manager        (infra/monitoring/README 5.4)" -ForegroundColor Yellow
-  Write-Host "   3) Grafana admin + pg-datasource K8s Secrets, only if EKS was recreated  (README 3.4 / 3.5)" -ForegroundColor Yellow
+  Write-Host "   3) re-inject Teams webhook URLs x3 into Secrets Manager        (infra/monitoring/README 5.4)" -ForegroundColor Yellow
+  Write-Host "   4) Grafana admin + pg-datasource K8s Secrets, only if EKS was recreated  (README 3.4 / 3.5)" -ForegroundColor Yellow
 }
 
 foreach ($l in $layers) {
