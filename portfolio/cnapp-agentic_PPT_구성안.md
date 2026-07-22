@@ -474,14 +474,14 @@
 ---
 
 ### 10. 실증: Bedrock 능동조사 증거 (목업이 아니라 실제로 돌았다)
-> 9번이 "설계상 이렇게 동작한다"라면, 10번은 "실제 AWS·실제 Bedrock으로 돌려서 증명했다"는 실측 슬라이드. Phase1 vertical slice(`infra/slice` apply → `python -m engine.run_real` → `terraform destroy`)로 검증.
+> 9번이 "설계상 이렇게 동작한다"라면, 10번은 "실제 AWS·실제 Bedrock으로 돌려서 증명했다"는 실측 슬라이드. **화면 = 라이브 콘솔 Evidence 탭**(실 finding member-pii-prod 조사 결과 — 5회 read-only 호출·판정·RAG 근거·토큰 전부 실측). 별도로 Phase1 vertical slice(`infra/slice` apply → `run_real` → `destroy`)가 배포→정리 전 구간(E2E)을 무잔존으로 검증. ⚠️ 콘솔 신뢰도는 60%(엔진 결정론 값) — 슬라이드에 100% 쓰지 말 것(화면과 불일치).
 
-**왼쪽 빅넘버 3개:** `100%` 판정 신뢰도(CONFIRMED) · `수 센트` 1회 검증 비용(Haiku 토큰 + read-only API 몇 회) · `E2E` 배포→조사→판정→정리 전 구간 관통
+**왼쪽 빅넘버 3개:** `5회` LLM이 스스로 호출한 read-only API(자율 tool use) · `수 센트` 1회 조사 비용(Haiku 토큰 — 화면 model_trace에 실측 표시) · `E2E` 배포→조사→판정→정리 전 구간 관통
 
 **실제로 일어난 일(단계별):**
 1. LLM이 공개 S3 finding을 받고 **스스로** `s3:GetBucketPolicy`·`s3:GetPublicAccessBlock`을 호출할 것을 결정(canned 응답이 아님).
 2. 실 API 응답: 버킷 정책에 `Principal:"*"` 공개 statement 존재 + `BlockPublicAcls=false` 등 PAB 미설정 확인.
-3. 그 증거를 근거로 **CONFIRMED(신뢰도 100%)** 판정 → 케이스에 tool 호출 타임라인·판정·model_trace(토큰) 기록.
+3. 그 증거를 근거로 **confirmed** 판정(신뢰도 60%) → 케이스에 tool 호출 타임라인·판정·model_trace(토큰)·지식베이스 근거(RAG) 기록.
 - 방어 심층화: 실 API 오류(NoSuchBucket 등)는 크래시 대신 error `toolResult`로 강등해 LLM이 다른 도구로 조정하게 함(2026-07-04 라이브 실측 반영).
 - 강조 문구: "규칙 플래너가 정해준 게 아니라, LLM이 finding을 읽고 조사 도구를 스스로 선택·호출했다 = tool use 실증"
 **[레이아웃 스케치]** — 이 장은 **증거**가 목적이라 스크린샷이 절반을 먹는다. 좌측은 숫자→서사 순으로 위에서 아래.
@@ -498,7 +498,7 @@
 └──────────────────────┴──────────────────────────────┘
    [방어 심층화 캡션 — 작게]        [강조 문구 — 하단 1줄]
 ```
-> 빅넘버 3개는 **가로로 늘어놓지 말고 세로 스택**(좌측 폭이 좁아 가로면 숫자가 작아진다). 스크린샷은 **판정 히어로(CONFIRMED·100%)가 잘리지 않게** 상단 위주로 크롭.
+> 빅넘버 3개는 **가로로 늘어놓지 말고 세로 스택**(좌측 폭이 좁아 가로면 숫자가 작아진다). 스크린샷(`screenshots/console/console-evidence-tab.png`, 5회 호출 전부 포함본)은 **판정 히어로(confirmed)부터 ③ 5회 tool 호출 타임라인까지**가 핵심 — 그 구간을 세로로 크게, 하단 RAG 근거 칩·모델 토큰은 여백 되면 포함.
 
 - 시각자료: **스크린샷 필수** — Finding 상세의 능동조사(Evidence) 탭(tool 호출 타임라인 stepper)
 
@@ -509,14 +509,14 @@
 [중제목] 설계 설명이 아니라 실제 AWS·실제 Bedrock으로 관통 검증한 결과 (Phase1 vertical slice)
 
 [왼쪽 빅넘버 3개]
-100% — 판정 신뢰도(CONFIRMED)
-수 센트 — 1회 검증 비용(Haiku 토큰 + read-only API 몇 회)
+5회 — LLM이 스스로 호출한 read-only API (자율 tool use)
+수 센트 — 1회 조사 비용 (Haiku 토큰, 화면 model_trace에 실측)
 E2E — 배포→조사→판정→정리 전 구간 관통
 
 [실제로 일어난 일 — 단계별]
 1. 공개 S3 finding 수신 → LLM이 스스로 s3:GetBucketPolicy·s3:GetPublicAccessBlock 호출 결정 (canned 아님)
 2. 실 API 응답 → 버킷 정책 Principal:"*" 공개 statement + BlockPublicAcls=false 등 PAB 미설정 확인
-3. 증거 기반 CONFIRMED(신뢰도 100%) 판정 → 케이스에 tool 호출 타임라인·판정·model_trace(토큰) 기록
+3. 증거 기반 confirmed 판정(신뢰도 60%) → 케이스에 tool 호출 타임라인·판정·model_trace(토큰)·지식베이스 근거(RAG) 기록
 
 [방어 심층화 캡션] 실 API 오류(NoSuchBucket 등)는 크래시 대신 error toolResult로 강등해 LLM이 다른 도구로 조정하게 함(2026-07-04 라이브 실측)
 

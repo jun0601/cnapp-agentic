@@ -100,7 +100,7 @@ export function EvidenceTab({ evidenceCase }: { evidenceCase: Case | null }) {
           <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">④ 판정 (Reasoning)</h4>
           <p className="mt-2 flex items-center gap-2 text-sm">
             <Badge tone={isConfirmed ? 'red' : 'emerald'}>{c.reasoning.verdict}</Badge>
-            <span className="text-slate-500">신뢰도 {Math.round((c.reasoning.confidence_score ?? 0) * 100)}%</span>
+            <span className="text-slate-500">신뢰도 {confidence}%</span>
           </p>
           <p className="mt-2 text-sm leading-relaxed text-slate-700">{c.reasoning.narrative}</p>
           {c.reasoning.rag_refs && c.reasoning.rag_refs.length > 0 && (
