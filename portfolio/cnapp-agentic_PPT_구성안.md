@@ -621,8 +621,8 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 2. **VPC 설계** — `10.20.0.0/16`, 2 AZ(ap-northeast-2a/2c), public/private 서브넷 분리. **NAT Gateway($32/월) 대신 NAT Instance**(`t4g.micro`, fck-nat AMI arm64, IMDSv2 강제) + **S3/DynamoDB Gateway Endpoint**(NAT 우회로 데이터 전송 비용 절감).
 3. **컴퓨트·데이터** — **EKS 1.34**(관리형 노드그룹 spot `t3.small`, scale 0~2) + **Karpenter**(spot 우선·on-demand 폴백, 프리티어 제약으로 `t3.small`/`t3.micro`만) + HPA. **RDS PostgreSQL 16 `t3.micro` + pgvector**(private subnet, Secrets Manager로 자격증명). Lambda는 VPC 내부 배치(RDS 접근).
 4. **키리스 인증** — CI는 **GitHub OIDC → IAM Role**, 파드는 **IRSA**(역할별 `:aud`·`:sub` 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
-- 강조 문구: "**6레이어 · 리소스 207개**를 순서대로 apply → 검증 → destroy까지 완주, **잔존 리소스 0**" (v9: 옛 문구는 중제목 반복인 데다 정보가 없어 **실측치로 교체**)
-- 🎨 **시각자료(둘 중 택1)**: ⓐ **VPC 서브넷 배치도**(public/private·NAT Instance·EKS·RDS) — 전부 AWS 서비스라 **draw.io AWS 아이콘 적합**, 또는 ⓑ **레이어 의존 다이어그램**(`shared → karpenter → target·backend·console` 화살표) — 이건 terraform 레이어라 서비스 아이콘이 없으니 **박스+화살표**. 스크린샷 없이 도식만으로 성립하는 슬라이드라 다이어그램이 주인공.
+- 강조 문구: "**5레이어 · 리소스 298개**(모니터링 별도)를 순서대로 apply → 검증 → destroy까지 완주, **잔존 리소스 0**" (v10: 2026-07-22 `terraform state list` 실측 재확인 — 207개는 2026-07-03 시점 숫자로 이후 X-Ray·Prowler 자동화·WAF·CIEM·조치·RAG 등 추가되며 늘어남. 본문 "5레이어(모니터링 별도)" 서술과 통일해 모니터링 제외 기준으로 표기 — 모니터링까지 포함하면 6레이어·374개)
+- 🎨 **시각자료 확정(v11, 2026-07-22)**: **레이어 의존 다이어그램**(`shared → karpenter → target·backend·console → monitoring` 박스+화살표, 참조 방향 표시) 하나로 확정 — VPC 서브넷 배치도는 기각. 이유: VPC/SG/노드그룹 같은 콘솔 리소스 캡처는 "존재 증명"만 하고 이 슬라이드의 핵심 주장(설계 판단·순서 강제)은 증명 못 함 — 이 덱에서 통했던 스크린샷들(X-Ray 서비스맵·RAG 설명)은 전부 "동작"을 보여주는데, 리소스 리스트/맵은 "정지 상태"만 보여줘서 결이 다름. **예외로 딱 하나 실증 스크린샷 추가**: `deploy.ps1 -Action apply` 터미널 실행 화면(5레이어가 순서대로 실행되는 로그) — "순서를 코드로 강제했다"는 리드 문장을 동작으로 직접 증명하는 유일한 스크린샷이라 가치 있음.
 
 **▶ 캔바에 그대로 넣을 카피:**
 
@@ -638,7 +638,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통
 
 [축 4 — 키리스 인증] CI는 GitHub OIDC → IAM Role, 파드는 IRSA(역할별 aud·sub 고정). 장기 액세스 키 0개. EBS 암호화·IMDSv2 required 하드닝.
 
-[강조 문구] 6레이어 · 리소스 207개를 순서대로 apply → 검증 → destroy까지 완주, 잔존 리소스 0
+[강조 문구] 5레이어(모니터링 별도) · 리소스 298개를 순서대로 apply → 검증 → destroy까지 완주, 잔존 리소스 0
 
 ---
 
