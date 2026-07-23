@@ -10,6 +10,29 @@ import type { FindingExplanation } from '@/api/types'
 
 type Tab = 'explanation' | 'evidence'
 
+// sources는 실 스캔(예: Trivy CVE 나열)에서 수십~수백 개까지 늘어날 수 있어 grid 셀이 그대로
+// 깨짐 — 앞 5개만 보이고 나머지는 토글로 펼침/접음(2026-07-22).
+function SourcesList({ sources }: { sources?: string[] }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!sources || sources.length === 0) return <>—</>
+  const LIMIT = 5
+  const remaining = sources.length - LIMIT
+  const shown = expanded ? sources : sources.slice(0, LIMIT)
+  return (
+    <span>
+      {shown.join(', ')}
+      {remaining > 0 && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="ml-1.5 font-semibold text-brand-600 hover:underline"
+        >
+          {expanded ? '접기' : `+${remaining}개 더보기`}
+        </button>
+      )}
+    </span>
+  )
+}
+
 // AI 설명 카드(UC1) — ai_status≠done이면 placeholder(§15.4). finding 본문은 항상 표시.
 function ExplanationCard({ ex }: { ex: FindingExplanation | null }) {
   if (!ex || ex.ai_status !== 'done') {
@@ -119,7 +142,7 @@ export default function FindingDetail() {
           <div>
             control: <span className="font-mono text-slate-700">{f.control_id}</span>
           </div>
-          <div>sources: {f.sources?.join(', ') || '—'}</div>
+          <div>sources: <SourcesList sources={f.sources} /></div>
           {f.attack_path_id && (
             <div className="col-span-2">
               attack-path:{' '}
