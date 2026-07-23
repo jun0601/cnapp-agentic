@@ -379,13 +379,15 @@ def _parse_kube_bench(raw: dict, cloud_hint: str) -> List[dict]:
 # ── IAM Access Analyzer 파서 (CIEM, custom 포맷) ───────────────────────
 # boto3 accessanalyzer.list_findings() Findings[] 원소를 직접 받는다(Prowler 경유 아님 —
 # AWS 네이티브 정책 도달성 분석 엔진, scanners/ciem/aws_access_analyzer.py). 이미 계약
-# control-catalog.json의 INTERNAL-IAM-OVERPRIV-001.sources에 "accessanalyzer:*" 와일드카드가
+# control-catalog.json의 INTERNAL-IAM-OVERPRIV-001.sources에 "access-analyzer:*" 와일드카드가
 # 예비 등록돼 있었음 — 이 파서가 그 자리를 채운다(신규 control 안 만듦, 기존 설계 의도 재사용).
+# ⚠️ 2026-07-22: boto3 클라이언트명(accessanalyzer, 하이픈 없음)이 아니라 실 AWS 서비스 표기
+# (access-analyzer, 하이픈 있음)로 통일 — IAM 정책과는 무관한 내부 라벨이지만 화면에 노출되는 값.
 def _parse_access_analyzer(raw: dict, cloud_hint: str) -> List[dict]:
     """Access Analyzer finding(단건) → finding 1건. severity는 카탈로그가 안 주는 신호라
     isPublic으로 산출(퍼블릭=Critical, 특정 계정/주체로 스코프된 외부접근=High)."""
     rtype_aa = raw.get("resourceType", "")
-    source_key = f"accessanalyzer:{rtype_aa}"
+    source_key = f"access-analyzer:{rtype_aa}"
     control_id = lookup_control(source_key) or "INTERNAL-UNKNOWN-001"
 
     rtype = _ACCESS_ANALYZER_RTYPE.get(rtype_aa, "other")

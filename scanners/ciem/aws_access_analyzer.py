@@ -8,7 +8,7 @@
   실제 CIEM 가치가 있다.
 
 대상 control(계약 control-catalog.json):
-  INTERNAL-IAM-OVERPRIV-001(sources에 "accessanalyzer:*"가 이미 예비 등록돼 있었음 — 이 스캐너가
+  INTERNAL-IAM-OVERPRIV-001(sources에 "access-analyzer:*"가 이미 예비 등록돼 있었음 — 이 스캐너가
   그 자리를 채움. "과도권한"의 CIEM적 의미 = 의도보다 넓게 도달 가능한 접근권)
 
 실배포 스왑:

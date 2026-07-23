@@ -43,7 +43,7 @@
       "title": "Over-privileged IAM/IRSA policy (wildcard action/resource)",
       "severity_default": 1,
       "sources": [
-        "accessanalyzer:*",
+        "access-analyzer:*",
         "prowler:iam_policy_allows_privilege_escalation",
         "prowler:iam_inline_policy_allows_*"
       ],

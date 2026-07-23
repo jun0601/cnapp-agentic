@@ -114,7 +114,7 @@ _EXPECTED = {
 
 # ── mock AWS IAM Access Analyzer ListFindings 결과(boto3 shape) ────────
 # 2026-07-08 추가 — CIEM AWS쪽(역할분담표 원안 "IAM Access Analyzer(AWS)=준형")을 채움.
-# 이미 control-catalog.json의 INTERNAL-IAM-OVERPRIV-001.sources에 "accessanalyzer:*"가
+# 이미 control-catalog.json의 INTERNAL-IAM-OVERPRIV-001.sources에 "access-analyzer:*"가
 # 예비 등록돼 있어 새 control 없이 그 자리로 연결(scanners/ciem/aws_access_analyzer.py).
 MOCK_ACCESS_ANALYZER_FINDINGS = [
     {  # 퍼블릭 S3 버킷(정책상 외부 도달 가능) → isPublic=True → Critical
@@ -248,7 +248,7 @@ def main() -> int:
         checks_result.append((f"{raw['id']} → {ctrl}/{rid} (golden 일치)", ok))
     checks_result.append(("Access Analyzer finding 2건 생성", len(aa_findings) == 2))
     checks_result.append((
-        "accessanalyzer:* 와일드카드가 INTERNAL-IAM-OVERPRIV-001로 정확히 매핑",
+        "access-analyzer:* 와일드카드가 INTERNAL-IAM-OVERPRIV-001로 정확히 매핑",
         all(f["control_id"] == "INTERNAL-IAM-OVERPRIV-001" for f in aa_findings),
     ))
 

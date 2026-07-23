@@ -41,7 +41,7 @@
       "pillar": "ciem", "control_id": "INTERNAL-IAM-OVERPRIV-001",
       "title": "order IRSA role has wildcard s3:* on Resource:* (over-privileged)",
       "severity_id": 1, "status": "open",
-      "sources": ["accessanalyzer:UnusedPermission", "prowler:iam_inline_policy_allows_privilege_escalation"],
+      "sources": ["access-analyzer:UnusedPermission", "prowler:iam_inline_policy_allows_privilege_escalation"],
       "dedup_key": "aws:iam_role:order-irsa|INTERNAL-IAM-OVERPRIV-001",
       "priority_score": 0.9, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
       "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
@@ -152,7 +152,7 @@
       "pillar": "ciem", "control_id": "INTERNAL-IAM-OVERPRIV-001",
       "title": "member IRSA role has unused permissions (permission creep)",
       "severity_id": 3, "status": "open",
-      "sources": ["accessanalyzer:UnusedPermission"],
+      "sources": ["access-analyzer:UnusedPermission"],
       "dedup_key": "aws:iam_role:member-irsa|INTERNAL-IAM-OVERPRIV-001",
       "priority_score": null, "attack_path_id": null,
       "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null
