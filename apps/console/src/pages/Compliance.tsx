@@ -73,6 +73,16 @@ export default function Compliance() {
         </button>
       </div>
 
+      {/* 프레임워크 설명 — '2.5' 같은 번호가 뭔지 처음 보는 사람도 알 수 있게 */}
+      <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm leading-relaxed text-slate-600">
+        <span className="font-semibold text-slate-700">ISMS-P</span>
+        <span className="text-slate-400"> · 정보보호 및 개인정보보호 관리체계 인증</span> — 국내 정보보호 인증 표준입니다.{' '}
+        <code className="rounded bg-white px-1 py-0.5 font-mono text-xs text-slate-500">2.5</code>
+        <code className="ml-1 rounded bg-white px-1 py-0.5 font-mono text-xs text-slate-500">2.6.4</code> 같은 번호가 그 인증 기준의{' '}
+        <span className="font-medium text-slate-700">통제항목</span>이며, 이 화면은 각 항목을 플랫폼 내부 control에 매핑해{' '}
+        <span className="font-medium text-slate-700">실 finding 집계로 충족·미충족을 자동 판정</span>합니다.
+      </div>
+
       {/* 점수 요약 */}
       <Card className="flex flex-wrap items-center gap-6 p-6">
         <div className="text-center">
