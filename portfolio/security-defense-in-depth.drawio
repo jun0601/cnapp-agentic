@@ -67,8 +67,8 @@
           <mxGeometry x="628" y="378" width="138" height="48" as="geometry" />
         </mxCell>
 
-        <mxCell id="pii" value="🔒  회원 PII (최종 보호 대상)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D8EFE0;strokeColor=#1E7E45;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#155A32;" vertex="1" parent="1">
-          <mxGeometry x="290" y="476" width="240" height="40" as="geometry" />
+        <mxCell id="pii" value="🔒  관제 데이터 (finding·조사 케이스 · 불변 감사로그 · 시크릿)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D8EFE0;strokeColor=#1E7E45;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#155A32;" vertex="1" parent="1">
+          <mxGeometry x="190" y="476" width="440" height="40" as="geometry" />
         </mxCell>
 
         <mxCell id="e1" style="endArrow=block;html=1;strokeColor=#888888;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="net" target="b1">
