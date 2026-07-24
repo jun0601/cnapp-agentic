@@ -1,0 +1,32 @@
+[
+  {
+    "Id": "42cfc97cbf6b329a768b7b4362a08468",
+    "Type": "Backdoor:EC2/C&CActivity.B!DNS",
+    "Severity": 8.0,
+    "Title": "The EC2 instance i-032248fc3da6b8e33 queried a known Command & Control server domain name.",
+    "Description": "The EC2 instance i-032248fc3da6b8e33 is querying a domain name associated with a known Command & Control server.",
+    "Region": "ap-northeast-2",
+    "AccountId": "066107819776",
+    "CreatedAt": "2026-07-24T07:14:12.310Z",
+    "UpdatedAt": "2026-07-24T07:14:20.887Z",
+    "Resource": {
+      "ResourceType": "Instance",
+      "InstanceDetails": {
+        "InstanceId": "i-032248fc3da6b8e33"
+      }
+    },
+    "Service": {
+      "Count": 4,
+      "EventFirstSeen": "2026-07-24T07:10:52.000Z",
+      "EventLastSeen": "2026-07-24T07:10:52.000Z",
+      "Action": {
+        "ActionType": "DNS_REQUEST",
+        "DnsRequestAction": {
+          "Domain": "guarddutyc2activityb.com",
+          "Protocol": "UDP",
+          "Blocked": false
+        }
+      }
+    }
+  }
+]
