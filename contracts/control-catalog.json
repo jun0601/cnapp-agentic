@@ -69,6 +69,7 @@
       "severity_default": 1,
       "sources": [
         "securityhub:S3.8",
+        "securityhub:S3.2",
         "config:s3-bucket-public-read-prohibited",
         "prowler:s3_bucket_public_access"
       ],
