@@ -124,18 +124,34 @@ def _canon_resource_id(cloud: str, rtype: str, raw_id: str) -> str:
 
 
 # ── ASFF 파서 (Security Hub · Inspector · Macie) ─────────────────────
+# 2026-07-24 실측: Inspector가 relay한 ASFF는 Security Hub 자체 체크(S3.2 등)와 달리
+# `ProductFields`·`Compliance`가 키 자체는 있는데 값이 명시적 null이다(누락이 아니라 null).
+# `raw.get("X", {})`는 키가 있고 값이 None이면 기본값을 안 쓰고 None을 그대로 돌려줘서
+# 그 다음 `.get(...)` 호출이 AttributeError로 죽는다 — Inspector finding이 하나라도 배치에
+# 섞이면 normalize 전체가 크래시했던 실제 원인(273건이 Security Hub까지는 왔는데 콘솔에
+# 하나도 안 보이던 것). `or {}`로 None-safety 확보.
 def _parse_asff(raw: dict, source: str, cloud_hint: str) -> List[dict]:
     """ASFF 단건 → finding 목록(보통 1건, 복수 리소스면 복수)."""
     findings = []
-    resources = raw.get("Resources", [{}])
-    sev_label = raw.get("Severity", {}).get("Label", "MEDIUM")
+    resources = raw.get("Resources") or [{}]
+    sev_label = (raw.get("Severity") or {}).get("Label", "MEDIUM")
     title = raw.get("Title", "")
     updated_at = raw.get("UpdatedAt", _now())
     created_at = raw.get("CreatedAt", updated_at)
-    status = "open" if raw.get("Compliance", {}).get("Status") == "FAILED" else "remediated"
+
+    compliance_status = (raw.get("Compliance") or {}).get("Status")
+    if compliance_status == "FAILED":
+        status = "open"
+    elif compliance_status == "PASSED":
+        status = "remediated"
+    else:
+        # Compliance 개념 자체가 없는 제품(Inspector의 CVE·네트워크 도달성 등) — "합격/불합격"이
+        # 아니라 "탐지됐다" 자체가 문제이므로, 기본값을 remediated로 두면 실 취약점이 조용히
+        # 안 보이게 된다. 탐지된 이상 open으로 취급.
+        status = "open"
 
     # control key: "securityhub:S3.8" 형태로 lookup
-    ctrl_key = raw.get("ProductFields", {}).get("ControlId", "")
+    ctrl_key = (raw.get("ProductFields") or {}).get("ControlId", "")
     if ctrl_key:
         ctrl_key = f"{source}:{ctrl_key}"
     # GeneratorId fallback: "security-control/S3.8" → "S3.8"
@@ -147,9 +163,18 @@ def _parse_asff(raw: dict, source: str, cloud_hint: str) -> List[dict]:
     # Macie: Types 기반(ASFF 경유 — 실측상 POLICY 카테고리만 여기로 옴, 2026-07-24).
     # 와일드카드는 실제 Macie type 포맷("SensitiveData:S3Object/...", 콜론)과 맞춰야 함
     # — 예전엔 "/"였는데 이러면 절대 안 매칭됐다(_parse_macie 신설 계기로 같이 발견·수정).
-    types = raw.get("Types", [])
+    types = raw.get("Types") or []
     if any("SensitiveData" in t for t in types):
         ctrl_key = "macie:SensitiveData:*"  # wildcard match용
+
+    # Inspector: GeneratorId가 그냥 "AWSInspector"라 체크별 구분이 안 되지만, CVE finding은
+    # Title이 항상 "CVE-XXXX-YYYYY - ..." 형식이라 여기서 CVE ID를 뽑아 카탈로그의
+    # 기존 "inspector:CVE-*" 와일드카드(트리비와 대칭으로 처음부터 있었음)에 매핑한다.
+    # source 파라미터는 항상 "securityhub"(relay 경유)지만, CVE 패턴은 Inspector 고유
+    # 신호라 실제 탐지 주체를 정확히 라벨링할 수 있는 드문 경우.
+    if not ctrl_key and title.startswith("CVE-"):
+        cve_id = title.split(" ", 1)[0]
+        ctrl_key = f"inspector:{cve_id}"
 
     control_id = lookup_control(ctrl_key) if ctrl_key else None
 
