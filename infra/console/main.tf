@@ -429,6 +429,20 @@ resource "aws_cognito_identity_provider" "entra" {
     email           = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
     "custom:groups" = "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups"
   }
+
+  # Cognito는 MetadataURL을 한 번 읽고 SSO/SLO 엔드포인트와 서명 인증서를 provider_details에
+  # 스스로 채워 넣는다. 우리 코드는 MetadataURL만 선언하므로 terraform은 그 세 키를 "설정에
+  # 없는 값"으로 보고 매 plan마다 삭제하려 든다 — 실제로 `plan`에 세 키가 전부 `-> null`로
+  # 잡히는 걸 확인했다(2026-07-24). 그대로 apply하면 SAML 엔드포인트가 비어 SSO 로그인이
+  # 깨진다(CLAUDE.md가 "console 무인자 apply 금지"로 경고해온 함정의 실체).
+  # 세 키는 IdP 메타데이터에서 파생되는 값이라 terraform이 관리할 대상이 아니다.
+  lifecycle {
+    ignore_changes = [
+      provider_details["SSORedirectBindingURI"],
+      provider_details["SLORedirectBindingURI"],
+      provider_details["ActiveEncryptionCertificate"],
+    ]
+  }
 }
 
 resource "aws_cognito_user_pool_client" "this" {

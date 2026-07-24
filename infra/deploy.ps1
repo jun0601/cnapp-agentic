@@ -57,6 +57,35 @@ $ErrorActionPreference = 'Continue'
 #   daily_cost_notifier, or drop 'monitoring' from this list to keep it always-on.
 $ApplyOrder = @('shared', 'karpenter', 'target', 'backend', 'console', 'monitoring')
 
+# Per-layer vars the demo depends on (2026-07-24).
+# Both of these default to FALSE in variables.tf, so a bare 'terraform apply' silently
+# tears the demo down. Passing them here means 'deploy.ps1 apply' alone reproduces a
+# working environment -- the operator no longer has to remember them.
+#
+#   target  / enable_s3_public=true
+#       f6 (member PII bucket exposed) is the SOURCE of INTERNAL-S3-PUBLIC-001, and TWO of
+#       the three attack paths are built from that finding. With the default (false) an
+#       apply re-blocks the bucket, the finding stops matching reality, and the golden
+#       scenario collapses to 1 path. Observed twice: 2026-07-08 (paths 3->1) and again
+#       as live drift on 2026-07-24.
+#
+#   console / enable_custom_domain=true
+#       default false destroys the ACM cert, the apex alias and the SPA Cognito client,
+#       which breaks SSO login and the cnapp-agentic.cloud address. Already documented as
+#       a trap on 2026-07-08; this makes it automatic instead of a thing to remember.
+#
+#   target  / enable_overpriv_irsa=true
+#       f4. The live order-irsa role really is s3:* on * and that over-privilege is the
+#       Critical node the hero attack path pivots through. Default false narrows it to
+#       s3:GetObject on one bucket, which silently invalidates the finding.
+#
+# NOTE: enable_open_sg (f3) stays FALSE on purpose -- that finding is served by the golden
+# seed and turning it on opens real 0.0.0.0/0 ingress in the account.
+$LayerDefaultVars = @{
+  target  = @('-var', 'enable_s3_public=true', '-var', 'enable_overpriv_irsa=true')
+  console = @('-var', 'enable_custom_domain=true')
+}
+
 $InfraRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 if ($AwsProfile -ne '') {
@@ -126,7 +155,14 @@ function Invoke-Layer {
       throw "[$L] $Act needs approval but stdin is non-interactive -- it would hang on terraform's 'yes?' prompt. Re-run with -AutoApprove: ./infra/deploy.ps1 -Action $Action -AutoApprove"
     }
 
-    $tfArgs = @($Act, '-input=false') + $ExtraArgs
+    # Layer defaults first, caller's -ExtraArgs last so an explicit override still wins
+    # (terraform takes the LAST -var for a given name).
+    $layerVars = @()
+    if ($LayerDefaultVars.ContainsKey($L)) {
+      $layerVars = $LayerDefaultVars[$L]
+      Write-Host "    [$L] layer vars: $($layerVars -join ' ')" -ForegroundColor DarkGray
+    }
+    $tfArgs = @($Act, '-input=false') + $layerVars + $ExtraArgs
     if ($Act -in @('apply', 'destroy') -and $AutoApprove) { $tfArgs += '-auto-approve' }
 
     & terraform @tfArgs
