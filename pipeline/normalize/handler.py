@@ -88,8 +88,25 @@ def handler(event: dict, context=None) -> dict:
         findings.extend(norm.normalize(envelope))
 
     _upsert_findings(findings)
-    _emit_batch_completed(len(findings))
-    return {"normalized": len(findings)}
+
+    # 2-pass 트리거는 "하류가 실제로 할 일이 있을 때만" 발행한다(2026-07-24).
+    # 하류(correlation→orchestrator)는 open finding만 본다 — correlation 핸들러가 OPEN만
+    # 로드하고, 트리아지 게이트도 status=="open"을 요구한다. 따라서 배치가 전부 suppressed면
+    # 깨워봐야 결과가 바뀔 수 없다.
+    #
+    # 이걸 안 걸었더니 실제로 터졌다(실측): Security Hub를 켜자 findings가 1건씩 흘러들어오며
+    # 배치마다 normalize→correlation→orchestrator가 통째로 재기동됐고, attack-path 3경로 ×
+    # correlation 1회 = orchestrator 3배가 곱해져 2시간 동안 orchestrator 1053회 · Bedrock
+    # 호출이 시간당 98→528로 5배 뛰었다. 유입된 finding은 대부분 미매핑(=suppressed)이라
+    # 판정이 바뀔 여지가 없는데도 매번 LLM을 호출한 것.
+    #
+    # 트리아지 게이트가 "어떤 finding을 조사할지"를 막는다면, 이 조건은 "엔진을 언제 깨울지"를
+    # 막는다 — 게이트만으로는 재기동 빈도를 통제할 수 없다는 걸 이 사고가 보여줬다.
+    actionable = [f for f in findings if f.get("status") != "suppressed"]
+    if actionable:
+        _emit_batch_completed(len(actionable))
+    return {"normalized": len(findings), "actionable": len(actionable),
+            "engine_triggered": bool(actionable)}
 
 
 def _hydrate(envelope: dict) -> None:

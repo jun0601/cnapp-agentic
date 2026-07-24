@@ -367,6 +367,13 @@ resource "aws_lambda_event_source_mapping" "sqs_to_normalize" {
   event_source_arn = aws_sqs_queue.ingest.arn
   function_name    = aws_lambda_function.normalize.arn
   batch_size       = 10
+
+  # batch_size만으론 배치가 안 모인다 — 기본 batching window가 0초라 메시지가 도착하는 즉시
+  # 1건짜리 배치로 Lambda를 깨운다. 실측(2026-07-24): Security Hub 활성화로 finding이 낱개로
+  # 흘러들자 normalize 351회 → correlation 351회 → orchestrator 1053회(attack-path 3경로 배수)로
+  # 번져 Bedrock 호출이 시간당 98→528로 뛰었다. 30초 창을 주면 같은 유입이 한 배치로 합쳐진다.
+  # (지연 30초는 이 파이프라인 성격상 무해 — 스캐너 결과는 실시간성이 요구되지 않는다.)
+  maximum_batching_window_in_seconds = 30
 }
 
 # --- [EVENTBRIDGE] Security Hub Findings Imported(기본 버스) → ingest Lambda ---
