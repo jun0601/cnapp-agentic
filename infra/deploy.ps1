@@ -229,7 +229,24 @@ function Clear-OrphanKarpenterNodes {
   Write-Host "[karpenter] orphan-node sweep: terminating $($idList.Count) leftover Karpenter node(s): $($idList -join ', ')" -ForegroundColor Yellow
   & aws ec2 terminate-instances --instance-ids $idList | Out-Null
   & aws ec2 wait instance-terminated --instance-ids $idList
-  Write-Host "[karpenter] orphan-node sweep: terminated (pod ENIs released -> node SG can now delete)" -ForegroundColor Green
+
+  # Terminating the instance does NOT garbage-collect its VPC-CNI pod ENIs once the cluster
+  # (and its CNI controller) is gone: they orphan as 'available' (detached) yet still
+  # reference the EKS node SG, so the later 'shared' destroy fails with DependencyViolation
+  # on that SG (observed 2026-07-24: shared stopped on the node SG; recovered by deleting one
+  # leftover 'aws-K8S-<id>' ENI by hand, after which the SG deleted and shared finished).
+  # Delete those detached pod ENIs now so the node SG is free by the time 'shared' runs.
+  # Only 'available' (unattached) ENIs are touched -- an in-use ENI is never deleted here.
+  foreach ($iid in $idList) {
+    $enis = (& aws ec2 describe-network-interfaces `
+        --filters "Name=description,Values=aws-K8S-$iid" "Name=status,Values=available" `
+        --query "NetworkInterfaces[].NetworkInterfaceId" --output text 2>$null)
+    foreach ($eni in @($enis -split "\s+" | Where-Object { $_ })) {
+      Write-Host "[karpenter] deleting orphaned pod ENI $eni (was pinning the node SG)" -ForegroundColor Yellow
+      & aws ec2 delete-network-interface --network-interface-id $eni 2>$null
+    }
+  }
+  Write-Host "[karpenter] orphan-node sweep: nodes terminated + pod ENIs cleared -> node SG can now delete" -ForegroundColor Green
 }
 
 # infra/monitoring owns the AWS Load Balancer Controller IRSA + the Grafana Ingress,
