@@ -75,8 +75,11 @@ ON CONFLICT (dedup_key) DO UPDATE SET
   severity_id = EXCLUDED.severity_id,
   title       = EXCLUDED.title,
   sources     = (SELECT ARRAY(SELECT DISTINCT e
-                              FROM unnest(findings.sources || EXCLUDED.sources) AS e));
+                              FROM unnest(findings.sources || EXCLUDED.sources) AS e))
+RETURNING (xmax = 0) AS is_new;
 """
+# xmax=0은 이 행이 INSERT였음을 뜻한다(UPDATE면 0이 아님) — 즉 "처음 보는 finding"인지
+# "이미 아는 finding의 재유입"인지를 upsert 한 번으로 구분하는 표준 트릭.
 
 
 def handler(event: dict, context=None) -> dict:
@@ -87,26 +90,29 @@ def handler(event: dict, context=None) -> dict:
         _hydrate(envelope)  # raw_location(S3 포인터) → raw_inline (실 Prowler OCSF 경로)
         findings.extend(norm.normalize(envelope))
 
-    _upsert_findings(findings)
+    new_findings = _upsert_findings(findings)
 
     # 2-pass 트리거는 "하류가 실제로 할 일이 있을 때만" 발행한다(2026-07-24).
-    # 하류(correlation→orchestrator)는 open finding만 본다 — correlation 핸들러가 OPEN만
-    # 로드하고, 트리아지 게이트도 status=="open"을 요구한다. 따라서 배치가 전부 suppressed면
-    # 깨워봐야 결과가 바뀔 수 없다.
+    # 조건 = 이번에 **처음 들어온** finding 중 **open**인 것이 하나라도 있을 때.
     #
-    # 이걸 안 걸었더니 실제로 터졌다(실측): Security Hub를 켜자 findings가 1건씩 흘러들어오며
-    # 배치마다 normalize→correlation→orchestrator가 통째로 재기동됐고, attack-path 3경로 ×
-    # correlation 1회 = orchestrator 3배가 곱해져 2시간 동안 orchestrator 1053회 · Bedrock
-    # 호출이 시간당 98→528로 5배 뛰었다. 유입된 finding은 대부분 미매핑(=suppressed)이라
-    # 판정이 바뀔 여지가 없는데도 매번 LLM을 호출한 것.
+    #   · suppressed 제외 — 하류(correlation→orchestrator)는 open만 본다(correlation 핸들러가
+    #     OPEN만 로드하고 트리아지 게이트도 status=="open"을 요구). 깨워도 결과가 안 바뀐다.
+    #   · 재유입(UPDATE) 제외 — Security Hub는 컴플라이언스 재평가 때마다 같은 finding을 반복
+    #     발행한다. 상태가 그대로인데 다시 조사하면 같은 결론을 내려고 LLM만 태운다.
+    #   · remediated 제외 — 조치로 인한 attack-path 소멸은 engine/remediation.py가 correlation을
+    #     직접 재호출하는 별도 경로로 이미 처리된다(2026-07-10). 여기서 또 걸 필요가 없다.
+    #
+    # 이 조건이 없어서 실제로 터졌다(실측): Security Hub를 켜자 배치마다 파이프라인이 통째로
+    # 재기동됐고 attack-path 3경로 배수까지 곱해져 2시간에 orchestrator 1053회, Bedrock 호출이
+    # 시간당 98→528로 5배 뛰었다.
     #
     # 트리아지 게이트가 "어떤 finding을 조사할지"를 막는다면, 이 조건은 "엔진을 언제 깨울지"를
     # 막는다 — 게이트만으로는 재기동 빈도를 통제할 수 없다는 걸 이 사고가 보여줬다.
-    actionable = [f for f in findings if f.get("status") != "suppressed"]
-    if actionable:
-        _emit_batch_completed(len(actionable))
-    return {"normalized": len(findings), "actionable": len(actionable),
-            "engine_triggered": bool(actionable)}
+    trigger = [f for f in new_findings if f.get("status") == "open"]
+    if trigger:
+        _emit_batch_completed(len(trigger))
+    return {"normalized": len(findings), "new": len(new_findings),
+            "new_open": len(trigger), "engine_triggered": bool(trigger)}
 
 
 def _hydrate(envelope: dict) -> None:
@@ -125,9 +131,16 @@ def _hydrate(envelope: dict) -> None:
     envelope["raw_inline"] = json.loads(obj["Body"].read())
 
 
-def _upsert_findings(findings: list) -> None:
+def _upsert_findings(findings: list) -> list:
+    """upsert 후 **이번에 처음 들어온(INSERT된)** finding 목록을 돌려준다.
+
+    재유입(UPDATE)과 신규(INSERT)를 구분하는 이유: Security Hub는 같은 finding을 컴플라이언스
+    재평가 때마다 반복 발행한다. 상태가 그대로인 재유입까지 엔진을 깨우면 동일한 결론을 내려고
+    LLM을 계속 호출하게 된다(실측: orchestrator가 25분에 11회 돌며 tool-use 루프까지 태움).
+    """
     if not findings:
-        return
+        return []
+    new_findings: list = []
     conn = _connect()
     try:
         with conn, conn.cursor() as cur:
@@ -151,8 +164,12 @@ def _upsert_findings(findings: list) -> None:
                     "last_seen": f["last_seen"],
                     "raw_ref": f.get("raw_ref"),
                 })
+                row = cur.fetchone()
+                if row and row[0]:  # is_new
+                    new_findings.append(f)
     finally:
         conn.close()
+    return new_findings
 
 
 def _emit_batch_completed(count: int) -> None:
