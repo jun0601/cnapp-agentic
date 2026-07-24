@@ -447,6 +447,24 @@ def _make_finding(
         "secret_plaintext","app_registration","service_principal","ecr_repo",
     ):
         resource_type = "other"
+
+    # ── 미매핑 finding은 open이 아니라 suppressed로 내린다(2026-07-23) ──────────
+    # 카탈로그에 없는 체크는 "우리 제품이 해석할 수 없는 신호"이지 "우리가 관리하는 위험"이
+    # 아니다. open으로 두면 실측 두 가지가 망가진다:
+    #   ① Secure Score 붕괴 — 점수는 open findings 심각도 가중으로 산출(console-backend
+    #      getScores)이라, 실계정 Prowler cron이 매일 쏟는 일반 posture 체크 314건이
+    #      점수를 10/100까지 끌어내렸다(깨끗할 땐 AWS 35·Azure 79).
+    #   ② 비용 게이트가 뚫림 — 그 314건 중 Critical 11·High 77 = 88건이 트리아지 게이트
+    #      (severity_id<=2)를 통과해 Bedrock 조사를 유발한다. 비용을 막으라고 만든 게이트가
+    #      정작 노이즈에 열려 있었다(engine/evidence/triage.py).
+    # 지금까지는 발견할 때마다 psql로 DELETE했으나(2026-07-08·07-22 두 번) cron이 매일
+    # 재생성해서 근본 해결이 아니었다. suppressed는 삭제와 다르다 — 데이터는 남아서 총
+    # findings 수 = 실제 수집량 그대로이고(스캐너가 무엇을 봤는지 감사 가능), open 집계와
+    # 트리아지 게이트(status=="open" 조건)에서만 빠진다. 나중에 control-catalog에 매핑을
+    # 추가하면 다음 스캔부터 저절로 open으로 올라온다.
+    if control_id == "INTERNAL-UNKNOWN-001" and status == "open":
+        status = "suppressed"
+
     catalog_meta = _CATALOG.get("controls", {}).get(control_id, {})
     pillar = catalog_meta.get("pillar", "cspm")
     return {
