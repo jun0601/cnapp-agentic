@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useFindings, type FindingsFilter } from '@/api/queries'
 import { PillarFilter } from '@/components/PillarFilter'
 import { FindingCard } from '@/components/FindingCard'
@@ -7,8 +7,25 @@ import { Card, SkeletonRows, ErrorNote } from '@/components/ui'
 import { SEVERITY_LABEL, SEVERITY_DOT } from '@/lib/severity'
 import type { SeverityId } from '@/api/types'
 
+// 필터를 URL 쿼리 파라미터에 실어서, finding 상세로 들어갔다 뒤로가기해도
+// 브라우저 history가 그대로 필터 상태를 복원하게 한다(로컬 useState는 라우트
+// 이동 시 컴포넌트가 언마운트되며 초기화돼 이 문제가 있었음).
 export default function Findings() {
-  const [filter, setFilter] = useState<FindingsFilter>({ sort: 'priority' })
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filter: FindingsFilter = {
+    cloud: searchParams.get('cloud') ?? undefined,
+    pillar: searchParams.get('pillar') ?? undefined,
+    status: searchParams.get('status') ?? undefined,
+    sort: searchParams.get('sort') ?? 'priority',
+  }
+  const setFilter = (f: FindingsFilter) => {
+    const next = new URLSearchParams()
+    if (f.cloud) next.set('cloud', f.cloud)
+    if (f.pillar) next.set('pillar', f.pillar)
+    if (f.status) next.set('status', f.status)
+    if (f.sort) next.set('sort', f.sort)
+    setSearchParams(next)
+  }
   const { data, isLoading, isError, error, refetch, isFetching } = useFindings(filter)
 
   const rows = data ?? []

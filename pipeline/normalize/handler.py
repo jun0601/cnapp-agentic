@@ -72,7 +72,11 @@ VALUES (%(finding_id)s, %(cloud)s, %(resource_id)s, %(resource_type)s, %(pillar)
 ON CONFLICT (dedup_key) DO UPDATE SET
   last_seen   = EXCLUDED.last_seen,
   status      = EXCLUDED.status,
-  severity_id = EXCLUDED.severity_id,
+  -- 2026-07-24: 단순 덮어쓰기였다가, 서로 다른 스캐너가 같은 dedup_key에 다른 심각도를
+  -- 매길 때 "나중에 들어온 스캐너가 이긴다"는 실행 순서 우연에 좌우되는 버그를 실측으로
+  -- 발견(골든 Critical이 실 Macie의 자체 High 라벨로 조용히 다운그레이드됨). 내부 컨벤션상
+  -- 숫자가 낮을수록 심각(1=Critical)하므로 LEAST로 "더 심각한 쪽을 유지"한다 — 순서 무관.
+  severity_id = LEAST(findings.severity_id, EXCLUDED.severity_id),
   title       = EXCLUDED.title,
   sources     = (SELECT ARRAY(SELECT DISTINCT e
                               FROM unnest(findings.sources || EXCLUDED.sources) AS e))

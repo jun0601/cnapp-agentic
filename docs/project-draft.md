@@ -270,7 +270,7 @@ Azure: (MS Graph read-only) Application.Read.All, Directory.Read.All, RoleManage
 | `INTERNAL-SECRET-PLAINTEXT-001` | cspm | `prowler:eks_*_secret_*` · custom(매니페스트 스캔) |
 | `INTERNAL-S3-PUBLIC-001` | cspm | `securityhub:S3.8` · `config:s3-bucket-public-read-prohibited` · `prowler:s3_bucket_public_access` |
 | `INTERNAL-S3-NOENCRYPT-001` | cspm | `securityhub:S3.4` · `config:s3-bucket-server-side-encryption-enabled` |
-| `INTERNAL-DATA-PII-EXPOSED-001` | data | `macie:SensitiveData/*` |
+| `INTERNAL-DATA-PII-EXPOSED-001` | data | `macie:SensitiveData:*` |
 | `INTERNAL-SG-OPEN-INGRESS-001` | cspm | `securityhub:EC2.19` · `prowler:ec2_securitygroup_allow_ingress_from_internet_*` |
 | `INTERNAL-ENTRA-OVERPRIV-APP-001` | ciem | `prowler:entra_id_app_*_overprivileged` |
 | `INTERNAL-ENTRA-RISKY-CONSENT-001` | ciem | `prowler:entra_id_*_consent_*` |

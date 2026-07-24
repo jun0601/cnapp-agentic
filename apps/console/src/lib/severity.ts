@@ -29,8 +29,8 @@ export const SEVERITY_DOT: Record<SeverityId, string> = {
 export const PILLAR_LABEL: Record<Pillar, string> = {
   cspm: 'CSPM',
   ciem: 'CIEM',
-  vuln: '취약점',
+  vuln: 'VULN',
   kspm: 'KSPM',
-  data: '데이터',
-  attack_path: 'Attack-path',
+  data: 'DSPM',
+  attack_path: 'ATTACK-PATH',
 }

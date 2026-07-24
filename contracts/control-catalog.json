@@ -106,7 +106,7 @@
       "title": "Sensitive PII detected in exposed S3 bucket",
       "severity_default": 1,
       "sources": [
-        "macie:SensitiveData/*"
+        "macie:SensitiveData:*"
       ],
       "isms_p": "3.2.2",
       "remediable": true,

@@ -144,10 +144,12 @@ def _parse_asff(raw: dict, source: str, cloud_hint: str) -> List[dict]:
         if "security-control/" in gen:
             ctrl_key = f"securityhub:{gen.split('security-control/')[-1]}"
 
-    # Macie: Types 기반
+    # Macie: Types 기반(ASFF 경유 — 실측상 POLICY 카테고리만 여기로 옴, 2026-07-24).
+    # 와일드카드는 실제 Macie type 포맷("SensitiveData:S3Object/...", 콜론)과 맞춰야 함
+    # — 예전엔 "/"였는데 이러면 절대 안 매칭됐다(_parse_macie 신설 계기로 같이 발견·수정).
     types = raw.get("Types", [])
     if any("SensitiveData" in t for t in types):
-        ctrl_key = "macie:SensitiveData/*"  # wildcard match용
+        ctrl_key = "macie:SensitiveData:*"  # wildcard match용
 
     control_id = lookup_control(ctrl_key) if ctrl_key else None
 
@@ -424,6 +426,57 @@ def _parse_access_analyzer(raw: dict, cloud_hint: str) -> List[dict]:
     )]
 
 
+# ── Macie 파서 (DSPM, custom 포맷) ─────────────────────────────────────
+# 2026-07-24 실측: Macie finding은 category별로 Security Hub relay 여부가 다르다 —
+# POLICY 카테고리(버킷 설정류)는 자동으로 ASFF로 relay되지만, CLASSIFICATION 카테고리
+# (SensitiveData — 우리가 쓰는 PII 탐지)는 Security Hub로 전혀 안 온다(AWS 설계상 구분,
+# 버그 아님). 그래서 scan_securityhub() 경유가 아니라 scanners/cspm/cspm.py의
+# scan_macie()가 macie2.get_findings() 원본을 직접 custom 포맷으로 봉투화해 여기로 온다.
+def _parse_macie(raw: dict, cloud_hint: str) -> List[dict]:
+    """Macie SensitiveData finding(macie2.get_findings 원소, 단건) → finding 1건."""
+    ftype = raw.get("type", "SensitiveData")
+    source_key = f"macie:{ftype}"
+    control_id = lookup_control(source_key) or "INTERNAL-UNKNOWN-001"
+
+    bucket = ((raw.get("resourcesAffected") or {}).get("s3Bucket") or {}).get("name", "")
+    rid = _canon_resource_id(cloud_hint, "s3_bucket", bucket) if bucket else f"{cloud_hint}:s3_bucket:unknown"
+
+    sev_label = ((raw.get("severity") or {}).get("description")) or "MEDIUM"
+    severity_id = _asff_severity(sev_label)
+
+    ts = raw.get("createdAt") or _now()
+    if not isinstance(ts, str):
+        ts = _now()
+    updated = raw.get("updatedAt") or ts
+    if not isinstance(updated, str):
+        updated = ts
+
+    # 실제 발견 건수는 최상위 count(=이 finding 레코드 개수, 항상 1)가 아니라
+    # classificationDetails.result 안의 customDataIdentifiers/sensitiveData 집계에 있다
+    # (2026-07-24 실측: top-level count=1인데 커스텀 식별자 totalCount=200이었음 — 처음엔
+    # count를 그대로 써서 "(1건)"으로 잘못 표시했다가 발견·수정).
+    result = ((raw.get("classificationDetails") or {}).get("result")) or {}
+    cdi_total = (result.get("customDataIdentifiers") or {}).get("totalCount", 0)
+    sens_total = sum(item.get("totalCount", 0) for item in (result.get("sensitiveData") or []))
+    count = cdi_total + sens_total or raw.get("count", 1)
+    title = f"{ftype} detected in {bucket} ({count}건)" if bucket else ftype
+
+    dedup = f"{rid}|{control_id}"
+    return [_make_finding(
+        cloud=cloud_hint,
+        resource_id=rid,
+        resource_type="s3_bucket",
+        control_id=control_id,
+        title=title,
+        severity_id=severity_id,
+        status="open",
+        source_key=source_key,
+        dedup_key=dedup,
+        first_seen=ts,
+        last_seen=updated,
+    )]
+
+
 # ── finding 조립 헬퍼 ─────────────────────────────────────────────────
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -549,6 +602,8 @@ class Normalizer:
                 return _parse_kube_bench(raw, cloud_hint)
             if source == "access-analyzer":
                 return _parse_access_analyzer(raw, cloud_hint)
+            if source == "macie":
+                return _parse_macie(raw, cloud_hint)
             # 그 외 custom(manifest scan 등)은 이미 정규화된 finding dict로 간주
             if "finding_id" in raw:
                 return [raw]

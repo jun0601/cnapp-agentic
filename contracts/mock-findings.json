@@ -74,7 +74,7 @@
       "pillar": "data", "control_id": "INTERNAL-DATA-PII-EXPOSED-001",
       "title": "Sensitive PII (names, RRN patterns) detected in member-pii-prod",
       "severity_id": 1, "status": "open",
-      "sources": ["macie:SensitiveData/PII"],
+      "sources": ["macie:SensitiveData:S3Object/CustomIdentifier"],
       "dedup_key": "aws:s3_bucket:member-pii-prod|INTERNAL-DATA-PII-EXPOSED-001",
       "priority_score": 0.96, "attack_path_id": "a0000000-0000-4000-8000-000000000001",
       "ai_status": "pending", "first_seen": "2026-06-30T02:00:00Z", "last_seen": "2026-06-30T02:00:00Z", "raw_ref": null

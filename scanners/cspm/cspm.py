@@ -16,7 +16,10 @@ mock-first (실 스캐너·계정 없이 CI/데모):
 실 경로 (지연 import — 미설치/무자격 환경에서도 이 모듈 import는 안전):
   scan_securityhub()  — boto3 securityhub.get_findings() → FAILED만 → ASFF 봉투[]
   scan_prowler(...)   — prowler CLI를 `-M json-ocsf`로 실행 → **OCSF** 봉투[]  (Trivy.scan_image과 동형)
-  (Config/Macie/AccessAnalyzer는 동일 패턴으로 확장 — 실배포 시 추가)
+  scan_macie(...)     — boto3 macie2.list_findings()+get_findings() 직접 호출 → custom 봉투[]
+                        (2026-07-24: SensitiveData/CLASSIFICATION 카테고리는 Security Hub로
+                        relay 안 됨을 실측 확인 — scan_securityhub() 경유로는 못 얻는다)
+  (Config/AccessAnalyzer는 동일 패턴으로 확장 — 실배포 시 추가)
 
 실배포 스왑: EventBridge(Security Hub Findings Imported 등) → 수집부(pipeline/ingest) → SQS,
 또는 스캐너를 직접 호출(scan_securityhub/scan_prowler). 봉투화 로직은 무변.
@@ -102,6 +105,30 @@ class CSPMScanner:
         )
         for asff in resp.get("Findings", []):
             envelopes.append(self._build_envelope(asff, "securityhub", "asff", "aws"))
+        return envelopes
+
+    def scan_macie(self, max_results: int = 50) -> List[dict]:
+        """boto3 macie2로 SensitiveData(PII) finding을 직접 조회해 custom 봉투[] 반환.
+
+        2026-07-24 실측: Macie finding 중 CLASSIFICATION 카테고리(SensitiveData — 우리가
+        쓰는 PII 탐지)는 Security Hub로 자동 relay되지 않는다(POLICY 카테고리만 relay됨,
+        AWS 설계상 구분). 그래서 scan_securityhub() 경유로는 절대 안 오고, macie2를
+        직접 호출해야 한다. read-only(macie2:ListFindings/GetFindings).
+        source_format="custom"(ASFF가 아닌 Macie 네이티브 스키마 그대로) — 정규화부의
+        _parse_macie가 이 포맷을 해석한다.
+        """
+        try:
+            import boto3
+        except ImportError as e:  # pragma: no cover
+            raise CSPMScanError("scan_macie는 boto3 필요 — pip install boto3") from e
+        session = boto3.Session(profile_name=self._profile, region_name=self._region)
+        client = session.client("macie2")
+        ids = client.list_findings(maxResults=min(max_results, 50)).get("findingIds", [])
+        envelopes: List[dict] = []
+        if ids:
+            resp = client.get_findings(findingIds=ids)
+            for finding in resp.get("findings", []):
+                envelopes.append(self._build_envelope(finding, "macie", "custom", "aws"))
         return envelopes
 
     def scan_prowler(self, provider: str = "aws", checks: Optional[str] = None,

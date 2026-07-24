@@ -1,4 +1,5 @@
 import type { FindingsFilter } from '@/api/queries'
+import { PILLAR_LABEL } from '@/lib/severity'
 
 const CLOUDS = ['', 'aws', 'azure']
 const PILLARS = ['', 'cspm', 'ciem', 'vuln', 'kspm', 'data']
@@ -9,11 +10,13 @@ function Select({
   label,
   value,
   options,
+  labels,
   onChange,
 }: {
   label: string
   value: string
   options: string[]
+  labels?: Record<string, string>
   onChange: (v: string) => void
 }) {
   return (
@@ -26,7 +29,7 @@ function Select({
       >
         {options.map((o) => (
           <option key={o} value={o}>
-            {o === '' ? '전체' : o}
+            {o === '' ? '전체' : labels?.[o] ?? o}
           </option>
         ))}
       </select>
@@ -44,7 +47,7 @@ export function PillarFilter({
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Select label="클라우드" value={filter.cloud ?? ''} options={CLOUDS} onChange={(v) => onChange({ ...filter, cloud: v || undefined })} />
-      <Select label="기둥" value={filter.pillar ?? ''} options={PILLARS} onChange={(v) => onChange({ ...filter, pillar: v || undefined })} />
+      <Select label="기둥" value={filter.pillar ?? ''} options={PILLARS} labels={PILLAR_LABEL} onChange={(v) => onChange({ ...filter, pillar: v || undefined })} />
       <Select label="상태" value={filter.status ?? ''} options={STATUSES} onChange={(v) => onChange({ ...filter, status: v || undefined })} />
       <Select label="정렬" value={filter.sort ?? 'priority'} options={SORTS} onChange={(v) => onChange({ ...filter, sort: v })} />
     </div>
