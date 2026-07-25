@@ -515,14 +515,15 @@
 
 - 🎨 **시각자료 → `portfolio/agentic-loop.drawio` (편집 가능한 템플릿, 이미 만들어 둠)**: 조사 루프(Orchestrator 지휘 + ①Triage→②Hypothesis→**③Evidence**→④Reasoning)를 가로 흐름으로 그리고, **③ Evidence를 파란 강조 박스**로 띄운 뒤 그 아래 "AWS read-only API(실 클라우드)" 박스와 **왕복 화살표 2개**(① 파란색 = LLM이 `(api, resource_id)` 골라 호출 / ② 초록색 = 실 응답을 되먹임)로 연결했다. 왼쪽엔 빨간 "허용 목록 2중 강제 · 변경 API 0종" 가드, 오른쪽엔 "최대 6회 반복 → 스스로 종료" 주석, 하단엔 핵심 문장. **이 왕복 화살표가 "챗봇 탈출"의 시각적 증거다** — draw.io에서 열어 색·문구만 다듬어 캔바에 이미지로 넣으면 된다(이 단계들은 AWS 서비스가 아니라 우리 로직이라 서비스 아이콘 없이 박스로 간다).
 
-**▶ 캔바에 그대로 넣을 카피:**
+**▶ 캔바에 그대로 넣을 카피 (v2 — Orchestrator를 상단 한 줄로 분리 / 단계별 토큰 실측 추가):**
 
-[제목] 에이전틱 엔진 — Orchestrator가 지휘하는 4단계 능동 조사 루프
+[제목] 에이전틱 엔진 — 4단계 능동 조사 루프
 
 [중제목] 기존 'AI 보안'이 수집된 데이터를 요약하는 챗봇 수준이라면, 이 엔진은 Bedrock이 read-only API를 스스로 호출·조사해 근거 기반으로 위험을 판정
 
-[조사 루프 — Orchestrator가 지휘하는 4단계]
-Orchestrator (지휘자) — 아래 4단계를 순차 호출 · 조사 케이스 조립 → RDS 저장 (자체 산출물이 없어 화면엔 카드 없음)
+[상단 한 줄 — 4단계 박스 바로 위] Orchestrator(지휘자)가 아래 4단계를 순차 호출하고 조사 케이스로 조립해 RDS에 저장 — 자체 산출물이 없어 화면엔 카드가 없음(4단계와 1:1)
+
+[조사 루프 — 4단계]
 ① Triage (비용 통제 게이트) — Bedrock 부르기 전 규칙으로 선별. 게이트 = severity_id ≤ 2 OR attack_path_id ≠ null. 승급된 소수만 통과 (실측: 20건 → 12건)
 ② Hypothesis (가설 생성) — 승급 finding·attack-path로 검증 가능한 공격 가설 생성. Converse toolChoice로 구조화 출력 강제
 ③ Evidence (tool-use 루프, 핵심 단계) — LLM이 검증할 read-only API를 스스로 골라 호출. 응답을 toolResult로 되먹임(최대 6회), 충분하면 스스로 종료
@@ -534,7 +535,7 @@ Orchestrator (지휘자) — 아래 4단계를 순차 호출 · 조사 케이스
 
 [조사용 AWS read-only API 9종] s3:GetBucketPolicy · GetBucketAcl · GetPublicAccessBlock · iam:GetRolePolicy · ListAttachedRolePolicies · SimulatePrincipalPolicy · macie2:GetFindings · ec2:DescribeSecurityGroups · accessanalyzer:ListFindings
 
-[모델 캡션] Bedrock Claude Haiku 4.5 (서울 global inference profile · 고빈도 tool 라우팅이라 저가 티어)
+[모델·토큰 캡션] Bedrock Claude Haiku 4.5 (서울 global inference profile · 고빈도 tool 라우팅이라 저가 티어) · 관제앱이 단계별 토큰을 실측·귀속(EMF, 케이스 예): triage 0 · hypothesis 8,730 · evidence 4,802 · reasoning 994 tok
 
 [강조 배지] ✔ 챗봇 탈출의 단일 기준 — 규칙이 정한 API가 아니라 LLM이 스스로 선택·호출
 
@@ -732,6 +733,13 @@ HITL 승인 경로 (실증 완료)
 [축 3 — 컴퓨트·데이터] EKS 1.34(관리형 노드그룹 spot t3.small, scale 0~2) + Karpenter(spot 우선·on-demand 폴백) + HPA. RDS PostgreSQL 16 t3.micro + pgvector(private subnet, Secrets Manager). Lambda는 VPC 내부 배치.
 
 [강조 문구] 6레이어 · 리소스 374개를 순서대로 apply → 검증 → destroy까지 완주, 잔존 리소스 0
+
+[시각자료 계획 — 현재의 X-Ray 서비스맵 placeholder를 교체. deploy.ps1 실행 터미널 캡처 4컷으로. ⚠️ 다음 "클린 apply→destroy 한 사이클"에서 촬영(2026-07-25 결정 — 이번엔 안 찍고 destroy만 함):]
+① apply 정방향 — `== terraform apply | order: shared -> karpenter -> target -> backend -> console -> monitoring ==` + 레이어별 `Apply complete! Resources: N added` + karpenter 헬스게이트 통과 라인
+② destroy 역방향 — `== terraform destroy | order: monitoring -> ... -> shared ==` + 레이어별 `Destroy complete! Resources: N destroyed`
+③ 안전 훅 실동작(차별점) — `[monitoring] releasing Grafana Ingress ALB → deleted` + `[karpenter] orphan-node sweep: terminating N node(s) → pod ENIs cleared`
+④ 검증=전부 0(★픽) — `EKS [] · RDS [] · VPC 없음 · Lambda [] · ALB [] · 미부착EIP [] · availableEBS []` + `잔존 = tfstate·cloudtrail·config 버킷 + Route53 (~$0)` — footer "apply→검증→destroy 완주, 잔존 0"을 화면으로 증명
+(대안 ④: shared destroy가 노드 SG DependencyViolation으로 멈춤 → 고아 pod ENI 삭제 → 재개 캡처 = "실패도 프로처럼 복구" 어필, 취향. ③이 이미 안전 훅을 보여주니 깔끔한 ④ 검증 추천)
 
 ---
 
