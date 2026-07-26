@@ -38,7 +38,7 @@ src/
 ├── api/         client.ts(typed fetch) · queries.ts(TanStack) · types.ts(계약 타입)
 ├── components/  SeverityBadge · FindingCard · PillarFilter · ScoreCard · EvidenceTab · AttackPathGraph · EmptyState
 ├── mocks/       handlers.ts(MSW ← contracts/mock-*.json) · browser.ts
-├── pages/       Dashboard · Findings · FindingDetail · AttackPath · Remediation · Compliance · Audit · Login
+├── pages/       Dashboard · Findings · FindingDetail · AttackPath · Chat · System · Remediation · Compliance · Audit · Login · Callback
 ├── lib/         auth.ts(Cognito/RBAC) · severity.ts
 ├── App.tsx · router.tsx · main.tsx
 ```
@@ -51,6 +51,8 @@ src/
 | Finding 상세 — Evidence 탭 | `mock-cases.json` (finding_id∈case.finding_ids 조인, UC0 능동조사) |
 | Finding 상세 — AI 설명 | finding당 파생 explanation (`ai_status`≠done이면 placeholder) |
 | Attack-path 그래프 | `mock-attack-paths.json` (**3경로** — hero 크로스클라우드 + AWS 단독 + Azure 단독, cross_cloud 강조) |
+| AI 어시스턴트 (`/chat`) | RAG 검색(mock=에코 / real=Titan→pgvector→Bedrock) |
+| AI·시스템 관측 (`/system`) | 시스템 통계(mock 상수 / real=RDS + CloudWatch Bedrock 집계) |
 | 대시보드 점수 | 목업 상수 |
 
 > **데모 심장(§15.6):** 대시보드 → Findings(우선순위) → Finding 상세 **Evidence 탭(AI가 read-only API 4회 호출)** → Attack-path(AWS→Azure 횡단) → 조치 승인.

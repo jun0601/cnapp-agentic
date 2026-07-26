@@ -41,7 +41,7 @@
 | 화면 | 내용 | 연관 유스케이스 |
 |---|---|---|
 | **로그인** | Entra ID SSO (SPA → Cognito Hosted UI, OIDC/PKCE) | 10번 |
-| **대시보드 홈** | **AWS secure score 카드(주·크게) + Azure Entra CIEM/Defender score 카드(보조·작게)** — 80/20 비중 반영. 6기둥 요약 카드(AWS 중심·Azure CIEM 보조), **클라우드 경계를 가로지르는 최근 크로스클라우드 attack-path 배너**(멀티클라우드 차별점을 첫 화면에서 강조) | — |
+| **대시보드 홈** | **AWS secure score 카드(주·크게) + Azure Entra CIEM score 카드(보조·작게)** — 80/20 비중 반영. 6기둥 요약 카드(AWS 중심·Azure CIEM 보조), **클라우드 경계를 가로지르는 최근 크로스클라우드 attack-path 배너**(멀티클라우드 차별점을 첫 화면에서 강조) | — |
 | **Findings 목록** | 6기둥 필터(CSPM/CIEM/취약점/KSPM/데이터/attack-path), 클라우드 필터(AWS/Azure), 상태 필터(open/remediated/suppressed, 기본 open), AI 우선순위 정렬(기본값) | UC2 |
 | **Finding 상세** | **AI 설명 카드(UC1 = finding당 `finding_explanations.ai_summary`+근거 CIS/KEV+조치법)** · **Evidence 탭(UC0 = 이 finding을 포함하는 `case`의 `evidence[]`·판정·신뢰점수, tool 호출 타임라인 stepper)** · **🤖 AI 재조사 버튼(approver 전용 — `POST /findings/:id/reanalyze` → orchestrator Lambda 비동기 invoke → 실 Bedrock tool-use 재조사, 지연 폴링으로 갱신)**. **`ai_status`≠done이면 AI 자리에 placeholder**. **finding 본문(설정·심각도)은 ai_status 무관하게 항상 표시**(AI 레이어 죽어도 대시보드 생존) | UC0, UC1 |
 | **Attack-path 그래프** | 노드(리소스)+엣지(관계) 시각화, **AWS 워크로드/Azure 신원 클라우드 경계를 시각적으로 구분(레인/박스)하고 경계를 넘는 크로스클라우드 엣지를 강조**, "공격자가 AWS 워크로드로 들어와 ~를 타고 **Azure Entra ID 신원까지 장악**" 내러티브 텍스트 | UC3 |
@@ -175,7 +175,7 @@ pgvector 위에 둘 주요 테이블과 컬럼·용도를 정리한 표다.
 [조치 적용]  HITL 승인 → Step Functions → 리소스 변경(예: 버킷 private화, SG 0.0.0.0 제거)
      │
      ▼
-[다음 스캔 주기]  스캐너 재스캔(Config/Prowler/Inspector/Trivy/kube-bench/Defender) → 그 위반을 더는 발견 못 함
+[다음 스캔 주기]  스캐너 재스캔(Config/Prowler/Inspector/Trivy/kube-bench) → 그 위반을 더는 발견 못 함
      │
      ▼
 [수집 파이프라인]  재스캔 결과 OCSF 정규화 → 엔진이 기존 finding과 dedup_key(resource_id + control_id)로 대조
@@ -252,7 +252,7 @@ pgvector 위에 둘 주요 테이블과 컬럼·용도를 정리한 표다.
 
 ```
 [타깃 앱] → AWS/Azure 계정에 배포만 됨
-              │ read-only 스캔(Config·Prowler·Inspector·Trivy·kube-bench·Macie·Defender)
+              │ read-only 스캔(Config·Prowler·Inspector·Trivy·kube-bench·Macie)
               ▼
         [ findings ] → EventBridge→SQS→Lambda → OCSF 정규화 → 공유 에이전틱 엔진 → pgvector
                                                                                     │
@@ -363,14 +363,14 @@ Day 단위 콘솔 작업과 연계 절을 정리한 표다.
 | `GET /findings/:id` | Finding 상세(UC0·UC1) | **finding + explanation(finding당) + case(finding_id를 포함하는 case 조인, 없으면 null)** | mock-findings + mock-cases |
 | `GET /attack-paths` | 대시보드 배너 | `attack_path[]`(요약) | mock-attack-paths.json |
 | `GET /attack-paths/:id` | attack-path 화면(UC3) | attack_path(nodes·edges·narrative) | mock-attack-paths.json |
-| `GET /scores` | 대시보드 홈 | `{aws, azure}` secure score | (목업 상수) |
+| `GET /scores` | 대시보드 홈 | `{aws, azure}` secure score | 실 RDS 산출(라이브) |
 | `POST /remediations/:id/{approve,reject}` | 조치(UC4) | → Step Functions `StartExecution`만 | (목업 200) |
 | `POST /findings/:id/reanalyze` | Finding 상세 AI 재조사(approver) | → orchestrator Lambda **비동기 invoke**(실 Bedrock 재조사), 202 | (목업 202) |
-| `GET /audit` | 감사로그 뷰어 | `audit[]` | (목업) |
+| `GET /audit` | 감사로그 뷰어 | `audit[]` | 실 RDS 산출(라이브) |
 | `GET /system` | AI·시스템 관측 | `{live, models, rag, bedrock(24h), data}` — RDS 통계 + CloudWatch Bedrock 집계 | (목업 상수) |
 | `POST /chat` | AI 어시스턴트(`/chat`) | `{answer, refs[]}` — Titan→pgvector→Bedrock RAG | (목업 에코) |
 
-> **`GET /scores` 실데이터 출처:** MVP는 목업 상수. 실데이터 = AWS **Security Hub** secure score + Azure **Defender/Entra** score를 배치로 pgvector(`scores` 테이블)에 적재 → 조회. **`POST /findings/:id/reanalyze`는 선택 기능**(§6 재분석) — 데모 필수 아님.
+> **`GET /scores` 실데이터 출처:** 실 open findings 심각도 가중으로 RDS에서 산출(라이브, §4.4.1) — AWS는 Security Hub 대체, **Azure는 Entra CIEM findings 기반**(Defender는 범위 제외 D11). **`POST /findings/:id/reanalyze`는 선택 기능**(§6 재분석) — 데모 필수 아님.
 
 ### 15.3 apps/console 폴더 구조
 

@@ -5,7 +5,7 @@
 > **관련 문서:** 타깃 앱 상세 → [target-app-design.md](target-app-design.md) · 관제 앱 상세 → [console-app-design.md](console-app-design.md) · 수동 관리 리소스 현황 → [manual-infra.md](manual-infra.md) · 협업 규칙 → [CLAUDE.md](../CLAUDE.md)
 > **읽는 순서:** 처음 합류한 사람은 이 문서를 먼저 통독한 뒤 타깃/관제 상세로 내려간다.
 >
-> 상태: 설계 확정 / **풀스택 라이브 검증 완료(2026-07-07)** — 전 레이어 apply(shared·karpenter·target·backend·console, monitoring은 진우 별도) + **커스텀 도메인·ACM·SSO 실 로그인**(Entra→Cognito, APPROVER) + **ArgoCD GitOps로 타깃 앱 실기동**(member/product/order Running, CI→ECR→ArgoCD 관통) + **데이터평면 관통**(스캐너→정규화→상관→오케스트레이터 실 Bedrock tool-use) + **RAG /chat·AI·시스템 관측·능동조사 Evidence** 라이브 + **보안 하드닝 7종** + **실 findings**(kube-bench·Trivy 라이브 스캔). 콘솔 실데이터 크래시 2건(sources·Evidence case 필드)·PII seeder 403·Karpenter 고아노드 등 실버그 봉합. **남은 것 = 계정 구독제약 보안서비스 4종(Security Hub·Macie·Inspector·GuardDuty)·Prowler opt-in뿐.** 상세 진행은 [CLAUDE §7.1](../CLAUDE.md)·[README 구현 현황](../README.md)·[troubleshooting.md](../troubleshooting.md).
+> 상태: 설계 확정 / **풀스택 라이브 검증 완료(2026-07-07~24)** — 전 레이어 apply(shared·karpenter·target·backend·console, monitoring은 진우 별도) + **커스텀 도메인·ACM·SSO 실 로그인**(Entra→Cognito, APPROVER) + **ArgoCD GitOps로 타깃 앱 실기동**(member/product/order Running, CI→ECR→ArgoCD 관통) + **데이터평면 관통**(스캐너→정규화→상관→오케스트레이터 실 Bedrock tool-use) + **RAG /chat·AI·시스템 관측·능동조사 Evidence** 라이브 + **보안 하드닝 7종** + **실 findings**(kube-bench·Trivy 라이브 스캔). 콘솔 실데이터 크래시 2건(sources·Evidence case 필드)·PII seeder 403·Karpenter 고아노드 등 실버그 봉합. **전 레이어 + 보안서비스 6종(SecurityHub·Macie·Inspector·GuardDuty·Detective·Config) 실검증 완료(2026-07-24, 이후 full destroy로 baseline만) · Prowler는 GitHub Actions cron으로 AWS+Azure 라이브 스캔.** 상세 진행은 [CLAUDE §7.1](../CLAUDE.md)·[README 구현 현황](../README.md)·[troubleshooting.md](../troubleshooting.md).
 > 성격: 2인 협업 개인 프로젝트(작업 분담, 각자 전체 이해) · 클라우드 보안 엔지니어 포트폴리오
 > 한 줄: **AWS는 워크로드의 주인, Azure는 신원의 주인(Entra ID)** — 분산된 멀티클라우드 환경을 하나의 에이전틱 CNAPP으로 점검·통합·자동 개선.
 
@@ -721,7 +721,7 @@ MVP 코퍼스: A(CIS AWS+K8s) + FSBP + C(KEV) + E(자체 루브릭).
 | Day | 준형 | 진우 |
 |---|---|---|
 | 6–7 | 우선순위 정렬(#2)·관제 대시보드 v1 | attack-path 그래프 1차, 관측 스택 |
-| 8 | **Azure Defender + Entra 통합(멀티클라우드)** | 크로스클라우드 attack-path 시나리오 |
+| 8 | **Azure Entra 통합(멀티클라우드)** (Defender는 범위 제외 — D11) | 크로스클라우드 attack-path 시나리오 |
 | 9 | Shift-Left CI 게이트 + 자동개선 1~2종(HITL) | 워크로드 finding 대시보드 연계 |
 | 10 | 데모 완성 + KPI 측정 + 스크린샷/영상 | 〃 |
 

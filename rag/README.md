@@ -55,7 +55,7 @@ finding (계약①)
    │
    ▼  RAGAnswerGenerator.generate(finding, chunks, evidence)
    │     mock: 템플릿 기반 한국어 설명 조합
-   │     real: Bedrock Claude Sonnet converse API
+   │     real: Bedrock Claude Haiku converse API (설계는 Sonnet, 미승인이라 env RAG_MODEL_ID로 스왑)
    │             system = "지식베이스: {청크 텍스트들}"
    │             user   = finding 정보 + 에이전트 조사 결과
    │
@@ -94,7 +94,7 @@ python -m rag.retrieval.run_demo
 ```
 
 **출력 요약(corpus):**
-1. 진우 `mock_corpus.all_chunks()`(24개, embedding 없음) 로드
+1. 진우 `mock_corpus.all_chunks()`(26개, embedding 없음) 로드
 2. `CorpusLoader.load(dry_run=True)` — mock 임베딩(결정적 1024-dim)으로 계약⑥ 청크 완성
 3. 계약⑥ 검증(embedding[1024]·model/dim const·metadata.control_id) 전 청크 OK
 4. 같은 텍스트 → 같은 벡터(결정성) 확인
@@ -157,7 +157,7 @@ chunk = loader.to_chunk(seed)
 
 # 여러 청크 일괄 적재. dry_run=True면 DB 없이 계약⑥ 청크만 생성(mock)
 result = loader.load(seed_chunks, dry_run=True)
-# result = {"loaded": 24, "dim": 1024, "model": "amazon.titan-embed-text-v2:0",
+# result = {"loaded": 26, "dim": 1024, "model": "amazon.titan-embed-text-v2:0",
 #           "controls": [...15종...], "chunks": [...]}
 ```
 
@@ -222,7 +222,7 @@ contracts/rag-chunk.schema.json
 |---|---|---|
 | `CorpusLoader(mock=True)` — 결정적 벡터 + dry-run | `CorpusLoader(mock=False, pg_dsn=...)` — Titan Embed v2 + pgvector UPSERT | corpus/loader.py |
 | `RAGRetriever(mock=True)` — control_id 직접 매핑 | ✅**구현됨**(2026-07-04) `RAGRetriever(mock=False, pg_dsn=...)` — Titan Embed v2로 쿼리 임베딩 → `embedding <=> vec`(pgvector cosine) top_k. 적재부와 동일 Titan 모델(벡터 정합) | retrieval/retriever.py |
-| `RAGAnswerGenerator(mock=True)` — 템플릿 | ✅**구현됨** `RAGAnswerGenerator(mock=False)` — Bedrock Sonnet converse(청크+evidence를 프롬프트에) + `usage.totalTokens` 캐처 | retrieval/answer_gen.py |
+| `RAGAnswerGenerator(mock=True)` — 템플릿 | ✅**구현됨** `RAGAnswerGenerator(mock=False)` — Bedrock Haiku converse(설계는 Sonnet, 미승인이라 env 스왑 / 청크+evidence를 프롬프트에) + `usage.totalTokens` 캐처 | retrieval/answer_gen.py |
 
 **전제조건(실배포 전):**
 1. `PG_DSN` 환경변수 — RDS pgvector DSN

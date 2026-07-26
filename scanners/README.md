@@ -17,9 +17,9 @@
 ```
 AWS                              Azure
 ─────────────────────────────    ────────────────────────────────
-CSPM  Security Hub · Prowler     CSPM  Defender for Cloud · Prowler
-CIEM  IAM Access Analyzer        CIEM  Entra ID (Prowler entra_id_*)
-Vuln  Inspector · Trivy ★        Vuln  Defender Containers
+CSPM  Security Hub · Prowler     CSPM  (범위 제외 — D11)
+CIEM  IAM Access Analyzer        CIEM  Entra ID (Prowler entra_*)
+Vuln  Inspector · Trivy ★        Vuln  (범위 제외 — D11)
 KSPM  kube-bench                 (KSPM 해당 없음)
 Data  Macie (S3 PII)
 IaC   (Shift-Left — CI 단계)
@@ -36,7 +36,7 @@ IaC   (Shift-Left — CI 단계)
 ```
 scanners/
 ├── cspm/                   (준형 — 설정·데이터·AWS 권한 — 완료 ✅)
-│   ├── cspm.py    ★ CSPMScanner — Security Hub·Macie(ASFF) + Prowler(AWS/Azure CLI 공용) → 계약⑤ envelope
+│   ├── cspm.py    ★ CSPMScanner — Security Hub(ASFF)·Macie(macie2 직접)·Prowler(AWS/Azure CLI 공용) → 계약⑤ envelope
 │   └── run_demo.py   데모 + 골든 정합 검증
 ├── workload/               (진우 — 워크로드 취약점·KSPM — 완료 ✅)
 │   ├── trivy.py       ★ TrivyScanner — 컨테이너 이미지 CVE 스캔
@@ -51,9 +51,12 @@ scanners/
 
 > **Inspector:** 별도 스캐너 코드 불필요 — Inspector finding은 Security Hub API로 올라와서
 > `scanners/cspm/cspm.py`의 `CSPMScanner.scan_securityhub()`(ASFF 공통 파서)가 이미 커버함
-> (2026-07-03 확인). 남은 건 AWS 계정에서 Inspector 서비스를 켜는 것뿐(순수 infra 항목).
-> **Defender for Cloud:** Azure 리소스 secure score라 계정에서 실제로 켜야 나옴 — 데모 시연
-> 시간대만 활성화(코드로 미리 만들 수 있는 부분 없음).
+> (2026-07-03 확인). **2026-07-24 라이브 관통 확인** — normalizer가 Inspector ASFF의
+> `ProductFields`·`Compliance` 명시적 `null`에 크래시하던 것을 null-safety 수정하고, CVE
+> finding은 제목 패턴으로 `inspector:CVE-*` 라벨로 정확히 매핑(Trivy와 크로스스캐너 dedup 실증).
+> AWS 계정에서 Inspector 서비스만 켜면 됨(순수 infra 항목).
+> **Defender for Cloud:** 범위 제외(D11) — Azure 실 리소스가 0개(Entra 신원 객체뿐)라 CSPM
+> 평가 대상이 없음. Azure는 순수 Entra CIEM(Prowler entra_*)만 스캔한다.
 
 ---
 
@@ -200,7 +203,7 @@ subprocess 실행 로직은 `scanners/cspm/cspm.py`의 `CSPMScanner.scan_prowler
 | `entra_app_registration_no_unused_privileged_permissions` | `INTERNAL-ENTRA-OVERPRIV-APP-001` | ciem |
 | `entra_policy_restricts_user_consent_for_apps` | `INTERNAL-ENTRA-RISKY-CONSENT-001` | ciem |
 | `entra_app_registration_credential_not_expired` | `INTERNAL-ENTRA-SP-CRED-001` | ciem |
-| `entra_id_app_redirect_uri_insecure` | `INTERNAL-ENTRA-INSECURE-CFG-001` | cspm (Defender secure-score 축) |
+| `entra_id_app_redirect_uri_insecure` | `INTERNAL-ENTRA-INSECURE-CFG-001` | cspm (Entra 앱 설정 미스컨피그) |
 
 ---
 
@@ -246,9 +249,9 @@ subprocess 실행 로직은 `scanners/cspm/cspm.py`의 `CSPMScanner.scan_prowler
 | Trivy (컨테이너 이미지 CVE) | vuln | AWS | 진우 | ✅ 완료 |
 | Security Hub (ASFF) | cspm | AWS | 준형 | ✅ 완료(`scan_securityhub`) |
 | Prowler (AWS) | cspm·ciem | AWS | 준형 | ✅ 완료(`scan_prowler(provider="aws")`) |
-| Macie (S3 PII) | cspm(data) | AWS | 준형 | ✅ 완료(Security Hub ASFF 경유) |
+| Macie (S3 PII) | cspm(data) | AWS | 준형 | ✅ 완료(macie2 직접 수집 — CLASSIFICATION/PII finding은 Security Hub relay 불가) |
 | IAM Access Analyzer | ciem | AWS | 준형 | ✅ **구현 완료** — `scanners/ciem/aws_access_analyzer.py`(`scan_from_json`+실 `scan_access_analyzer`) + `publish_access_analyzer.py`(EventBridge 발행) + `.github/workflows/access-analyzer-scan.yml`(OIDC 키리스 cron). 수신부 = `normalizer._parse_access_analyzer` |
 | Prowler entra_id_* | ciem | Azure | 진우 | ✅ 완료(`scanners/ciem/`) |
 | kube-bench (CIS 벤치마크) | kspm | AWS/EKS | 진우 | ✅ 완료(`scanners/workload/kube_bench.py`, mock 검증. 실 경로는 EKS apply 후 검증) |
-| Inspector | vuln | AWS | 진우 | 별도 코드 불필요 — `scan_securityhub()`가 이미 커버, 계정에서 서비스만 켜면 됨 |
-| Defender for Cloud | cspm·vuln | Azure | 진우 | 데모 때만 |
+| Inspector | vuln | AWS | 진우 | ✅ 별도 코드 불필요 — `scan_securityhub()`가 커버 + normalizer null-safety·`inspector:CVE-*` 라벨로 라이브 관통(2026-07-24). 계정에서 서비스만 켜면 됨 |
+| Defender for Cloud | cspm·vuln | Azure | 진우 | 범위 제외(D11 — Azure 실 리소스 0) |

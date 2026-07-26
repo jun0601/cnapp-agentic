@@ -113,7 +113,7 @@
 | **위험한 consent grant** (검증 안 된 앱에 광범위 위임 동의) | Entra (CIEM) |
 | **Entra 권한상승 경로** (Service Principal/계정에 과도한 디렉터리 역할 할당) | Entra (CIEM) |
 | **만료 없는/유출 위험 SP 자격증명** (order 평문 시크릿으로 노출되는 그 자격증명) | Entra (CIEM) |
-| ★ (선택) Defender secure score를 깎는 일반 리소스 미스컨피그 | Defender for Cloud |
+| ~~★ (선택) Defender secure score를 깎는 일반 리소스 미스컨피그~~ | ~~Defender for Cloud~~ → **범위 제외(D11 — Azure 실 리소스 0)** |
 
 > 공통(전 서비스 적용 가능): CloudTrail 미설정 리전, 미사용 보안그룹, 태그 미설정 등 — secure score 깎는 잔결함은 자동으로 다수 발생(secure score 채점용).
 
@@ -173,7 +173,7 @@ LLM이 이 신호들(취약점+KSPM+CIEM+CSPM+데이터, **AWS 워크로드→Az
    │  │ read-only 스캔(agentless)       │
    ▼  │                                │
 [ 스캐너: Config·Prowler·Inspector·    │
-   Trivy·kube-bench·Macie·Defender ]   │
+   Trivy·kube-bench·Macie ]            │
    │                                   │
    ▼                                   │
 [ findings ] → EventBridge→SQS→Lambda → OCSF 정규화 → 벡터DB/엔진 ─┘

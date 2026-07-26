@@ -84,6 +84,8 @@ escalate = status == "open" and (sev <= 2 or on_path)
 
 승급된 finding마다 **"이게 진짜면 이런 위험이다"라는 검증 가능한 가설**을 만든다. 지금은 `control_id → 템플릿` 규칙(`_HYPOTHESIS_BY_CONTROL`). attack-path에 `cross_cloud` 엣지가 있으면 **크로스클라우드 체인 가설**(AWS 침해 → 평문 Azure SP → Entra 장악)을 추가 — 골든 시나리오 핵심. 이 가설이 ③ Evidence가 "뭘 확인할지"의 근거가 된다.
 
+✅ 실배포에선 `engine/reasoning/bedrock_hypothesis.py`가 주입돼 **LLM이 가설을 생성**한다(2026-07-10 라이브 배선·검증) — 규칙 템플릿에 없는 조합형 추론(CVE+Privileged 컨테이너 등)을 실제로 만든다.
+
 ### ❤️ ③ Evidence — ★ 심장 — [evidence/evidence.py](evidence/evidence.py)
 
 **(a) 계획 — "어떤 툴을 부를까"를 스스로 정함**

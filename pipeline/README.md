@@ -36,7 +36,7 @@
 
 ```
 pipeline/
-├── ingest/                  (준형 — 완료 ✅, 코드 세팅. 실배포는 infra apply 후)
+├── ingest/                  (준형 — 완료 ✅, 라이브 관통 검증 완료)
 │   ├── ingest.py   ★ Ingestor 클래스 — 입구 2종 → 계약⑤ 봉투 → SQS(dry-run/실)
 │   └── run_demo.py    데모 실행 + 수집→정규화 핸드오프 검증
 └── normalize/               (진우 — 완료 ✅)
@@ -116,7 +116,7 @@ ing.publish(envelopes, dry_run=False)   # boto3 sqs.send_message
 | `prowler-json` | Prowler native JSON (목업·직접 호출) | `_parse_prowler()` |
 | `ocsf` | **실 Prowler(`-M json-ocsf`) — AWS+Azure 공통** | `_parse_ocsf()` |
 | `trivy-json` | Trivy (컨테이너 이미지) | `_parse_trivy()` |
-| `custom` | `source`로 3분기 | `kube-bench`→`_parse_kube_bench` · `access-analyzer`→`_parse_access_analyzer` · 그 외에만 passthrough |
+| `custom` | `source`로 4분기 | `kube-bench`→`_parse_kube_bench` · `access-analyzer`→`_parse_access_analyzer` · `macie`→`_parse_macie` · 그 외에만 passthrough |
 
 > **`ocsf` 파서 = 실 Prowler 경로 확정판**(설계 §24·계약⑤). 실 Prowler는 `-M json-ocsf`로 출력하고, 준형 `ingest.from_s3_event()`가 이 결과를 `source_format="ocsf"`로 봉투화한다. OCSF는 **클라우드 중립**이라 AWS 전용 ASFF와 달리 Azure Entra까지 **파서 하나로** 커버 — "멀티클라우드 OCSF 통합" 셀링포인트와 정합. (`prowler-json`은 CLI 없이 native dict를 직접 넣는 목업/직접호출 경로로 유지.) OCSF는 Prowler 버전별로 필드 위치가 달라 `metadata.event_code`(check_id)·`resources[].group.name`(service)·`severity`/`severity_id`를 방어적으로 탐색한다.
 
@@ -160,7 +160,7 @@ dedup_key = "aws:s3_bucket:member-pii-prod|INTERNAL-S3-PUBLIC-001"
 
 **ingest.py·normalizer.py 로직은 무변** — 각 Lambda 핸들러에서 `Ingestor().lambda_handler(event)` / `Normalizer().normalize(envelope)`를 호출하기만 하면 실배포 전환 완료. 전제조건: `infra/shared` apply(EventBridge 룰·SQS 큐·Lambda) 완료.
 
-> **✅ 2026-07-02 — 이 스왑 코드가 이미 작성됨:** `pipeline/ingest/handler.py`·`pipeline/normalize/handler.py`(Lambda 진입점 — 이벤트 어댑팅 + RDS upsert + `cnapp.findings.batch.completed` 발행). 스키마 = [`infra/shared/db/schema.sql`](../infra/shared/db/schema.sql), 배포 = [`infra/backend`](../infra/backend/). 라이브 검증은 apply 세션.
+> **✅ 2026-07-02 — 이 스왑 코드가 이미 작성됨:** `pipeline/ingest/handler.py`·`pipeline/normalize/handler.py`(Lambda 진입점 — 이벤트 어댑팅 + RDS upsert + `cnapp.findings.batch.completed` 발행). 스키마 = [`infra/shared/db/schema.sql`](../infra/shared/db/schema.sql), 배포 = [`infra/backend`](../infra/backend/). **라이브 관통 검증 완료**(수집→정규화→RDS 실관통).
 
 ---
 

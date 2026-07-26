@@ -5,7 +5,7 @@
 > **폴리글랏:** console(프론트+백엔드) = TypeScript / engine·pipeline = Python. 이음새는 contracts.
 
 ## 왜 있나 (콘솔 실데이터 스왑의 keystone)
-지금 콘솔은 MSW가 `contracts/mock-*.json`을 서빙해 백엔드 0으로 돈다. 이 백엔드가 그 자리를 대체:
+MSW(`contracts/mock-*.json` 서빙)는 **로컬 개발 하네스**이고, 실배포는 이 백엔드가 **ALB→Lambda로 실 RDS를 응답한다(라이브)**.
 프론트 `VITE_USE_MOCK=false` + `VITE_API_BASE=<ALB URL>` → 이 Lambda가 응답(**프론트 코드 무변**, §15.5 스왑 포인트).
 
 ## API 표면 (§15.2 — 전부 read-only, 쓰기는 SFn로만)
