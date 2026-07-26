@@ -69,6 +69,42 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 
 `https://localhost:8080` (self-signed 경고 무시) → admin 로그인 → 사이드바 접고 줌 70%로 맞춰야 트리 전체가 들어간다.
 
+## 인프라 터미널 캡처 (PPT 인프라 설계 슬라이드용)
+
+`deploy.ps1` 실행 화면 4컷 — "순서를 코드로 강제 + 잔존 0"을 동작으로 증명한다.
+PPT 인프라 설계 슬라이드의 placeholder를 이 4컷으로 교체한다.
+**인프라를 올렸다 내리는 한 사이클에서 한 번에 찍는다**(콘솔/ArgoCD 캡처와 같은 세션).
+
+**도구·보기 (이게 "깔끔하게 보이는" 전부):**
+
+- Windows Terminal → **PowerShell 탭** (VS Code 하단 패널 X · cmd X — `deploy.ps1`은 .ps1이라 PowerShell 필요)
+- 다크 테마 · 폰트 16pt · 창 넓게(줄바꿈 방지) · 매 컷 전 `clear`
+
+**4컷:**
+
+| 컷 | 명령 / 시점 | 보이게 크롭할 것 |
+|---|---|---|
+| ① apply 정방향 | `.\infra\deploy.ps1 -Action apply -AutoApprove` (완료 후) | 맨 위 `order: shared -> ... -> monitoring` 배너 + 레이어별 `Apply complete! Resources: N added` |
+| ② destroy 역방향 | `.\infra\deploy.ps1 -Action destroy -AutoApprove` (완료 무렵) | `order: monitoring -> ... -> shared` + 레이어별 `Destroy complete! Resources: N destroyed` |
+| ③ 안전 훅 | ②가 도는 **도중** | `[karpenter] orphan-node sweep ... pod ENIs cleared` · `[monitoring] ... Grafana Ingress ... deleted` 줄 |
+| ④ 검증=0 (★메인) | destroy 후 아래 블록 복붙 | 전부 `[]` 로 나오는 출력 |
+
+④ 검증 명령 — 복붙 후 그 출력을 찍는다(전부 `[]`면 잔존 0):
+
+```powershell
+$R="ap-northeast-2"
+aws eks list-clusters --region $R --query clusters
+aws rds describe-db-instances --region $R --query "DBInstances[].DBInstanceIdentifier"
+aws ec2 describe-vpcs --region $R --filters "Name=isDefault,Values=false" --query "Vpcs[].VpcId"
+aws lambda list-functions --region $R --query "Functions[?starts_with(FunctionName,'cnapp')].FunctionName"
+aws elbv2 describe-load-balancers --region $R --query "LoadBalancers[].LoadBalancerName"
+```
+
+> 남는 것 = `tfstate` · `cloudtrail-logs` · `config` S3 버킷 + Route53 (의도된 baseline, ~$0).
+> ⚠️ ②③은 **한 번의 destroy**에서 나온다 — ③(훅)은 진행 중, ②(완료 배너)는 끝 무렵. 놓치면 destroy를 또 돌려야 하니, 불안하면 destroy 전 구간을 **화면 녹화**해두고 프레임을 골라도 된다.
+
+X-Ray 서비스맵(`shot-xray-servicemap.png` — 웹 05섹션이 이 파일 없으면 자동 숨김)도 인프라 살아있을 때 같이 찍는다: AWS 콘솔 → X-Ray → 서비스맵(수집 → 정규화 → 상관 → 오케스트레이터 → 조치 5 Lambda).
+
 ## 이 방식으로 못 찍는 것
 
 **"실제 SSO 로그인 상태"** — 주소창 `cnapp-agentic.cloud` + 로그인 계정(APPROVER) 배지가 함께 필요한 샷(PPT 슬라이드 7)은
