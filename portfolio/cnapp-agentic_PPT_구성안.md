@@ -734,11 +734,25 @@ HITL 승인 경로 (실증 완료)
 
 [강조 문구] 6레이어 · 리소스 374개를 순서대로 apply → 검증 → destroy까지 완주, 잔존 리소스 0
 
-[시각자료 계획 — 현재의 X-Ray 서비스맵 placeholder를 교체. deploy.ps1 실행 터미널 캡처 4컷으로. ⚠️ 다음 "클린 apply→destroy 한 사이클"에서 촬영(2026-07-25 결정 — 이번엔 안 찍고 destroy만 함):]
-① apply 정방향 — `== terraform apply | order: shared -> karpenter -> target -> backend -> console -> monitoring ==` + 레이어별 `Apply complete! Resources: N added` + karpenter 헬스게이트 통과 라인
-② destroy 역방향 — `== terraform destroy | order: monitoring -> ... -> shared ==` + 레이어별 `Destroy complete! Resources: N destroyed`
-③ 안전 훅 실동작(차별점) — `[monitoring] releasing Grafana Ingress ALB → deleted` + `[karpenter] orphan-node sweep: terminating N node(s) → pod ENIs cleared`
-④ 검증=전부 0(★픽) — `EKS [] · RDS [] · VPC 없음 · Lambda [] · ALB [] · 미부착EIP [] · availableEBS []` + `잔존 = tfstate·cloudtrail·config 버킷 + Route53 (~$0)` — footer "apply→검증→destroy 완주, 잔존 0"을 화면으로 증명
+[시각자료 — 현재의 X-Ray 서비스맵 placeholder를 교체. deploy.ps1 실행 터미널 4컷. 촬영: 2026-07-27 클린 apply→destroy 사이클에서 진행.]
+
+[레이아웃] 왼쪽 세로 필름스트립(4컷 각각 핵심 2~3줄만 타이트 크롭 → 작아도 읽힘) + 캡션 한 줄 / 오른쪽은 위 3개 축(설계 내용) 그대로 유지.
+  ⚠️ 전체 터미널 통짜로 넣지 말 것 — 4장이 "검은 네모"가 되면 근거가 아니라 장식이 된다.
+  ⚠️ 4컷이 전부 "라이프사이클이 돈다"는 한 가지 증거라, 오른쪽 설계(3축)를 밀어내면 *설계* 슬라이드가 *deploy 로그 갤러리*가 된다 — 3축이 주인공, 필름스트립은 증거.
+
+[찍을 것 — 각 컷의 핵심 라인(실제 deploy.ps1 출력)]
+① apply 정방향 — `== terraform apply | order: shared -> karpenter -> target -> backend -> console -> monitoring ==` + 레이어별 `Apply complete! Resources: N added` + `[karpenter] controller healthy (rollout complete)`
+② destroy 역방향 — `== terraform destroy | order: monitoring -> console -> backend -> target -> karpenter -> shared ==` + 레이어별 `Destroy complete! Resources: N destroyed`
+③ 안전 훅 실동작(차별점) — `[karpenter] orphan-node sweep: terminating N leftover Karpenter node(s): i-...` + `[karpenter] deleting orphaned pod ENI eni-... (was pinning the node SG)` + `[monitoring] Grafana Ingress released (ALB deleted) -- safe to destroy monitoring`
+④ 검증=전부 0(★픽) — `aws` 쿼리 5종 + 출력 `[]`: `EKS [] · RDS [] · VPC [] · Lambda [] · ALB []` + `잔존 = tfstate·cloudtrail·config 버킷 + Route53 (~$0)`
+
+[캔바 캡션 — 각 크롭 옆에 한 줄]
+① 정방향 apply — shared→karpenter→target→backend→console→monitoring 순서를 코드가 강제
+② 역방향 destroy — monitoring→console→backend→target→karpenter→shared 자동 역순
+③ 고아 pod ENI·노드 자동 정리 → 노드 SG 잠김 방지
+④ destroy 후 EKS·RDS·VPC·Lambda·ALB 전부 0
+  ※ 크롭 스샷에 순서 체인이 이미 보이므로, 캡션이 길면 ①②를 "레이어 순서를 코드가 강제" / "자동 역순 순회"로 줄여도 무방.
+
 (대안 ④: shared destroy가 노드 SG DependencyViolation으로 멈춤 → 고아 pod ENI 삭제 → 재개 캡처 = "실패도 프로처럼 복구" 어필, 취향. ③이 이미 안전 훅을 보여주니 깔끔한 ④ 검증 추천)
 
 ---
