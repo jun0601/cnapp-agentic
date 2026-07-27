@@ -73,9 +73,10 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 
 `deploy.ps1` 실행 4컷으로 "순서를 코드로 강제 + 잔존 0"을 동작으로 증명한다. PPT 인프라 설계 슬라이드의 placeholder를 이 4컷으로 교체한다. **인프라를 올렸다 내리는 한 사이클에서 한 번에** 찍는다(콘솔·ArgoCD·X-Ray 캡처와 같은 세션).
 
-**터미널 세팅** — Windows Terminal → PowerShell 탭(VS Code 하단 패널 X · cmd X — `deploy.ps1`은 .ps1이라 PowerShell 필요) · 다크 테마 · 폰트 16pt · 창 넓게(줄바꿈 방지). 시작 전 이동:
+**터미널 세팅** — Windows Terminal → PowerShell 탭(VS Code 하단 패널 X · cmd X — `deploy.ps1`은 .ps1이라 PowerShell 필요) · 다크 테마 · 폰트 16pt · 창 넓게(줄바꿈 방지). 시작 전 — PowerShell 기본 실행 정책이 `.ps1`을 막으므로(`UnauthorizedAccess`) **현재 세션만** 허용(창 닫으면 원복, 시스템 영구변경 없음) + 레포 루트로 이동:
 
 ```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 cd F:\@_LEE_JH\AWS_클라우드\개인보안프로젝트\cnapp-agentic
 ```
 
