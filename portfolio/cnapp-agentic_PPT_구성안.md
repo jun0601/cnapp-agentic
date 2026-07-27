@@ -1001,39 +1001,35 @@ HITL 승인 경로 (실증 완료)
 
 **▶ 캔바에 그대로 넣을 카피 (준형 개인판 — 확정 4건):**
 > 4건 모두 `troubleshooting.md`·변경 로그에 **작성자 "준형"으로 기록된** 본인 실작업. 갈래를 일부러 다르게(비용·보안·인프라·데이터) 골라 "전 영역을 직접 만졌다"가 보이게 함.
-> 🎨 디자인 = **4장 카드**, 각 카드 세로로 [증상 → 원인 → 조치 → 결과 → 핵심]. before→after 수치는 색 강조.
-> ✍️ 톤 = 트러블슈팅이라 **기술 용어·설정값은 그대로 노출**(SQS batch_size·배칭 window·severity·pod ENI·멱등성 = 깊이의 증거). 단 맥락 없는 날 코드 조각(`?.`·`9/9`)만 기법 이름으로 풀어 쓴다(옵셔널 체이닝·전 페이지 렌더 검증).
+> 🎨 디자인 = **4장 카드**, 각 카드 세로로 [증상 → 원인 → 조치(→ 결과 수치) → 핵심]. 조치 끝 화살표 뒤 before→after 수치는 색 강조.
+> ✍️ 톤 = 트러블슈팅이라 **기술 용어·설정값은 그대로 노출**(SQS batch_size·배칭 window·severity·pod ENI·멱등성 = 깊이의 증거). 단 맥락 없는 날 코드 조각(`?.`·`9/9`)만 기법 이름으로 풀어 쓴다(옵셔널 체이닝·전 페이지 렌더 검증). 결과는 별도 행 없이 조치 끝에 흡수.
 
 [제목] 트러블슈팅 — 내가 직접 부딪힌 문제 4건
 
 [중제목] 비용·보안·인프라·데이터 — 갈래가 다른 4건을 직접 규명·해결
 
 [사례 1 · 비용/아키텍처 — Bedrock 호출 5배 폭증]
-· 증상: Security Hub 활성화 직후 Bedrock 호출 시간당 98 → 528 (5×), orchestrator 2h 1,053회
-· 원인: SQS batch_size=10인데 maximum_batching_window=0이라 메시지 1건마다 Lambda 기동 + suppressed뿐인 배치도 batch.completed 발행 + 재유입 finding이 트리아지 게이트를 재통과(멱등성 부재)
-· 조치: 배칭 window 30s + actionable finding 있을 때만 발행 + upsert RETURNING(xmax=0)로 신규 open만 엔진 기동
-· 결과: 5분당 60 → 1 (유입은 그대로, 엔진 기동만 차단)
+· 증상: Security Hub 활성화 직후 Bedrock 호출 시간당 98 → 528 (5×)
+· 원인: SQS batch_size=10인데 배칭 window=0 → 메시지 1건마다 Lambda 기동 · suppressed 배치도 발행 · 재유입 finding이 게이트 재통과(멱등성 부재)
+· 조치: 배칭 window 30s · actionable일 때만 발행 · upsert RETURNING(xmax=0)로 신규 open만 기동 → 5분당 60 → 1
 · 핵심: 트리아지 게이트는 "무엇을 조사할지"만 막지, "얼마나 자주 깨울지"는 별개 축이었다
 
 [사례 2 · 보안 정합성 — 보안 등급이 스캐너 실행 순서에 좌우]
 · 증상: Critical로 설계한 control이 Macie의 High 라벨과 병합되는 순간 severity가 조용히 강등
-· 원인: UPSERT가 sources는 union 누적하면서 severity_id는 EXCLUDED로 덮어써, "나중에 처리된 스캐너"가 등급을 결정
-· 조치: LEAST(findings.severity_id, EXCLUDED.severity_id)로 항상 더 심각한 쪽 유지 (전 다중소스 control)
-· 결과: 스캐너 처리 순서와 무관하게 최고 심각도 보장
+· 원인: UPSERT가 severity_id를 EXCLUDED로 덮어써, "나중에 처리된 스캐너"가 등급을 결정
+· 조치: LEAST(findings.severity_id, EXCLUDED.severity_id)로 항상 더 심각한 쪽 유지 → 처리 순서 무관 최고 심각도 보장
 · 핵심: 다중소스 병합의 승자는 "마지막 값"이 아니라 "더 심각한 값"이어야 한다
 
 [사례 3 · 인프라 수명주기 — 고아 노드가 destroy를 막음]
 · 증상: terraform destroy가 노드 SG DependencyViolation으로 반복 실패
-· 원인: Karpenter 컨트롤러가 노드 회수 전에 삭제돼 고아 스팟노드가 남고, 그 pod ENI(aws-K8S-*)가 GC되지 못해 노드 SG를 붙잡음
-· 조치: deploy.ps1 훅에 "karpenter.sh/nodepool 태그 인스턴스 종료 + available pod ENI 삭제(in-use 제외)" 자동 스윕 추가
-· 결과: destroy 수동복구 2회 → 자동화, 재발 0
+· 원인: Karpenter 컨트롤러가 노드 회수 전에 삭제돼 고아 pod ENI(aws-K8S-*)가 GC되지 못해 노드 SG를 붙잡음
+· 조치: deploy.ps1 훅에 "고아 노드 종료 + available pod ENI 삭제(in-use 제외)" 자동 스윕 → 수동복구 2회 → 자동화, 재발 0
 · 핵심: 분산 시스템 teardown은 순서가 전부 — 재발 방지를 문서가 아니라 코드로
 
 [사례 4 · 앱/데이터 정합 — 실데이터에서만 터진 크래시]
 · 증상: 목업(계약 JSON) 모드는 정상, 실 RDS 모드에서만 Finding 상세 크래시 + Evidence 탭 반쪽
-· 원인: 백엔드 실쿼리가 sources·case 필드를 누락 → 프론트에서 undefined.join() (mock=전 필드 vs real=선택 컬럼 2경로)
-· 조치: 실쿼리 SELECT에 누락 컬럼 추가 + 옵셔널 체이닝으로 프론트 방어 + playwright로 전 페이지(9개) 렌더 검증
-· 결과: 크래시 → 9개 페이지 전부 정상
+· 원인: 백엔드 실쿼리가 sources·case 필드를 누락 → 프론트에서 undefined.join() (mock=전 필드 vs real=선택 컬럼)
+· 조치: 실쿼리 SELECT에 누락 컬럼 추가 · 옵셔널 체이닝 방어 · playwright로 전 페이지(9개) 렌더 검증 → 9개 페이지 전부 정상
 · 핵심: "목업 통과"가 "실데이터 통과"는 아니다 — 두 경로를 필드 단위로 대조
 
 ---
