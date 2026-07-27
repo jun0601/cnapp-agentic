@@ -71,25 +71,53 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 
 ## 인프라 터미널 캡처 (PPT 인프라 설계 슬라이드용)
 
-`deploy.ps1` 실행 화면 4컷 — "순서를 코드로 강제 + 잔존 0"을 동작으로 증명한다.
-PPT 인프라 설계 슬라이드의 placeholder를 이 4컷으로 교체한다.
-**인프라를 올렸다 내리는 한 사이클에서 한 번에 찍는다**(콘솔/ArgoCD 캡처와 같은 세션).
+`deploy.ps1` 실행 4컷으로 "순서를 코드로 강제 + 잔존 0"을 동작으로 증명한다. PPT 인프라 설계 슬라이드의 placeholder를 이 4컷으로 교체한다. **인프라를 올렸다 내리는 한 사이클에서 한 번에** 찍는다(콘솔·ArgoCD·X-Ray 캡처와 같은 세션).
 
-**도구·보기 (이게 "깔끔하게 보이는" 전부):**
+**터미널 세팅** — Windows Terminal → PowerShell 탭(VS Code 하단 패널 X · cmd X — `deploy.ps1`은 .ps1이라 PowerShell 필요) · 다크 테마 · 폰트 16pt · 창 넓게(줄바꿈 방지). 시작 전 이동:
 
-- Windows Terminal → **PowerShell 탭** (VS Code 하단 패널 X · cmd X — `deploy.ps1`은 .ps1이라 PowerShell 필요)
-- 다크 테마 · 폰트 16pt · 창 넓게(줄바꿈 방지) · 매 컷 전 `clear`
+```powershell
+cd F:\@_LEE_JH\AWS_클라우드\개인보안프로젝트\cnapp-agentic
+```
 
-**4컷:**
+apply/destroy는 각각 수십 분 걸리고 로그가 스크롤로 밀린다 — 불안하면 세션 전체를 **화면 녹화**(OBS·Win+G)해두고 프레임을 골라도 된다. (아래 배너·완료줄·훅줄은 전부 `deploy.ps1`이 실제로 찍는 문구다.)
 
-| 컷 | 명령 / 시점 | 보이게 크롭할 것 |
-|---|---|---|
-| ① apply 정방향 | `.\infra\deploy.ps1 -Action apply -AutoApprove` (완료 후) | 맨 위 `order: shared -> ... -> monitoring` 배너 + 레이어별 `Apply complete! Resources: N added` |
-| ② destroy 역방향 | `.\infra\deploy.ps1 -Action destroy -AutoApprove` (완료 무렵) | `order: monitoring -> ... -> shared` + 레이어별 `Destroy complete! Resources: N destroyed` |
-| ③ 안전 훅 | ②가 도는 **도중** | `[karpenter] orphan-node sweep ... pod ENIs cleared` · `[monitoring] ... Grafana Ingress ... deleted` 줄 |
-| ④ 검증=0 (★메인) | destroy 후 아래 블록 복붙 | 전부 `[]` 로 나오는 출력 |
+---
 
-④ 검증 명령 — 복붙 후 그 출력을 찍는다(전부 `[]`면 잔존 0):
+#### ① apply 정방향 — 완료 후 캡처
+```powershell
+.\infra\deploy.ps1 -Action apply -AutoApprove
+```
+화면에서 볼 것:
+- 맨 위 배너(청록): `== terraform apply | order: shared -> karpenter -> target -> backend -> console -> monitoring ==`
+- 레이어마다 헤더 `--- [shared] terraform apply ---` … `--- [monitoring] terraform apply ---`
+- 각 레이어 끝에 terraform이 찍는 `Apply complete! Resources: N added, 0 changed, 0 destroyed.`
+- karpenter 통과줄: `[karpenter] controller healthy (rollout complete)`
+
+**강조(크롭):** ⓐ **order 배너**(순서를 코드가 강제) + ⓑ 6개 레이어의 `Apply complete!`가 위→아래로 이어진 부분을 한 화면에. (`[target] layer vars: -var enable_s3_public=true ...` 줄까지 보이면 "데모 결함을 코드로 켠다"는 근거로 덤.)
+
+#### ② destroy 역방향 — 완료 무렵 캡처
+```powershell
+.\infra\deploy.ps1 -Action destroy -AutoApprove
+```
+화면에서 볼 것:
+- 배너(청록): `== terraform destroy | order: monitoring -> console -> backend -> target -> karpenter -> shared ==`
+- 바로 아래(노랑): `(destroy is reverse: monitoring first -> shared last; Grafana Ingress ALB is auto-released before monitoring destroy)`
+- 레이어마다 `Destroy complete! Resources: N destroyed.`
+
+**강조(크롭):** **역방향 order 배너**(apply와 정반대 — monitoring 먼저, shared 마지막) + 노란 설명줄. 이 "역순"이 이 컷의 전부다.
+
+#### ③ 안전 훅 — ②가 도는 **도중** 캡처 (차별점)
+②destroy 진행 중 아래 훅 문구가 지나갈 때 잡는다:
+- `[karpenter] orphan-node sweep: terminating N leftover Karpenter node(s): i-...`
+- `[karpenter] deleting orphaned pod ENI eni-... (was pinning the node SG)`
+- `[karpenter] orphan-node sweep: nodes terminated + pod ENIs cleared -> node SG can now delete`
+- (monitoring 직전) `[monitoring] Grafana Ingress released (ALB deleted) -- safe to destroy monitoring`
+
+**강조(크롭):** 위 훅 문구 2~3줄. "고아 pod ENI 삭제 → 노드 SG 해제" 또는 "Grafana Ingress 먼저 놔줘 ALB 고아 방지" 중 하나가 보이면 됨. **남들 배포 스크립트엔 없는 방어 로직이라, 인프라 파트의 진짜 한 방이 이 컷이다.**
+> 고아 노드가 없던 destroy면 훅이 `[karpenter] orphan-node sweep: none found (controller deprovisioned cleanly)`만 찍는다 — 그럼 Grafana Ingress 줄로 대체.
+
+#### ④ 검증 = 전부 0 — destroy 후 캡처 (★메인픽)
+destroy가 끝난 뒤 아래 블록을 그대로 붙여넣고 **그 출력**을 찍는다(전부 `[]`면 잔존 0):
 
 ```powershell
 $R="ap-northeast-2"
@@ -100,10 +128,12 @@ aws lambda list-functions --region $R --query "Functions[?starts_with(FunctionNa
 aws elbv2 describe-load-balancers --region $R --query "LoadBalancers[].LoadBalancerName"
 ```
 
-> 남는 것 = `tfstate` · `cloudtrail-logs` · `config` S3 버킷 + Route53 (의도된 baseline, ~$0).
-> ⚠️ ②③은 **한 번의 destroy**에서 나온다 — ③(훅)은 진행 중, ②(완료 배너)는 끝 무렵. 놓치면 destroy를 또 돌려야 하니, 불안하면 destroy 전 구간을 **화면 녹화**해두고 프레임을 골라도 된다.
+**강조(크롭):** 명령과 그 아래 `[]` 출력이 나란히 보이게. 하단 문구 "apply→검증→destroy 완주, 잔존 0"을 화면으로 증명하는 컷이다.
 
-X-Ray 서비스맵(`shot-xray-servicemap.png` — 웹 05섹션이 이 파일 없으면 자동 숨김)도 인프라 살아있을 때 같이 찍는다: AWS 콘솔 → X-Ray → 서비스맵(수집 → 정규화 → 상관 → 오케스트레이터 → 조치 5 Lambda).
+> 남는 것 = `tfstate` · `cloudtrail-logs` · `config` S3 버킷 + Route53 (의도된 baseline, ~$0).
+> ⚠️ **②③은 한 번의 destroy에서 나온다** — ③(훅)은 진행 중, ②(완료 배너)는 끝 무렵. 놓치면 destroy를 또 돌려야 하니 화면 녹화 권장.
+
+**X-Ray 서비스맵**(`shot-xray-servicemap.png` — 웹 05섹션이 이 파일 없으면 자동 숨김)도 인프라 살아있을 때 같이 찍는다: AWS 콘솔 → X-Ray → 서비스맵(수집 → 정규화 → 상관 → 오케스트레이터 → 조치 5 Lambda).
 
 ## 이 방식으로 못 찍는 것
 
