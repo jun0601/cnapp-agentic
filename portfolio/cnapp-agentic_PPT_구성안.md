@@ -1016,19 +1016,19 @@ HITL 승인 경로 (실증 완료)
 
 [사례 2 · 보안 정합성 — 보안 등급이 스캐너 실행 순서에 좌우]
 · 증상: Critical로 설계한 control이 Macie의 High 라벨과 병합되는 순간 severity가 조용히 강등
-· 원인: UPSERT가 severity_id를 EXCLUDED로 덮어써, "나중에 처리된 스캐너"가 등급을 결정
+· 원인: UPSERT가 sources는 누적하는데 severity_id는 EXCLUDED로 덮어써, "나중에 처리된 스캐너"가 등급을 결정
 · 조치: LEAST(findings.severity_id, EXCLUDED.severity_id)로 항상 더 심각한 쪽 유지 → 처리 순서 무관 최고 심각도 보장
 · 핵심: 다중소스 병합의 승자는 "마지막 값"이 아니라 "더 심각한 값"이어야 한다
 
 [사례 3 · 인프라 수명주기 — 고아 노드가 destroy를 막음]
 · 증상: terraform destroy가 노드 SG DependencyViolation으로 반복 실패
 · 원인: Karpenter 컨트롤러가 노드 회수 전에 삭제돼 고아 pod ENI(aws-K8S-*)가 GC되지 못해 노드 SG를 붙잡음
-· 조치: deploy.ps1 훅에 "고아 노드 종료 + available pod ENI 삭제(in-use 제외)" 자동 스윕 → 수동복구 2회 → 자동화, 재발 0
+· 조치: deploy.ps1 훅에 "karpenter.sh/nodepool 태그 인스턴스 종료 + available pod ENI 삭제(in-use 제외)" 자동 스윕 → 수동복구 2회 → 자동화, 재발 0
 · 핵심: 분산 시스템 teardown은 순서가 전부 — 재발 방지를 문서가 아니라 코드로
 
 [사례 4 · 앱/데이터 정합 — 실데이터에서만 터진 크래시]
 · 증상: 목업(계약 JSON) 모드는 정상, 실 RDS 모드에서만 Finding 상세 크래시 + Evidence 탭 반쪽
-· 원인: 백엔드 실쿼리가 sources·case 필드를 누락 → 프론트에서 undefined.join() (mock=전 필드 vs real=선택 컬럼)
+· 원인: 백엔드 실쿼리가 sources·case(triage·model_trace) 컬럼을 누락 → 프론트에서 undefined.join() (mock=전 필드 vs real=선택 컬럼)
 · 조치: 실쿼리 SELECT에 누락 컬럼 추가 · 옵셔널 체이닝 방어 · playwright로 전 페이지(9개) 렌더 검증 → 9개 페이지 전부 정상
 · 핵심: "목업 통과"가 "실데이터 통과"는 아니다 — 두 경로를 필드 단위로 대조
 
