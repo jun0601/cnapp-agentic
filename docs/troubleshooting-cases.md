@@ -79,6 +79,18 @@
 - **조치** — `executable_apis()`를 enum으로 분리(enum ⊆ allowlist라 경계는 안 넓어짐).
 - **느낀점** — LLM에게 주는 선택지(enum)와 정책 경계(allowlist)는 별개다. 경계 목록을 곧장 선택지로 주면 못 쓰는 걸 고른다.
 
+### 2026-07-13 · [infra·apps-console] — 풀사이클 재apply마다 Cognito Pool ID가 재발급돼 SSO가 깨짐
+- **증상** — 인프라를 fresh apply(재생성)한 뒤 기존 로그인이 안 됨. SPA 로그인 버튼이 옛 Pool을 가리킴.
+- **원인** — destroy 후 재apply는 Cognito User Pool을 새로 만들어 Pool ID가 매번 바뀜(예: `ap-northeast-2_a4N8fqDUE`). SPA에 주입된 client/pool 참조가 어긋나고, Entra SAML 식별자(`urn:amazon:cognito:sp:<PoolId>`)도 옛 값이라 페더레이션이 끊김.
+- **조치** — 새 Pool ID로 SPA 재빌드·재배포 + Entra 앱 SAML 식별자 수동 교체. 이 재연결 절차를 재apply 런북(manual-infra)에 고정.
+- **느낀점** — apply→destroy를 반복하는 프로젝트에선 "재생성 때마다 바뀌는 식별자(Pool ID)"가 외부 연동(SSO)을 매번 깬다. 재현 가능성과 외부 신뢰관계는 상충하니 재연결 절차를 런북으로 남겨야 한다.
+
+### 2026-07-13 · [ci] — 헬스 캔어리가 계획된 destroy 중에 오탐 알림
+- **증상** — 인프라를 의도적으로 내리는 동안 live-health-canary(20분마다 SPA·API를 실제 호출)가 "서비스 다운"으로 Teams에 알람을 쏨.
+- **원인** — 사용자 관점 헬스 체크는 "계획된 destroy"와 "실제 장애"를 구분하지 못한다.
+- **조치** — destroy 전 캔어리 스케줄을 일시 정지(유지보수 창 동안 억제).
+- **느낀점** — 외형 프로빙 알림은 유지보수 창을 모른다. 계획된 다운타임엔 알림을 끄는 절차가 함께 있어야 한다.
+
 ### 2026-07-10 · [attackpath] — 멀티경로(1→3) 전환 라이브 배포 중 실버그 3건
 - **증상** — 리팩터 후 그래프 노드 라벨이 리소스와 불일치(재실행마다 다른 결과), 조치 후에도 콘솔이 옛 경로를 표시.
 - **원인** — ① `_first(control_id)`가 ORDER BY 없는 RDS 조회라 엉뚱한 행을 집음(비결정성) ② correlation이 없어진 경로를 DELETE 안 해 stale row 잔존 + backfill이 방금 삭제된 id를 되써 FK 위반.
