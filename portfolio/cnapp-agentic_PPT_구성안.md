@@ -617,7 +617,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통 (Phase1 slice, 무�
 
 **핵심 기술 포인트:**
 - **적재·검색 동일 모델 강제** — 코퍼스 적재(`CorpusLoader`)와 쿼리 임베딩이 반드시 같은 Titan Embed v2여야 벡터 공간이 맞음(임베딩 모델을 코드 상수로 고정, CI가 적재·검색 양쪽 일치 검사).
-- **코퍼스 규모** — 15개 INTERNAL control · 26개 청크(한국어). control_id 기반 인덱스(`idx_rag_control`)로 finding→설명 직접 매핑도 가능.
+- **코퍼스 커버리지** — INTERNAL 보안 통제 **15종 전체를 지식베이스로 커버**(한국어 청크 26개). control_id 기반 인덱스(`idx_rag_control`)로 finding→설명 직접 매핑.
 - **2가지 실사용처**: ① Finding 상세의 "설명" 탭(control_id 기반 자동 근거 설명, `finding_explanations` 테이블) ② `/chat` AI 어시스턴트(자유 질의응답).
 - 강조 문구: "Evidence(조사 루프)와는 별개 파이프라인 — 같은 Bedrock, 다른 목적(판정 vs 설명·검색)"
 - 🎨 **시각자료(박스+아이콘 혼합)**: ① RAG 파이프라인 흐름(질문→Titan Embed→pgvector cosine 검색→Bedrock 답변)을 **박스+화살표로 제작** — Titan·Bedrock은 서비스 아이콘 있음, pgvector 검색은 개념 박스(아이콘 없음)라 혼합. draw.io/캔바 어느 쪽이든 무방. + ② `/chat` 화면 또는 finding 설명 탭 **스크린샷**(근거 chunk가 control_id로 인용되는 부분). 다이어그램 + 스크린샷 조합이면 "구조 + 실동작"이 같이 보임.
@@ -674,7 +674,7 @@ E2E — 배포→조사→판정→정리 전 구간 관통 (Phase1 slice, 무�
 
 [제목] 보안 거버넌스 & 플랫폼 자기방어
 
-[중제목] 취약점을 찾는 보안 도구일수록 자기 자신부터 안전해야 하는 만큼, 이 플랫폼도 동일한 보안 원칙을 스스로 적용
+[중제목] 제품이 타깃에서 잡아내는 결함을 플랫폼 자신에게도 적용 — WAF·SSO 페더레이션·키리스 인증·불변 감사 + Read-only/HITL 거버넌스, JWT 서명 미검증 권한상승 취약점도 스스로 발견·봉합
 
 [▸ 플랫폼 자기방어 — 왼쪽 도식 3층과 대응]
 
@@ -1045,6 +1045,8 @@ HITL 승인 경로 (실증 완료)
   - **0건** — HITL 조치 실행 후 terraform drift(재apply 시 원복 안 됨)
 - 보조 설명: 실 Bedrock Claude Haiku가 실 S3를 스스로 read-only 조사 → CONFIRMED 판정 / kube-bench·Trivy·IAM Access Analyzer·Prowler(AWS/Azure) 실 라이브 스캔 관통 / 조치 승인 → 실 Step Functions 실행 → Secure Score 상승까지 실증 / CloudFront WAF로 실 XSS 공격 차단 확인
 - (비용은 16번 FinOps에서 다룸 — 여기선 절대 비용 숫자를 넣지 않는다)
+- 🔍 **리뷰어 직접 검증(README §30초와 동일)** — AWS 계정 없이 `python contracts/validate.py`(계약 4-assert) + `python run_e2e.py`(스캐너→정규화→상관→엔진→RAG 관통)가 **로컬에서 30초**에 돈다. "직접 돌려볼 수 있는 포폴"은 드물어 리뷰어 신뢰를 크게 높이는 소재 — 표지 또는 이 슬라이드에 한 줄 넣을 가치.
+- ⚠️ **finding 개수엔 반드시 기준일** — 스캐너 활성 상태에 따라 변동한다(골든 20 → 전 스캐너 활성 시 **400+건**·open 30). 예: "실 스캔 유입 **400+건**(2026-07-28 전 스캐너 활성 기준)". troubleshooting.md·변경 로그의 71·23 등은 **날짜별 작업 로그의 스냅샷**이라 기준일이 다르면 수가 다른 게 정상 — 성과 슬라이드엔 기준일 하나만 박고 그 로그들과 대조하지 않는다.
 
 ### 21. 데모 영상 / 마무리
 - "감사합니다" + "실 배포·실 검증까지 완료한 상태이며, 발견되는 문제는 하나씩 보완하며 운영을 고도화하고 있습니다."

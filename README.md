@@ -22,7 +22,7 @@
 
 | 항목 | 실측값 |
 |---|---|
-| 인프라 풀사이클 | Terraform **6레이어 · 리소스 207개** apply → 검증 → destroy (잔존 비용 0) |
+| 인프라 풀사이클 | Terraform **6레이어 · 리소스 374개** apply → 검증 → destroy (잔존 비용 0) |
 | 실 취약점 탐지 | Trivy가 실 ECR 이미지에서 **CVE 205개** · kube-bench가 CIS 4.1.1(cluster-admin 과다바인딩) 실탐지 |
 | 에이전틱 능동조사 | Bedrock이 read-only API를 **스스로 선택·호출**해 공개 S3 조사 → **CONFIRMED (confidence 100%)** |
 | 조사 권한 경계 | **AWS 9종 + Azure MS Graph 3종** allowlist, 스키마 enum + 실행 직전 2겹 강제 |
@@ -199,7 +199,7 @@ cnapp-agentic/
 | 📚 **RAG (`rag/`)** | ✅ **라이브** — Titan Embed v2(1024-dim) **26청크·15 control 적재** → pgvector cosine(HNSW) → Bedrock 답변. `/chat`이 근거 청크(control_id)를 함께 반환하고, 엔진 판정에도 `rag_refs`가 실린다. 적재는 `python -m rag.corpus.load_live`(**재apply 때마다 필요** — `rag_chunks`는 RDS에 있어 destroy와 함께 사라짐) |
 | 🕸️ **attack-path (`attackpath/`)** | ✅ R1~R5 상관 + 그래프 모델 · 2-pass backfill. 실 RDS 기준 재계산(골든 5노드 크로스클라우드 체인) |
 | ⚡ **조치 (Remediation)** | ✅ **HITL 실증** — approver 승인 → `remediation_requests` INSERT → Step Functions `StartExecution` → finding remediated → Secure Score 상승. S3 Object Lock 불변 감사. terraform drift 0 |
-| 🏗️ **인프라 (`infra/`)** | ✅ **라이브 풀사이클** — 레이어드 **6층 · 리소스 207개** apply→검증→destroy 반복 실증(`deploy.ps1`이 순서 강제, 잔존 0). VPC(NAT Instance)·EKS 1.34(Karpenter spot)·RDS PG16+pgvector(7테이블)·Lambda VPC 배치. 키리스(GitHub OIDC·IRSA) |
+| 🏗️ **인프라 (`infra/`)** | ✅ **라이브 풀사이클** — 레이어드 **6층 · 리소스 374개** apply→검증→destroy 반복 실증(`deploy.ps1`이 순서 강제, 잔존 0). VPC(NAT Instance)·EKS 1.34(Karpenter spot)·RDS PG16+pgvector(7테이블)·Lambda VPC 배치. 키리스(GitHub OIDC·IRSA) |
 | 🔐 **거버넌스 · 하드닝** | ✅ CloudFront WAF(실 XSS 차단 확인) · JWT 서명검증(`aws-jwt-verify`) · 전구간 TLS · read-only first · 불변 감사(Object Lock) |
 | 📊 **운영 관측 (`infra/monitoring`)** | ✅ **라이브** — Grafana(4소스: Prometheus·CloudWatch·PostgreSQL·X-Ray) · CloudWatch 24위젯·알람 7종 · X-Ray 5 Lambda 분산추적 · CloudTrail 연동 · Teams 알림 3채널 |
 | ⚙️ **CI/CD (`.github/`·`gitops/`)** | ✅ CI(회귀 10종 + Trivy/Checkov Shift-Left) · 이미지빌드(OIDC 키리스→ECR) · ArgoCD GitOps · cron 자동스캔(Prowler·Access Analyzer)·라이브 헬스 캔어리 |
