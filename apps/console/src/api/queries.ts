@@ -76,7 +76,9 @@ export interface ChatRef {
 }
 export function useChat() {
   return useMutation({
-    mutationFn: (q: string) => apiPost<{ answer: string; refs: ChatRef[] }>('/chat', { q }),
+    // ALB가 비ASCII 요청 본문을 Lambda로 못 넘겨 502를 내므로(2026-07-28 실측) q를 percent-encoding해
+    // 본문을 ASCII로 유지한다. 백엔드(handler.ts)가 decodeURIComponent로 되돌린다.
+    mutationFn: (q: string) => apiPost<{ answer: string; refs: ChatRef[] }>('/chat', { q: encodeURIComponent(q) }),
   })
 }
 

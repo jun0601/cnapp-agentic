@@ -102,7 +102,9 @@ export async function handler(event: AlbEvent): Promise<AlbResult> {
       if (path === '/chat') {
         const body = safeJson(event.body) as { q?: string }
         // 자연어 질의 → RAG(Titan 임베딩 → pgvector → Sonnet). mock이면 템플릿 에코.
-        return json(200, await data.chatAnswer(body.q ?? ''))
+        // ⚠️ ALB는 비ASCII 요청 본문을 Lambda로 못 넘기고 502를 낸다(2026-07-28 실측) → 클라이언트가
+        // q를 percent-encoding해 본문을 ASCII로 유지하고, 여기서 decodeURIComponent로 되돌린다.
+        return json(200, await data.chatAnswer(safeDecode(body.q ?? '')))
       }
     }
 
@@ -118,5 +120,15 @@ function safeJson(body: string | null | undefined): unknown {
     return JSON.parse(body)
   } catch {
     return {}
+  }
+}
+
+// 클라이언트가 percent-encoding한 질의를 되돌린다(ALB 비ASCII 본문 502 회피, 위 /chat 주석 참고).
+// 인코딩 안 된 평문은 대부분 그대로 통과하지만 홀로 있는 '%' 등 잘못된 시퀀스엔 throw하므로 원문 폴백.
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s)
+  } catch {
+    return s
   }
 }
