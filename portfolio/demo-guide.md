@@ -65,7 +65,7 @@
 
 ## 7. 조치(HITL) + 감사 — 안전장치 (30초)
 
-- **조치**: 승인 대기 큐 → (approver로) 승인 → "Step Functions로 실행되고 **감사로그에 불변 기록(S3 Object Lock)**됩니다."
+- **조치**: 조치 큐의 **"member-pii-prod S3 서버측 암호화 활성화"** → (approver로) 승인 → "Step Functions로 실행되고 **감사로그에 불변 기록(S3 Object Lock)**됩니다." *(큐엔 드리프트 없는 조치만 노출 — 승인 시 실 SSE-S3 적용→finding remediated→Secure Score↑, dry-run 검증 완료. ⚠️ 승인하면 그 finding은 remediated로 소모되니 재녹화 땐 `status='open'` 복원 필요)*
 - **감사로그** 잠깐: "모든 판정·조치·스캔이 시간순 불변 기록. **read-only first, 변경은 승인 경로로만**."
 
 ## 8. 클로징 — 아키텍처 + 기술스택 (20~30초)
