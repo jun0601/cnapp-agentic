@@ -16,7 +16,7 @@
 
 > 관제 콘솔의 attack-path 화면. 현재 posture에서 발견된 **독립 공격 경로 3개**를 위험도순으로 세우고, 선택한 경로를 AWS(워크로드)·Azure(신원) 레인으로 나눠 그린다. **빨간 점선이 클라우드 경계를 넘는 엣지** — `order` 파드의 평문 시크릿에서 얻은 Azure 자격증명으로 Entra ID를 장악하는 구간이다. 개별로는 중간 위험인 finding들이 묶여 Critical 경로가 되는 지점이 CNAPP의 핵심.
 >
-> 화면 데이터는 전부 실 RDS 값이다. 다른 화면(대시보드·RAG 챗·ArgoCD GitOps 등)과 **각 이미지가 무엇을 증명하는지·어떻게 재현하는지**는 [`screenshots/README.md`](screenshots/README.md) 참조.
+> 화면 데이터는 전부 실 RDS 값이다. 대시보드·RAG 챗·ArgoCD GitOps 등 다른 실행 화면은 [`screenshots/`](screenshots/) 폴더에 있다.
 
 ### 📊 실측 검증 수치
 
@@ -52,7 +52,6 @@ python run_e2e.py              # 스캐너 → 정규화 → 상관(attack-path)
 | [docs/console-manual.md](docs/console-manual.md) | 📖 **관제 콘솔 사용 매뉴얼** — "무엇을 보고 무엇을 누르나". 화면별 기능·AI 동작·데모 시연 동선·FAQ. **앱 파악용 첫 문서.** |
 | [docs/manual-infra.md](docs/manual-infra.md) | **수동 관리 리소스 현황** — 콘솔/CLI로 직접 설정한 리소스(계정 초기화·Terraform 부트스트랩·Azure SSO 등). Terraform 관리 대상 제외. |
 | [docs/cost-strategy.md](docs/cost-strategy.md) | 💰 **비용 최적화 전략** — 프로덕션급 아키텍처를 저비용으로 증명한 FinOps 결정 원장(mock-first·경량 대체·모델 티어링·destroy 규율 + 정직한 트레이드오프). |
-| [portfolio/cnapp-agentic_PPT_구성안.md](portfolio/cnapp-agentic_PPT_구성안.md) | 🎞️ **포트폴리오 PPT 구성안** — 발표/PDF 포폴 슬라이드 설계(20장). |
 | [CLAUDE.md](CLAUDE.md) | **작업 기준·협업 규칙 + 변경 로그** — 위 설계서들의 요약 + 협업 규칙. 상세 변경 이력. |
 
 ---
@@ -101,8 +100,6 @@ python run_e2e.py              # 스캐너 → 정규화 → 상관(attack-path)
 
 **연결 구조 (agentless):** 점검 대상인 타깃 앱은 클라우드 계정에 *배포*만 되고, 스캐너가 계정을 외부에서 **read-only로 스캔**한다. findings는 수집 파이프라인을 거쳐 정규화·저장되며, 관제 앱은 그 저장소를 읽어 표시한다. 타깃 앱과 관제 앱 사이의 직접 통신은 없다.
 
-> 전체 아키텍처 다이어그램: [portfolio/cnapp-architecture-overview.drawio](portfolio/cnapp-architecture-overview.drawio)
-
 ---
 
 ## 🧰 기술 스택
@@ -135,7 +132,6 @@ cnapp-agentic/
 ├── gitops/                   CD(ArgoCD Application) + 오토스케일(Karpenter·HPA) + monitoring(Grafana 대시보드) 선언형
 ├── contracts/                ★공유 이음새 계약(7 JSON) + control-catalog(15종) + 골든 mock 3종 + validate.py(4-assert)
 ├── docs/                     설계 SSOT — project-draft · target/console-app-design · console-manual · manual-infra · cost-strategy
-├── portfolio/                포폴 자산 — 아키텍처 drawio · PPT 구성안
 ├── apps/
 │   ├── target/               취약 타깃 앱 (product · order · member[FastAPI] + PII seeder)
 │   ├── console/              관제 앱 프론트 (Vite+React+TS · 9화면 · 실 RDS 라이브)
